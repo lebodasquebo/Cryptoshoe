@@ -1,0 +1,21 @@
+.admin-main{max-width:900px;margin:0 auto;padding:24px}
+.admin-main h1{font-size:28px;margin-bottom:24px;color:var(--accent)}
+.admin-section{background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);padding:20px;margin-bottom:20px}
+.admin-section h2{font-size:18px;margin-bottom:16px;color:var(--text)}
+.admin-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.admin-form input,.admin-form select{padding:10px 14px;border-radius:6px;border:1px solid var(--bg4);background:var(--bg3);color:var(--text);font-size:14px}
+.admin-form input{flex:1;min-width:120px}
+.admin-form select{min-width:200px;max-width:300px}
+.admin-form button{padding:10px 20px;border:none;border-radius:6px;font-weight:600;cursor:pointer;transition:all 0.2s}
+.admin-form button:hover{transform:translateY(-1px)}
+.admin-form button{background:var(--accent);color:var(--bg)}
+.give-btn{background:var(--green)!important;color:var(--bg)!important}
+.take-btn{background:var(--red)!important;color:#fff!important}
+.refresh-btn{padding:12px 24px;background:var(--accent);color:var(--bg);border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer}
+.refresh-btn:hover{background:var(--accent2)}
+#users-list{display:grid;gap:10px;max-height:400px;overflow-y:auto}
+.admin-user{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--bg3);border-radius:8px}
+.admin-user-name{font-weight:600;color:var(--text)}
+.admin-user-stats{display:flex;gap:16px;font-size:13px;color:var(--text2)}
+.admin-user-stat{display:flex;gap:4px}
+.admin-user-val{color:var(--accent);font-weight:600}

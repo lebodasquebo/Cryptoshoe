@@ -43,6 +43,7 @@ def init():
     d = db()
     d.executescript("""
     create table if not exists accounts(id text primary key, username text unique, password text, created integer);
+    create table if not exists signup_cooldowns(ip text primary key, last_signup integer);
     create table if not exists shoes(id integer primary key, name text unique, rarity text, base real);
     create table if not exists users(id text primary key, balance real);
     create table if not exists global_state(id integer primary key, last_stock integer, last_price integer);
@@ -78,8 +79,8 @@ def pick(w):
             return i
     return len(w) - 1
 
-RARITIES = ["common","uncommon","rare","epic","legendary","mythic","secret"]
-WEIGHTS = [45,25,15,8,4,2,1]
+RARITIES = ["common","uncommon","rare","epic","legendary","mythic","secret","dexies","lebos"]
+WEIGHTS = [40,22,14,10,6,4,2,1.5,0.5]
 BASE_PRICES = {
     "common": (500, 1500),
     "uncommon": (1200, 3500),
@@ -88,16 +89,33 @@ BASE_PRICES = {
     "legendary": (15000, 40000),
     "mythic": (35000, 90000),
     "secret": (80000, 250000),
+    "dexies": (200000, 500000),
+    "lebos": (500000, 2000000),
 }
 VOLATILITY = {
-    "common": 1.4,
-    "uncommon": 1.6,
-    "rare": 1.8,
-    "epic": 2.2,
-    "legendary": 2.8,
-    "mythic": 3.5,
-    "secret": 4.5,
+    "common": 1.2,
+    "uncommon": 1.4,
+    "rare": 1.6,
+    "epic": 1.9,
+    "legendary": 2.3,
+    "mythic": 2.8,
+    "secret": 3.4,
+    "dexies": 3.8,
+    "lebos": 4.25,
 }
+ADMIN_USERS = ["lebodapotato"]
+
+DEXIES_SHOES = [
+    "Dexies Phantom Protocol", "Dexies Neural Apex", "Dexies Quantum Flux",
+    "Dexies Void Walker", "Dexies Neon Genesis", "Dexies Cyber Nexus",
+    "Dexies Hologram Prime", "Dexies Infinity Core", "Dexies Plasma Edge",
+    "Dexies Dark Matter", "Dexies Stellar Drift", "Dexies Zero Gravity"
+]
+LEBOS_SHOES = [
+    "Lebos Divine Ascension", "Lebos Eternal Crown", "Lebos Celestial One",
+    "Lebos Golden Throne", "Lebos Supreme Omega", "Lebos Apex Deity",
+    "Lebos Immortal Reign", "Lebos Cosmic Emperor", "Lebos Ultimate Genesis"
+]
 
 def seed():
     d = db()
@@ -109,14 +127,22 @@ def seed():
     c = ["One","II","III","IV","V","Prime","Edge","Core","Zero","Plus","Max","Ultra","Lite","Pro","XR","GT","NX","MK","FX","VX"]
     names = set()
     rows = []
-    while len(rows) < 130:
+    normal_rarities = ["common","uncommon","rare","epic","legendary","mythic","secret"]
+    normal_weights = [40,22,14,10,6,4,2]
+    while len(rows) < 120:
         name = f"{random.choice(a)} {random.choice(b)} {random.choice(c)}"
         if name in names:
             continue
         names.add(name)
-        rr = RARITIES[pick(WEIGHTS)]
+        rr = normal_rarities[pick(normal_weights)]
         lo, hi = BASE_PRICES[rr]
         rows.append((name, rr, round(random.uniform(lo, hi), 2)))
+    for name in DEXIES_SHOES:
+        lo, hi = BASE_PRICES["dexies"]
+        rows.append((name, "dexies", round(random.uniform(lo, hi), 2)))
+    for name in LEBOS_SHOES:
+        lo, hi = BASE_PRICES["lebos"]
+        rows.append((name, "lebos", round(random.uniform(lo, hi), 2)))
     d.executemany("insert or ignore into shoes(name, rarity, base) values(?,?,?)", rows)
     d.commit()
 
@@ -140,6 +166,8 @@ def stock_amt(r):
         "legendary": (2, 8),
         "mythic": (1, 5),
         "secret": (1, 3),
+        "dexies": (1, 2),
+        "lebos": (1, 1),
     }[r]
 
 def refresh(force=False):
@@ -153,10 +181,12 @@ def refresh(force=False):
     d.execute("delete from market")
     picked = set()
     rows = []
-    while len(rows) < 15:
-        rr = RARITIES[pick(WEIGHTS)]
+    normal_rarities = ["common","uncommon","rare","epic","legendary","mythic","secret"]
+    normal_weights = [40,22,14,10,6,4,2]
+    while len(rows) < 14:
+        rr = normal_rarities[pick(normal_weights)]
         shoe = d.execute("select * from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()
-        if shoe["id"] in picked:
+        if not shoe or shoe["id"] in picked:
             continue
         picked.add(shoe["id"])
         lo, hi = stock_amt(rr)
@@ -165,6 +195,29 @@ def refresh(force=False):
         vol = VOLATILITY[rr]
         price = round(base * (1 + random.uniform(-0.15, 0.15) * vol), 2)
         rows.append((shoe["id"], stock, price, base, "", 0.0, 0))
+        d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe["id"], now, price))
+    if random.random() < 0.01:
+        rr = "lebos" if random.random() < 0.25 else "dexies"
+        shoe = d.execute("select * from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()
+        if shoe and shoe["id"] not in picked:
+            picked.add(shoe["id"])
+            lo, hi = stock_amt(rr)
+            stock = random.randint(lo, hi)
+            vol = VOLATILITY[rr]
+            price = round(shoe["base"] * (1 + random.uniform(-0.15, 0.15) * vol), 2)
+            rows.append((shoe["id"], stock, price, shoe["base"], "", 0.0, 0))
+            d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe["id"], now, price))
+    while len(rows) < 15:
+        rr = normal_rarities[pick(normal_weights)]
+        shoe = d.execute("select * from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()
+        if not shoe or shoe["id"] in picked:
+            continue
+        picked.add(shoe["id"])
+        lo, hi = stock_amt(rr)
+        stock = random.randint(lo, hi)
+        vol = VOLATILITY[rr]
+        price = round(shoe["base"] * (1 + random.uniform(-0.15, 0.15) * vol), 2)
+        rows.append((shoe["id"], stock, price, shoe["base"], "", 0.0, 0))
         d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe["id"], now, price))
     d.executemany("insert into market(shoe_id, stock, price, base, news, news_val, news_until) values(?,?,?,?,?,?,?)", rows)
     d.execute("update global_state set last_stock=? where id=1", (now,))
@@ -445,6 +498,16 @@ def api_signup():
     data = request.json
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    if ip:
+        ip = ip.split(",")[0].strip()
+    d = db()
+    now = int(time.time())
+    cooldown = d.execute("select last_signup from signup_cooldowns where ip=?", (ip,)).fetchone()
+    if cooldown and now - cooldown["last_signup"] < 3600:
+        remaining = 3600 - (now - cooldown["last_signup"])
+        mins = remaining // 60
+        return jsonify({"ok": False, "error": f"You can't make a new account so soon. Please try again in {mins} minutes."})
     if not username or len(username) < 3:
         return jsonify({"ok": False, "error": "Username must be at least 3 characters"})
     if len(username) > 20:
@@ -453,15 +516,15 @@ def api_signup():
         return jsonify({"ok": False, "error": "Username must be alphanumeric"})
     if not password or len(password) < 4:
         return jsonify({"ok": False, "error": "Password must be at least 4 characters"})
-    d = db()
     existing = d.execute("select id from accounts where username=?", (username,)).fetchone()
     if existing:
         return jsonify({"ok": False, "error": "Username already taken"})
     user_id = uuid.uuid4().hex
     d.execute("insert into accounts(id, username, password, created) values(?,?,?,?)", 
-              (user_id, username, hash_pw(password), int(time.time())))
+              (user_id, username, hash_pw(password), now))
     d.execute("insert into users(id, balance, last_income) values(?,?,?)", 
               (user_id, 10000, 0))
+    d.execute("insert or replace into signup_cooldowns(ip, last_signup) values(?,?)", (ip, now))
     d.commit()
     session["user_id"] = user_id
     session["username"] = username
@@ -476,19 +539,19 @@ def logout():
 @login_required
 def home():
     uid()
-    return render_template("index.html")
+    return render_template("index.html", is_admin=is_admin())
 
 @app.route("/inventory")
 @login_required
 def inventory():
     uid()
-    return render_template("inventory.html")
+    return render_template("inventory.html", is_admin=is_admin())
 
 @app.route("/shoe/<int:shoe_id>")
 @login_required
 def shoe_page(shoe_id):
     uid()
-    return render_template("details.html", shoe_id=shoe_id)
+    return render_template("details.html", shoe_id=shoe_id, is_admin=is_admin())
 
 @app.route("/api/state")
 def api_state():
@@ -599,40 +662,68 @@ def sell_all():
 @login_required
 def appraise_page():
     uid()
-    return render_template("appraise.html")
+    return render_template("appraise.html", is_admin=is_admin())
 
+BOB_FACTORS = {
+    "stitching": ["stitching", "thread work", "seam alignment", "binding"],
+    "material": ["leather grain", "fabric weave", "material texture", "surface finish"],
+    "sole": ["sole integrity", "tread pattern", "cushioning", "arch support"],
+    "symmetry": ["symmetry", "shape uniformity", "proportions", "form balance"],
+    "color": ["color saturation", "dye consistency", "hue depth", "finish evenness"],
+    "detail": ["logo embossing", "branding details", "accent placement", "trim quality"]
+}
 BOB_COMMENTS = {
     "perfect": [
-        "🤯 HOLY SMOKES! This is... this is PERFECTION! I've never seen anything like it!",
-        "😱 I... I need to sit down. This is the greatest shoe I've ever witnessed!",
-        "🏆 In my 40 years of appraising, I've never given a perfect 10. Until now.",
+        "🤯 HOLY SMOKES! This is... this is PERFECTION! I've checked the {factor1}, the {factor2}, everything! FLAWLESS!",
+        "😱 I... I need to sit down. The {factor1} alone is museum-worthy. And that {factor2}? Unprecedented!",
+        "🏆 In my 40 years of appraising, I've never given a perfect 10. The {factor1} and {factor2} changed that today.",
+        "💎 *Adjusts monocle* My word... pristine {factor1}, impeccable {factor2}. This is the holy grail!",
+        "🔥 I'm literally shaking! The {factor1} is otherworldly. The {factor2}? Divine craftsmanship!",
     ],
     "excellent": [
-        "🌟 Magnificent! The craftsmanship here is extraordinary!",
-        "✨ Now THIS is what I call a premium specimen!",
-        "👏 Exceptional quality! You've got a real gem here!",
+        "🌟 Magnificent! The {factor1} here is extraordinary, and the {factor2}? Top tier!",
+        "✨ Now THIS is premium! {factor1} rates exceptional, {factor2} near-perfect. Impressive!",
+        "👏 Exceptional! I've examined the {factor1} closely - outstanding. {factor2} follows suit!",
+        "💫 *Chef's kiss* The {factor1} sings! And that {factor2}... this is collector-grade!",
+        "🎖️ Military-grade {factor1} here. Combined with stellar {factor2}, you've got a winner!",
     ],
     "good": [
-        "👍 Solid piece! Above average quality for sure.",
-        "😊 Nice! This one's got some good features.",
-        "📈 Looking good! Definitely worth more than base.",
+        "👍 Solid piece! The {factor1} is above average, and I'm pleased with the {factor2}.",
+        "😊 Nice! Inspecting the {factor1}... good! The {factor2} holds up well too.",
+        "📈 Looking good! {factor1} passes my tests. {factor2} is respectable. Worth a premium!",
+        "✅ The {factor1} meets high standards. {factor2} is consistent. Solid investment!",
+        "💪 Strong showing! {factor1} is well-executed. {factor2} adds to the value here.",
     ],
     "average": [
-        "🤔 Hmm, it's... fine. Nothing special, nothing terrible.",
-        "😐 Average quality. Seen better, seen worse.",
-        "📊 Right in the middle. Standard specimen.",
+        "🤔 Hmm, checking the {factor1}... it's fine. {factor2} is average. Nothing special.",
+        "😐 The {factor1} is standard, {factor2} unremarkable. Seen better, seen worse.",
+        "📊 Middle of the road. {factor1}: acceptable. {factor2}: passable. That's about it.",
+        "➡️ Neither impressed nor disappointed by the {factor1}. {factor2} is equally median.",
+        "🤷 It's... fine? {factor1} won't turn heads. {factor2} is just okay. Market rate.",
     ],
     "poor": [
-        "😬 Oof... I've seen better days on these.",
-        "👎 Not great, I'm afraid. Some issues here.",
-        "📉 Below average. The market won't love this one.",
+        "😬 Oof... the {factor1} has issues. And the {factor2}? Substandard, I'm afraid.",
+        "👎 Not great. Examining the {factor1} reveals flaws. {factor2} disappoints too.",
+        "📉 Below average. {factor1} shows wear concerns. {factor2} underperforms expectations.",
+        "⚠️ Red flags on the {factor1}. The {factor2} compounds my concerns here.",
+        "😕 Troubling {factor1} quality. {factor2} doesn't save it. Market will be harsh.",
     ],
     "terrible": [
-        "😰 Oh dear... I hate to be the bearer of bad news...",
-        "💀 Yikes. This one's rough. Real rough.",
-        "🗑️ I... wow. This is pretty bad. Sorry, friend.",
+        "😰 Oh dear... the {factor1} is compromised. And the {factor2}? Don't get me started...",
+        "💀 Yikes. {factor1} is rough. Real rough. {factor2} makes it worse. I'm sorry.",
+        "🗑️ The {factor1} alone tanks this. Add the {factor2} situation and... yikes.",
+        "🚨 Critical failures in {factor1}. The {factor2} seals the deal. This hurts to rate.",
+        "😵 *Sighs heavily* {factor1}: damaged. {factor2}: inadequate. This one's in trouble.",
     ],
 }
+
+def bob_comment(tier):
+    factors = list(BOB_FACTORS.keys())
+    f1, f2 = random.sample(factors, 2)
+    detail1 = random.choice(BOB_FACTORS[f1])
+    detail2 = random.choice(BOB_FACTORS[f2])
+    template = random.choice(BOB_COMMENTS[tier])
+    return template.format(factor1=detail1, factor2=detail2)
 
 @app.route("/api/appraise", methods=["POST"])
 def do_appraise():
@@ -658,22 +749,22 @@ def do_appraise():
         rating = round(random.uniform(1.0, 10.0), 1)
         if rating == 10.0:
             multiplier = 2.0
-            comment = random.choice(BOB_COMMENTS["perfect"])
+            comment = bob_comment("perfect")
         elif rating >= 8.0:
             multiplier = 1.0 + (rating - 5.0) * 0.08
-            comment = random.choice(BOB_COMMENTS["excellent"])
+            comment = bob_comment("excellent")
         elif rating >= 6.0:
             multiplier = 1.0 + (rating - 5.0) * 0.06
-            comment = random.choice(BOB_COMMENTS["good"])
+            comment = bob_comment("good")
         elif rating >= 5.0:
             multiplier = 1.0 + (rating - 5.0) * 0.04
-            comment = random.choice(BOB_COMMENTS["average"])
+            comment = bob_comment("average")
         elif rating >= 3.0:
             multiplier = 1.0 - (5.0 - rating) * 0.08
-            comment = random.choice(BOB_COMMENTS["poor"])
+            comment = bob_comment("poor")
         else:
             multiplier = 1.0 - (5.0 - rating) * 0.12
-            comment = random.choice(BOB_COMMENTS["terrible"])
+            comment = bob_comment("terrible")
         multiplier = round(multiplier, 2)
         d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (u, shoe_id, rating, multiplier, now))
         results.append({"rating": rating, "multiplier": multiplier, "comment": comment, "perfect": rating == 10.0, "rating_class": rating_class(rating)})
@@ -693,12 +784,12 @@ def do_appraise():
 @app.route("/users")
 @login_required
 def users_page():
-    return render_template("users.html")
+    return render_template("users.html", is_admin=is_admin())
 
 @app.route("/user/<username>")
 @login_required
 def user_profile(username):
-    return render_template("profile.html", profile_username=username)
+    return render_template("profile.html", profile_username=username, is_admin=is_admin())
 
 @app.route("/api/users")
 @login_required
@@ -1031,6 +1122,100 @@ def stream():
     resp.headers["Cache-Control"] = "no-cache"
     resp.headers["X-Accel-Buffering"] = "no"
     return resp
+
+def is_admin():
+    return session.get("username") in ADMIN_USERS
+
+@app.route("/admin")
+@login_required
+def admin_page():
+    if not is_admin():
+        return redirect(url_for("home"))
+    return render_template("admin.html")
+
+@app.route("/api/admin/users")
+@login_required
+def admin_users():
+    if not is_admin():
+        return jsonify({"error": "Unauthorized"}), 403
+    d = db()
+    users = d.execute("""
+        select a.username, u.balance, 
+        (select count(*) from hold where user_id=a.id) as shoes,
+        (select count(*) from appraised where user_id=a.id) as appraised
+        from accounts a join users u on u.id=a.id order by a.username
+    """).fetchall()
+    return jsonify([dict(u) for u in users])
+
+@app.route("/api/admin/shoes")
+@login_required
+def admin_shoes():
+    if not is_admin():
+        return jsonify({"error": "Unauthorized"}), 403
+    d = db()
+    shoes = d.execute("select id, name, rarity, base from shoes order by rarity, name").fetchall()
+    return jsonify([dict(s) for s in shoes])
+
+@app.route("/api/admin/money", methods=["POST"])
+@login_required
+def admin_money():
+    if not is_admin():
+        return jsonify({"error": "Unauthorized"}), 403
+    d = db()
+    data = request.json
+    username = data.get("username", "").lower()
+    amount = float(data.get("amount", 0))
+    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": "User not found"})
+    d.execute("update users set balance=balance+? where id=?", (amount, acc["id"]))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/shoe", methods=["POST"])
+@login_required
+def admin_shoe():
+    if not is_admin():
+        return jsonify({"error": "Unauthorized"}), 403
+    d = db()
+    data = request.json
+    username = data.get("username", "").lower()
+    shoe_id = int(data.get("shoe_id", 0))
+    qty = int(data.get("qty", 1))
+    action = data.get("action", "give")
+    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": "User not found"})
+    shoe = d.execute("select id from shoes where id=?", (shoe_id,)).fetchone()
+    if not shoe:
+        return jsonify({"ok": False, "error": "Shoe not found"})
+    if action == "give":
+        existing = d.execute("select qty from hold where user_id=? and shoe_id=?", (acc["id"], shoe_id)).fetchone()
+        if existing:
+            d.execute("update hold set qty=qty+? where user_id=? and shoe_id=?", (qty, acc["id"], shoe_id))
+        else:
+            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?)", (acc["id"], shoe_id, qty))
+    else:
+        existing = d.execute("select qty from hold where user_id=? and shoe_id=?", (acc["id"], shoe_id)).fetchone()
+        if not existing or existing["qty"] < qty:
+            return jsonify({"ok": False, "error": "User doesn't have enough"})
+        if existing["qty"] == qty:
+            d.execute("delete from hold where user_id=? and shoe_id=?", (acc["id"], shoe_id))
+        else:
+            d.execute("update hold set qty=qty-? where user_id=? and shoe_id=?", (qty, acc["id"], shoe_id))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/refresh", methods=["POST"])
+@login_required
+def admin_refresh():
+    if not is_admin():
+        return jsonify({"error": "Unauthorized"}), 403
+    d = db()
+    d.execute("update global_state set last_stock=0 where id=1")
+    d.commit()
+    refresh()
+    return jsonify({"ok": True})
 
 if __name__ == "__main__":
     with app.app_context():

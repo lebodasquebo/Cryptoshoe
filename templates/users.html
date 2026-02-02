@@ -35,6 +35,12 @@
           <span class="nav-icon">👥</span>
           <span class="nav-text">Users</span>
         </a>
+        {% if is_admin %}
+        <a href="/admin" class="nav-link nav-admin">
+          <span class="nav-icon">🔐</span>
+          <span class="nav-text">Admin</span>
+        </a>
+        {% endif %}
       </div>
       <div class="nav-user">
         <div class="nav-bal">

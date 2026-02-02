@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Admin - Cryptoshoe</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+<nav class="nav">
+    <a href="/" class="nav-brand">👟 Cryptoshoe</a>
+    <div class="nav-links">
+        <a href="/">Market</a>
+        <a href="/inventory">Inventory</a>
+        <a href="/appraise">Appraise</a>
+        <a href="/users">Users</a>
+        <a href="/admin" class="active">Admin</a>
+        <a href="/logout" class="nav-logout">Logout</a>
+    </div>
+</nav>
+<main class="admin-main">
+    <h1>🔐 Admin Panel</h1>
+    
+    <section class="admin-section">
+        <h2>💰 Manage Money</h2>
+        <div class="admin-form">
+            <input type="text" id="money-user" placeholder="Username">
+            <input type="number" id="money-amount" placeholder="Amount (+/-)">
+            <button onclick="giveMoney()">Apply</button>
+        </div>
+    </section>
+    
+    <section class="admin-section">
+        <h2>👟 Give/Take Shoes</h2>
+        <div class="admin-form">
+            <input type="text" id="shoe-user" placeholder="Username">
+            <select id="shoe-select"></select>
+            <input type="number" id="shoe-qty" placeholder="Qty" value="1" min="1">
+            <button class="give-btn" onclick="giveShoe()">Give</button>
+            <button class="take-btn" onclick="takeShoe()">Take</button>
+        </div>
+    </section>
+    
+    <section class="admin-section">
+        <h2>📦 Reset Stock</h2>
+        <button onclick="resetStock()" class="refresh-btn">Force Stock Refresh</button>
+    </section>
+    
+    <section class="admin-section">
+        <h2>👥 Users</h2>
+        <div id="users-list"></div>
+    </section>
+</main>
+<div id="toast" class="toast"></div>
+<script src="/static/admin.js"></script>
+</body>
+</html>

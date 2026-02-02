@@ -1,7 +1,7 @@
 let users=[],trades={incoming:[],outgoing:[]},currentTrade=null
 const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
 const money=v=>v.toFixed(2)
-const rarClass=r=>({common:'rar-common',uncommon:'rar-uncommon',rare:'rar-rare',epic:'rar-epic',legendary:'rar-legendary',mythic:'rar-mythic',secret:'rar-secret'}[r]||'rar-common')
+const rarClass=r=>({common:'rar-common',uncommon:'rar-uncommon',rare:'rar-rare',epic:'rar-epic',legendary:'rar-legendary',mythic:'rar-mythic',secret:'rar-secret',dexies:'rar-dexies',lebos:'rar-lebos'}[r]||'rar-common')
 
 const toast=(msg,type='success')=>{
   let t=$('#toast')
