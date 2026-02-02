@@ -1112,10 +1112,11 @@ def stream():
     u = uid()
     def gen():
         while True:
-            refresh()
-            prices()
-            income(u)
-            data = state(u)
+            with app.app_context():
+                refresh()
+                prices()
+                income(u)
+                data = state(u)
             yield f"data: {json.dumps(data)}\n\n"
             time.sleep(2)
     resp = Response(gen(), mimetype="text/event-stream")
