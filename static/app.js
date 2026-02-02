@@ -215,7 +215,6 @@ $('#btn-details').onclick=()=>{if(sel!==null)location.href='/shoe/'+sel}
 $('#qty-dec').onclick=()=>{let q=$('#s-qty');q.value=Math.max(1,parseInt(q.value)-1)}
 $('#qty-inc').onclick=()=>{let q=$('#s-qty');q.value=Math.min(parseInt(q.max)||99,parseInt(q.value)+1)}
 $('#qty-max').onclick=()=>{let q=$('#s-qty');q.value=q.max||1}
-$('#test-refresh').onclick=async()=>{await fetch('/api/force-refresh',{method:'POST'});sel=null;$('#market').innerHTML='';fetchState();toast('Stock refreshed!')}
 
 fetchState()
 stream()

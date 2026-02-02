@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cryptoshoe - Users</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/users.css">
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">👟</span>
+        <span class="logo-text">CRYPTO<span class="accent">SHOE</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">
+          <span class="nav-icon">📈</span>
+          <span class="nav-text">Market</span>
+        </a>
+        <a href="/inventory" class="nav-link">
+          <span class="nav-icon">🎒</span>
+          <span class="nav-text">Inventory</span>
+        </a>
+        <a href="/appraise" class="nav-link">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Appraise</span>
+        </a>
+        <a href="/users" class="nav-link active">
+          <span class="nav-icon">👥</span>
+          <span class="nav-text">Users</span>
+        </a>
+      </div>
+      <div class="nav-user">
+        <div class="nav-bal">
+          <div class="bal-label">BALANCE</div>
+          <div class="bal-val">$<span id="bal">0.00</span></div>
+        </div>
+        <a href="/logout" class="nav-logout" title="Logout">🚪</a>
+      </div>
+    </div>
+  </nav>
+  <div class="wrap">
+    <div class="users-layout">
+      <div class="users-main">
+        <div class="section-head">
+          <h2 class="section-title">
+            <span class="nav-icon">👥</span>
+            TRADERS
+          </h2>
+          <div class="search-wrap">
+            <input type="text" id="search" placeholder="Search users..." class="search-input">
+          </div>
+        </div>
+        <div id="users-grid" class="users-grid"></div>
+        <div id="users-empty" class="empty hidden">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-text">No users found</div>
+        </div>
+      </div>
+      <aside class="trades-sidebar">
+        <div class="trades-section">
+          <h3 class="trades-title">📨 INCOMING TRADES</h3>
+          <div id="incoming-trades" class="trades-list"></div>
+          <div id="incoming-empty" class="trades-empty">No pending trades</div>
+        </div>
+        <div class="trades-section">
+          <h3 class="trades-title">📤 OUTGOING TRADES</h3>
+          <div id="outgoing-trades" class="trades-list"></div>
+          <div id="outgoing-empty" class="trades-empty">No pending trades</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <div class="modal hidden" id="trade-detail-modal">
+    <div class="modal-content trade-detail-modal">
+      <div class="modal-header">
+        <h2>🤝 Trade Details</h2>
+        <button class="modal-close" onclick="closeTradeModal()">×</button>
+      </div>
+      <div class="trade-detail-body">
+        <div class="trade-detail-from">From: <strong id="td-from"></strong></div>
+        <div class="trade-columns">
+          <div class="trade-col give-col">
+            <h4>📤 YOU GIVE</h4>
+            <div id="td-give-shoes" class="td-shoes"></div>
+            <div id="td-give-cash" class="td-cash"></div>
+            <div class="td-total">Total: <span id="td-give-total">$0.00</span></div>
+          </div>
+          <div class="trade-col-arrow">⇄</div>
+          <div class="trade-col get-col">
+            <h4>📥 YOU GET</h4>
+            <div id="td-get-shoes" class="td-shoes"></div>
+            <div id="td-get-cash" class="td-cash"></div>
+            <div class="td-total">Total: <span id="td-get-total">$0.00</span></div>
+          </div>
+        </div>
+        <div class="trade-detail-actions">
+          <button class="td-accept" id="td-accept">✓ ACCEPT</button>
+          <button class="td-decline" id="td-decline">✗ DECLINE</button>
+          <button class="td-counter" id="td-counter">↩ COUNTER</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="/static/users.js"></script>
+</body>
+</html>

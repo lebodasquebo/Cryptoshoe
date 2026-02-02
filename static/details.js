@@ -214,3 +214,17 @@ $('#btn-sell').onclick=sell
 window.addEventListener('resize',()=>data&&render())
 setInterval(fetchData,2000)
 fetchData()
+
+const updBadge=async()=>{
+  let r=await fetch('/api/trade-count')
+  if(r.ok){
+    let j=await r.json()
+    let b=document.querySelector('#trade-badge')
+    if(b){
+      if(j.count>0){b.textContent=j.count;b.classList.remove('hidden')}
+      else{b.classList.add('hidden')}
+    }
+  }
+}
+updBadge()
+setInterval(updBadge,10000)

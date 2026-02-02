@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cryptoshoe - Profile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/users.css">
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">👟</span>
+        <span class="logo-text">CRYPTO<span class="accent">SHOE</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">
+          <span class="nav-icon">📈</span>
+          <span class="nav-text">Market</span>
+        </a>
+        <a href="/inventory" class="nav-link">
+          <span class="nav-icon">🎒</span>
+          <span class="nav-text">Inventory</span>
+        </a>
+        <a href="/appraise" class="nav-link">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Appraise</span>
+        </a>
+        <a href="/users" class="nav-link active" id="nav-users">
+          <span class="nav-icon">👥</span>
+          <span class="nav-text">Users</span>
+          <span class="nav-badge hidden" id="trade-badge">0</span>
+        </a>
+      </div>
+      <div class="nav-user">
+        <div class="nav-bal">
+          <div class="bal-label">BALANCE</div>
+          <div class="bal-val">$<span id="bal">0.00</span></div>
+        </div>
+        <a href="/logout" class="nav-logout" title="Logout">🚪</a>
+      </div>
+    </div>
+  </nav>
+  <div class="wrap">
+    <a class="back-link" href="/users">
+      <span>←</span> Back to Users
+    </a>
+    <div class="profile-layout">
+      <div class="profile-main">
+        <div class="profile-header">
+          <div class="profile-avatar">👤</div>
+          <div class="profile-info">
+            <h1 class="profile-name" id="p-name">Loading...</h1>
+            <div class="profile-stats">
+              <div class="profile-stat">
+                <span class="stat-val" id="p-balance">$0</span>
+                <span class="stat-label">Balance</span>
+              </div>
+              <div class="profile-stat">
+                <span class="stat-val" id="p-shoes">0</span>
+                <span class="stat-label">Shoes</span>
+              </div>
+              <div class="profile-stat">
+                <span class="stat-val" id="p-joined">-</span>
+                <span class="stat-label">Joined</span>
+              </div>
+            </div>
+          </div>
+          <button class="trade-btn-big" id="btn-trade">
+            🤝 PROPOSE TRADE
+          </button>
+        </div>
+        <div class="profile-shoes">
+          <h3 class="shoes-title">SHOE COLLECTION</h3>
+          <div id="shoes-grid" class="shoes-grid"></div>
+          <div id="shoes-empty" class="empty hidden">No shoes owned</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal hidden" id="trade-modal">
+    <div class="modal-content trade-modal">
+      <div class="modal-header">
+        <h2>🤝 Propose Trade</h2>
+        <button class="modal-close" id="modal-close">×</button>
+      </div>
+      <div class="trade-builder">
+        <div class="trade-side your-side">
+          <h4>YOUR OFFER</h4>
+          <div class="trade-cash">
+            <label>Cash: $</label>
+            <input type="number" id="offer-cash" min="0" value="0">
+          </div>
+          <div class="trade-shoes-select">
+            <label>Your Shoes:</label>
+            <div id="your-shoes" class="shoe-select-grid"></div>
+          </div>
+          <div class="selected-shoes" id="offer-selected"></div>
+          <div class="trade-total">Total: <span id="offer-total">$0.00</span></div>
+        </div>
+        <div class="trade-arrow">⇄</div>
+        <div class="trade-side their-side">
+          <h4>YOU WANT</h4>
+          <div class="trade-cash">
+            <label>Cash: $</label>
+            <input type="number" id="want-cash" min="0" value="0">
+          </div>
+          <div class="trade-shoes-select">
+            <label>Their Shoes:</label>
+            <div id="their-shoes" class="shoe-select-grid"></div>
+          </div>
+          <div class="selected-shoes" id="want-selected"></div>
+          <div class="trade-total">Total: <span id="want-total">$0.00</span></div>
+        </div>
+      </div>
+      <button class="submit-trade" id="submit-trade">SEND TRADE REQUEST</button>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>window.PROFILE_USER = "{{ profile_username }}";</script>
+  <script src="/static/profile.js"></script>
+</body>
+</html>

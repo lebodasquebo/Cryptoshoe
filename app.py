@@ -44,13 +44,24 @@ def init():
     d.executescript("""
     create table if not exists accounts(id text primary key, username text unique, password text, created integer);
     create table if not exists shoes(id integer primary key, name text unique, rarity text, base real);
-    create table if not exists users(id text primary key, balance real, last_stock integer, last_price integer);
-    create table if not exists market(user_id text, shoe_id integer, stock integer, price real, base real, news text, news_val real, news_until integer, primary key(user_id, shoe_id));
+    create table if not exists users(id text primary key, balance real);
+    create table if not exists global_state(id integer primary key, last_stock integer, last_price integer);
+    create table if not exists market(shoe_id integer primary key, stock integer, price real, base real, news text, news_val real, news_until integer);
     create table if not exists hold(user_id text, shoe_id integer, qty integer, primary key(user_id, shoe_id));
-    create table if not exists history(user_id text, shoe_id integer, ts integer, price real);
+    create table if not exists history(shoe_id integer, ts integer, price real);
     create table if not exists appraised(id integer primary key autoincrement, user_id text, shoe_id integer, rating real, multiplier real, ts integer);
-    create index if not exists idx_hist on history(user_id, shoe_id, ts);
+    create index if not exists idx_hist on history(shoe_id, ts);
     create index if not exists idx_appraised on appraised(user_id, shoe_id);
+    create table if not exists trades(
+        id integer primary key autoincrement,
+        from_user text, to_user text,
+        offer_shoes text, offer_cash real,
+        want_shoes text, want_cash real,
+        status text default 'pending',
+        created integer, updated integer
+    );
+    create index if not exists idx_trades on trades(from_user, to_user, status);
+    insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
     """)
     try:
         d.execute("alter table users add column last_income integer default 0")
@@ -116,7 +127,7 @@ def uid():
     d = db()
     row = d.execute("select id from users where id=?", (u,)).fetchone()
     if not row:
-        d.execute("insert into users(id, balance, last_stock, last_price, last_income) values(?,?,?,?,?)", (u, 10000, 0, 0, 0))
+        d.execute("insert into users(id, balance, last_income) values(?,?,?)", (u, 10000, 0))
         d.commit()
     return u
 
@@ -131,15 +142,15 @@ def stock_amt(r):
         "secret": (1, 3),
     }[r]
 
-def refresh(u, force=False):
+def refresh(force=False):
     d = db()
     now = int(time.time())
-    row = d.execute("select last_stock from users where id=?", (u,)).fetchone()
-    last = row["last_stock"] if row else 0
-    n = d.execute("select count(*) c from market where user_id=?", (u,)).fetchone()["c"]
+    gs = d.execute("select last_stock from global_state where id=1").fetchone()
+    last = gs["last_stock"] if gs else 0
+    n = d.execute("select count(*) c from market").fetchone()["c"]
     if not force and now - last < 300 and n == 15:
         return
-    d.execute("delete from market where user_id=?", (u,))
+    d.execute("delete from market")
     picked = set()
     rows = []
     while len(rows) < 15:
@@ -153,10 +164,10 @@ def refresh(u, force=False):
         base = shoe["base"]
         vol = VOLATILITY[rr]
         price = round(base * (1 + random.uniform(-0.15, 0.15) * vol), 2)
-        rows.append((u, shoe["id"], stock, price, base, "", 0.0, 0))
-        d.execute("insert into history(user_id, shoe_id, ts, price) values(?,?,?,?)", (u, shoe["id"], now, price))
-    d.executemany("insert into market(user_id, shoe_id, stock, price, base, news, news_val, news_until) values(?,?,?,?,?,?,?,?)", rows)
-    d.execute("update users set last_stock=? where id=?", (now, u))
+        rows.append((shoe["id"], stock, price, base, "", 0.0, 0))
+        d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe["id"], now, price))
+    d.executemany("insert into market(shoe_id, stock, price, base, news, news_val, news_until) values(?,?,?,?,?,?,?)", rows)
+    d.execute("update global_state set last_stock=? where id=1", (now,))
     d.commit()
 
 NEWS_POSITIVE = [
@@ -243,14 +254,14 @@ def news_pick(rarity):
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
-def prices(u):
+def prices():
     d = db()
     now = int(time.time())
-    row = d.execute("select last_price from users where id=?", (u,)).fetchone()
-    last = row["last_price"] if row else 0
+    gs = d.execute("select last_price from global_state where id=1").fetchone()
+    last = gs["last_price"] if gs else 0
     if now - last < 10:
         return
-    m = d.execute("select m.*, s.rarity from market m join shoes s on s.id=m.shoe_id where m.user_id=?", (u,)).fetchall()
+    m = d.execute("select m.*, s.rarity from market m join shoes s on s.id=m.shoe_id").fetchall()
     for r in m:
         price = r["price"]
         base = r["base"]
@@ -259,14 +270,14 @@ def prices(u):
         diff = (price - base) / base
         val = r["news_val"]
         if r["news_until"] and r["news_until"] < now:
-            d.execute("update market set news='', news_val=0, news_until=0 where user_id=? and shoe_id=?", (u, r["shoe_id"]))
+            d.execute("update market set news='', news_val=0, news_until=0 where shoe_id=?", (r["shoe_id"],))
             val = 0
         news_chance = 0.12 + (vol - 1) * 0.06
         if not r["news_until"] and random.random() < news_chance:
             text, v = news_pick(rarity)
             v *= vol
             duration = random.randint(45, 240) if vol < 2 else random.randint(30, 180)
-            d.execute("update market set news=?, news_val=?, news_until=? where user_id=? and shoe_id=?", (text, v, now + duration, u, r["shoe_id"]))
+            d.execute("update market set news=?, news_val=?, news_until=? where shoe_id=?", (text, v, now + duration, r["shoe_id"]))
             val = v
         up = 0.5 - diff * 0.4 + val * 0.25
         up = clamp(up, 0.1, 0.9)
@@ -276,10 +287,10 @@ def prices(u):
         else:
             price -= delta
         price = round(clamp(price, base * 0.15, base * 4), 2)
-        d.execute("update market set price=? where user_id=? and shoe_id=?", (price, u, r["shoe_id"]))
-        d.execute("insert into history(user_id, shoe_id, ts, price) values(?,?,?,?)", (u, r["shoe_id"], now, price))
+        d.execute("update market set price=? where shoe_id=?", (price, r["shoe_id"]))
+        d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (r["shoe_id"], now, price))
     d.execute("delete from history where ts < ?", (now - 86400,))
-    d.execute("update users set last_price=? where id=?", (now, u))
+    d.execute("update global_state set last_price=? where id=1", (now,))
     d.commit()
 
 def income(u):
@@ -308,17 +319,18 @@ def rating_class(rating):
 def state(u):
     d = db()
     now = int(time.time())
-    user = d.execute("select balance, last_stock, last_price from users where id=?", (u,)).fetchone()
+    user = d.execute("select balance from users where id=?", (u,)).fetchone()
     bal = user["balance"]
-    last_stock = user["last_stock"]
-    last_price = user["last_price"] or now
+    gs = d.execute("select last_stock, last_price from global_state where id=1").fetchone()
+    last_stock = gs["last_stock"] if gs else 0
+    last_price = gs["last_price"] if gs else now
     next_stock = last_stock + 300
     next_price = last_price + 10
     m = d.execute("""
     select m.shoe_id id, s.name, s.rarity, m.stock, m.price, m.base, m.news, m.news_until
     from market m join shoes s on s.id=m.shoe_id
-    where m.user_id=? order by s.rarity, s.name
-    """, (u,)).fetchall()
+    order by s.rarity, s.name
+    """).fetchall()
     h = d.execute("""
     select h.shoe_id id, s.name, s.rarity, s.base, h.qty
     from hold h join shoes s on s.id=h.shoe_id
@@ -339,7 +351,7 @@ def state(u):
             hr["sell_price"] = mk["price"]
             hr["in_market"] = True
         else:
-            hr["sell_price"] = get_sell_price(u, hr["id"])
+            hr["sell_price"] = get_sell_price(hr["id"])
             hr["in_market"] = False
         hold_list.append(hr)
     appraised_list = []
@@ -347,13 +359,13 @@ def state(u):
         ar = dict(r)
         ar["appraised"] = True
         ar["rating_class"] = rating_class(ar["rating"])
-        base_price = get_sell_price(u, ar["id"]) or ar["base"]
+        base_price = get_sell_price(ar["id"]) or ar["base"]
         ar["sell_price"] = round(base_price * ar["multiplier"], 2)
         ar["in_market"] = ar["id"] in market_ids
         appraised_list.append(ar)
     hist = {}
     for row in m:
-        rows = d.execute("select ts, price from history where user_id=? and shoe_id=? order by ts desc limit 60", (u, row["id"])).fetchall()
+        rows = d.execute("select ts, price from history where shoe_id=? order by ts desc limit 60", (row["id"],)).fetchall()
         hist[row["id"]] = [{"ts": r["ts"], "price": r["price"]} for r in rows][::-1]
     return {
         "balance": round(bal, 2),
@@ -371,20 +383,21 @@ def shoe_state(u, shoe_id):
     shoe = d.execute("select id, name, rarity, base from shoes where id=?", (shoe_id,)).fetchone()
     if not shoe:
         return None
-    m = d.execute("select price, stock, news from market where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
+    m = d.execute("select price, stock, news from market where shoe_id=?", (shoe_id,)).fetchone()
     in_market = m is not None
     if m:
         price = m["price"]
         stock = m["stock"]
         news = m["news"]
     else:
-        last = d.execute("select price from history where user_id=? and shoe_id=? order by ts desc limit 1", (u, shoe_id)).fetchone()
+        last = d.execute("select price from history where shoe_id=? order by ts desc limit 1", (shoe_id,)).fetchone()
         price = last["price"] if last else shoe["base"]
         stock = 0
         news = ""
-    rows = d.execute("select ts, price from history where user_id=? and shoe_id=? order by ts", (u, shoe_id)).fetchall()
+    rows = d.execute("select ts, price from history where shoe_id=? order by ts", (shoe_id,)).fetchall()
     hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
     owned = hold["qty"] if hold else 0
+    gs = d.execute("select last_stock, last_price from global_state where id=1").fetchone()
     return {
         "id": shoe["id"],
         "name": shoe["name"],
@@ -395,7 +408,9 @@ def shoe_state(u, shoe_id):
         "news": news,
         "in_market": in_market,
         "owned": owned,
-        "history": [dict(r) for r in rows]
+        "history": [dict(r) for r in rows],
+        "next_stock": (gs["last_stock"] if gs else 0) + 300,
+        "next_price": (gs["last_price"] if gs else 0) + 10
     }
 
 @app.route("/login", methods=["GET"])
@@ -445,8 +460,8 @@ def api_signup():
     user_id = uuid.uuid4().hex
     d.execute("insert into accounts(id, username, password, created) values(?,?,?,?)", 
               (user_id, username, hash_pw(password), int(time.time())))
-    d.execute("insert into users(id, balance, last_stock, last_price, last_income) values(?,?,?,?,?)", 
-              (user_id, 10000, 0, 0, 0))
+    d.execute("insert into users(id, balance, last_income) values(?,?,?)", 
+              (user_id, 10000, 0))
     d.commit()
     session["user_id"] = user_id
     session["username"] = username
@@ -478,16 +493,16 @@ def shoe_page(shoe_id):
 @app.route("/api/state")
 def api_state():
     u = uid()
-    refresh(u)
-    prices(u)
+    refresh()
+    prices()
     income(u)
     return jsonify(state(u))
 
 @app.route("/api/shoe/<int:shoe_id>")
 def api_shoe(shoe_id):
     u = uid()
-    refresh(u)
-    prices(u)
+    refresh()
+    prices()
     s = shoe_state(u, shoe_id)
     if not s:
         return jsonify({}), 404
@@ -501,28 +516,28 @@ def buy():
     if qty < 1:
         return jsonify({"ok": False})
     d = db()
-    row = d.execute("select stock, price from market where user_id=? and shoe_id=?", (u, shoe)).fetchone()
+    row = d.execute("select stock, price from market where shoe_id=?", (shoe,)).fetchone()
     if not row or row["stock"] < qty:
         return jsonify({"ok": False})
     cost = row["price"] * qty
     bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
     if bal < cost:
         return jsonify({"ok": False})
-    d.execute("update market set stock=stock-? where user_id=? and shoe_id=?", (qty, u, shoe))
+    d.execute("update market set stock=stock-? where shoe_id=?", (qty, shoe))
     d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+excluded.qty", (u, shoe, qty))
     d.execute("update users set balance=balance-? where id=?", (cost, u))
     d.commit()
     return jsonify({"ok": True})
 
-def get_sell_price(u, shoe_id):
+def get_sell_price(shoe_id):
     d = db()
-    market = d.execute("select price from market where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
+    market = d.execute("select price from market where shoe_id=?", (shoe_id,)).fetchone()
     if market:
         return market["price"]
     shoe = d.execute("select base, rarity from shoes where id=?", (shoe_id,)).fetchone()
     if not shoe:
         return None
-    last_price = d.execute("select price from history where user_id=? and shoe_id=? order by ts desc limit 1", (u, shoe_id)).fetchone()
+    last_price = d.execute("select price from history where shoe_id=? order by ts desc limit 1", (shoe_id,)).fetchone()
     if last_price:
         return last_price["price"] * 0.95
     return shoe["base"] * 0.9
@@ -540,7 +555,7 @@ def sell():
         row = d.execute("select shoe_id, multiplier from appraised where id=? and user_id=?", (appraisal_id, u)).fetchone()
         if not row:
             return jsonify({"ok": False, "error": "Appraised shoe not found"})
-        price = get_sell_price(u, row["shoe_id"])
+        price = get_sell_price(row["shoe_id"])
         if not price:
             return jsonify({"ok": False, "error": "Shoe not found"})
         gain = round(price * row["multiplier"], 2)
@@ -551,7 +566,7 @@ def sell():
     row = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe)).fetchone()
     if not row or row["qty"] < qty:
         return jsonify({"ok": False, "error": "Not enough shoes"})
-    price = get_sell_price(u, shoe)
+    price = get_sell_price(shoe)
     if not price:
         return jsonify({"ok": False, "error": "Shoe not found"})
     gain = round(price * qty, 2)
@@ -561,11 +576,24 @@ def sell():
     d.commit()
     return jsonify({"ok": True, "price": price, "total": gain})
 
-@app.route("/api/force-refresh", methods=["POST"])
-def force_refresh():
+@app.route("/sell-all", methods=["POST"])
+def sell_all():
     u = uid()
-    refresh(u, force=True)
-    return jsonify({"ok": True})
+    d = db()
+    total = 0
+    holds = d.execute("select shoe_id, qty from hold where user_id=?", (u,)).fetchall()
+    for h in holds:
+        price = get_sell_price(h["shoe_id"]) or 0
+        total += price * h["qty"]
+    appraised = d.execute("select a.id, a.shoe_id, a.multiplier from appraised a where a.user_id=?", (u,)).fetchall()
+    for a in appraised:
+        price = get_sell_price(a["shoe_id"]) or 0
+        total += price * a["multiplier"]
+    d.execute("delete from hold where user_id=?", (u,))
+    d.execute("delete from appraised where user_id=?", (u,))
+    d.execute("update users set balance=balance+? where id=?", (round(total, 2), u))
+    d.commit()
+    return jsonify({"ok": True, "total": round(total, 2)})
 
 @app.route("/appraise")
 @login_required
@@ -618,7 +646,7 @@ def do_appraise():
     shoe = d.execute("select base, rarity from shoes where id=?", (shoe_id,)).fetchone()
     if not shoe:
         return jsonify({"ok": False, "error": "Shoe not found"})
-    price = get_sell_price(u, shoe_id) or shoe["base"]
+    price = get_sell_price(shoe_id) or shoe["base"]
     cost_per = round(price * 0.05, 2)
     total_cost = round(cost_per * qty, 2)
     bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
@@ -662,13 +690,311 @@ def do_appraise():
         "qty": qty
     })
 
+@app.route("/users")
+@login_required
+def users_page():
+    return render_template("users.html")
+
+@app.route("/user/<username>")
+@login_required
+def user_profile(username):
+    return render_template("profile.html", profile_username=username)
+
+@app.route("/api/users")
+@login_required
+def api_users():
+    u = uid()
+    d = db()
+    q = request.args.get("q", "").strip().lower()
+    if q:
+        users = d.execute("""
+            select a.username, u.balance from accounts a 
+            join users u on u.id=a.id 
+            where lower(a.username) like ? 
+            order by u.balance desc limit 50
+        """, (f"%{q}%",)).fetchall()
+    else:
+        users = d.execute("""
+            select a.username, u.balance from accounts a 
+            join users u on u.id=a.id 
+            order by u.balance desc limit 50
+        """).fetchall()
+    result = []
+    for row in users:
+        udata = get_user_stats(row["username"])
+        udata["is_me"] = (row["username"] == session.get("username"))
+        result.append(udata)
+    return jsonify(result)
+
+def get_user_stats(username):
+    d = db()
+    acc = d.execute("select id, username, created from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return None
+    user = d.execute("select balance from users where id=?", (acc["id"],)).fetchone()
+    hold_count = d.execute("select coalesce(sum(qty),0) as c from hold where user_id=?", (acc["id"],)).fetchone()["c"]
+    appraised_count = d.execute("select count(*) as c from appraised where user_id=?", (acc["id"],)).fetchone()["c"]
+    total_shoes = hold_count + appraised_count
+    return {
+        "username": acc["username"],
+        "balance": round(user["balance"], 2) if user else 0,
+        "shoes": total_shoes,
+        "joined": acc["created"]
+    }
+
+@app.route("/api/user/<username>")
+@login_required
+def api_user_profile(username):
+    u = uid()
+    d = db()
+    stats = get_user_stats(username)
+    if not stats:
+        return jsonify({"error": "User not found"}), 404
+    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    shoes = d.execute("""
+        select s.name, s.rarity, h.qty from hold h 
+        join shoes s on s.id=h.shoe_id 
+        where h.user_id=? order by s.rarity desc, s.name
+    """, (acc["id"],)).fetchall()
+    appraised = d.execute("""
+        select s.name, s.rarity, a.rating from appraised a 
+        join shoes s on s.id=a.shoe_id 
+        where a.user_id=? order by a.rating desc
+    """, (acc["id"],)).fetchall()
+    stats["hold"] = [dict(s) for s in shoes]
+    stats["appraised"] = [dict(a) for a in appraised]
+    stats["is_me"] = (username == session.get("username"))
+    return jsonify(stats)
+
+@app.route("/api/trades")
+@login_required
+def api_trades():
+    u = uid()
+    d = db()
+    incoming = d.execute("""
+        select t.*, a.username as from_username from trades t
+        join accounts a on a.id=t.from_user
+        where t.to_user=? and t.status='pending'
+        order by t.created desc
+    """, (u,)).fetchall()
+    outgoing = d.execute("""
+        select t.*, a.username as to_username from trades t
+        join accounts a on a.id=t.to_user
+        where t.from_user=? and t.status='pending'
+        order by t.created desc
+    """, (u,)).fetchall()
+    def enrich(t):
+        r = dict(t)
+        offer = json.loads(r["offer_shoes"]) if r["offer_shoes"] else []
+        want = json.loads(r["want_shoes"]) if r["want_shoes"] else []
+        for s in offer:
+            shoe = d.execute("select name, rarity, base from shoes where id=?", (s["id"],)).fetchone()
+            if shoe:
+                s["name"] = shoe["name"]
+                s["rarity"] = shoe["rarity"]
+                s["price"] = get_sell_price(s["id"]) or shoe["base"]
+        for s in want:
+            shoe = d.execute("select name, rarity, base from shoes where id=?", (s["id"],)).fetchone()
+            if shoe:
+                s["name"] = shoe["name"]
+                s["rarity"] = shoe["rarity"]
+                s["price"] = get_sell_price(s["id"]) or shoe["base"]
+        r["offer_shoes"] = offer
+        r["want_shoes"] = want
+        return r
+    return jsonify({
+        "incoming": [enrich(t) for t in incoming],
+        "outgoing": [enrich(t) for t in outgoing]
+    })
+
+@app.route("/api/trade-count")
+@login_required
+def api_trade_count():
+    u = uid()
+    d = db()
+    c = d.execute("select count(*) as c from trades where to_user=? and status='pending'", (u,)).fetchone()["c"]
+    return jsonify({"count": c})
+
+@app.route("/api/trade/create", methods=["POST"])
+@login_required
+def create_trade():
+    u = uid()
+    d = db()
+    data = request.json
+    to_username = data.get("to_user", "").strip().lower()
+    offer_shoes = data.get("offer_shoes", [])
+    offer_cash = float(data.get("offer_cash", 0))
+    want_shoes = data.get("want_shoes", [])
+    want_cash = float(data.get("want_cash", 0))
+    
+    to_acc = d.execute("select id from accounts where username=?", (to_username,)).fetchone()
+    if not to_acc:
+        return jsonify({"ok": False, "error": "User not found"})
+    if to_acc["id"] == u:
+        return jsonify({"ok": False, "error": "Can't trade with yourself"})
+    
+    if offer_cash < 0 or want_cash < 0:
+        return jsonify({"ok": False, "error": "Invalid cash amount"})
+    
+    bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
+    if offer_cash > bal:
+        return jsonify({"ok": False, "error": "Not enough balance"})
+    
+    for shoe in offer_shoes:
+        hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe["id"])).fetchone()
+        if not hold or hold["qty"] < shoe.get("qty", 1):
+            return jsonify({"ok": False, "error": f"You don't have enough of that shoe"})
+    
+    for shoe in want_shoes:
+        hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (to_acc["id"], shoe["id"])).fetchone()
+        if not hold or hold["qty"] < shoe.get("qty", 1):
+            return jsonify({"ok": False, "error": f"They don't have enough of that shoe"})
+    
+    now = int(time.time())
+    d.execute("""
+        insert into trades(from_user, to_user, offer_shoes, offer_cash, want_shoes, want_cash, status, created, updated)
+        values(?,?,?,?,?,?,?,?,?)
+    """, (u, to_acc["id"], json.dumps(offer_shoes), offer_cash, json.dumps(want_shoes), want_cash, "pending", now, now))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/trade/<int:trade_id>/accept", methods=["POST"])
+@login_required
+def accept_trade(trade_id):
+    u = uid()
+    d = db()
+    trade = d.execute("select * from trades where id=? and to_user=? and status='pending'", (trade_id, u)).fetchone()
+    if not trade:
+        return jsonify({"ok": False, "error": "Trade not found"})
+    
+    offer_shoes = json.loads(trade["offer_shoes"]) if trade["offer_shoes"] else []
+    want_shoes = json.loads(trade["want_shoes"]) if trade["want_shoes"] else []
+    offer_cash = trade["offer_cash"] or 0
+    want_cash = trade["want_cash"] or 0
+    from_user = trade["from_user"]
+    
+    from_bal = d.execute("select balance from users where id=?", (from_user,)).fetchone()["balance"]
+    to_bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
+    
+    if offer_cash > from_bal:
+        return jsonify({"ok": False, "error": "Sender doesn't have enough cash"})
+    if want_cash > to_bal:
+        return jsonify({"ok": False, "error": "You don't have enough cash"})
+    
+    for shoe in offer_shoes:
+        hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (from_user, shoe["id"])).fetchone()
+        if not hold or hold["qty"] < shoe.get("qty", 1):
+            d.execute("update trades set status='cancelled' where id=?", (trade_id,))
+            d.commit()
+            return jsonify({"ok": False, "error": "Sender no longer has those shoes"})
+    
+    for shoe in want_shoes:
+        hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe["id"])).fetchone()
+        if not hold or hold["qty"] < shoe.get("qty", 1):
+            return jsonify({"ok": False, "error": "You no longer have those shoes"})
+    
+    if offer_cash > 0:
+        d.execute("update users set balance=balance-? where id=?", (offer_cash, from_user))
+        d.execute("update users set balance=balance+? where id=?", (offer_cash, u))
+    if want_cash > 0:
+        d.execute("update users set balance=balance-? where id=?", (want_cash, u))
+        d.execute("update users set balance=balance+? where id=?", (want_cash, from_user))
+    
+    for shoe in offer_shoes:
+        qty = shoe.get("qty", 1)
+        d.execute("update hold set qty=qty-? where user_id=? and shoe_id=?", (qty, from_user, shoe["id"]))
+        d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (from_user, shoe["id"]))
+        d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+?", (u, shoe["id"], qty, qty))
+    
+    for shoe in want_shoes:
+        qty = shoe.get("qty", 1)
+        d.execute("update hold set qty=qty-? where user_id=? and shoe_id=?", (qty, u, shoe["id"]))
+        d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (u, shoe["id"]))
+        d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+?", (from_user, shoe["id"], qty, qty))
+    
+    d.execute("update trades set status='accepted', updated=? where id=?", (int(time.time()), trade_id))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/trade/<int:trade_id>/decline", methods=["POST"])
+@login_required
+def decline_trade(trade_id):
+    u = uid()
+    d = db()
+    trade = d.execute("select * from trades where id=? and (to_user=? or from_user=?) and status='pending'", (trade_id, u, u)).fetchone()
+    if not trade:
+        return jsonify({"ok": False, "error": "Trade not found"})
+    d.execute("update trades set status='declined', updated=? where id=?", (int(time.time()), trade_id))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/my-shoes")
+@login_required
+def api_my_shoes():
+    u = uid()
+    d = db()
+    shoes = d.execute("""
+        select h.shoe_id as id, s.name, s.rarity, s.base, h.qty from hold h 
+        join shoes s on s.id=h.shoe_id 
+        where h.user_id=? order by s.rarity desc, s.name
+    """, (u,)).fetchall()
+    result = []
+    for s in shoes:
+        r = dict(s)
+        r["price"] = get_sell_price(s["id"]) or s["base"]
+        r["appraised"] = False
+        result.append(r)
+    appraised = d.execute("""
+        select a.id as appraisal_id, a.shoe_id as id, s.name, s.rarity, s.base, a.rating, a.multiplier
+        from appraised a join shoes s on s.id=a.shoe_id
+        where a.user_id=? order by a.rating desc
+    """, (u,)).fetchall()
+    for a in appraised:
+        r = dict(a)
+        r["price"] = (get_sell_price(a["id"]) or a["base"]) * a["multiplier"]
+        r["qty"] = 1
+        r["appraised"] = True
+        result.append(r)
+    return jsonify(result)
+
+@app.route("/api/user-shoes/<username>")
+@login_required
+def api_user_shoes(username):
+    d = db()
+    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return jsonify([])
+    shoes = d.execute("""
+        select h.shoe_id as id, s.name, s.rarity, s.base, h.qty from hold h 
+        join shoes s on s.id=h.shoe_id 
+        where h.user_id=? order by s.rarity desc, s.name
+    """, (acc["id"],)).fetchall()
+    result = []
+    for s in shoes:
+        r = dict(s)
+        r["price"] = get_sell_price(s["id"]) or s["base"]
+        r["appraised"] = False
+        result.append(r)
+    appraised = d.execute("""
+        select a.id as appraisal_id, a.shoe_id as id, s.name, s.rarity, s.base, a.rating, a.multiplier
+        from appraised a join shoes s on s.id=a.shoe_id
+        where a.user_id=? order by a.rating desc
+    """, (acc["id"],)).fetchall()
+    for a in appraised:
+        r = dict(a)
+        r["price"] = (get_sell_price(a["id"]) or a["base"]) * a["multiplier"]
+        r["qty"] = 1
+        r["appraised"] = True
+        result.append(r)
+    return jsonify(result)
+
 @app.route("/stream")
 def stream():
     u = uid()
     def gen():
         while True:
-            refresh(u)
-            prices(u)
+            refresh()
+            prices()
             income(u)
             data = state(u)
             yield f"data: {json.dumps(data)}\n\n"

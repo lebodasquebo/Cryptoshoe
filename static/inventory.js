@@ -36,17 +36,8 @@ const invCard=(h,i)=>{
   let d=el('div','inv-card')
   d.dataset.id=h.id
   d.dataset.type='hold'
-  d.style.animationDelay=`${i*0.05}s`
-  d.innerHTML=`
-    <div class="inv-card-head">
-      <div class="inv-card-rarity"></div>
-      <div class="inv-card-qty"></div>
-    </div>
-    <div class="inv-card-name"></div>
-    <div class="inv-card-status"></div>
-    <div class="inv-card-price"></div>
-    <div class="inv-card-value"></div>
-  `
+  d.style.animationDelay=i*0.05+'s'
+  d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="inv-card-qty"></div></div><div class="inv-card-name"></div><div class="inv-card-status"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
   d.onclick=()=>select(h.id,'hold')
   return d
 }
@@ -55,17 +46,8 @@ const appraisedCard=(a,i)=>{
   let d=el('div','inv-card appraised-card')
   d.dataset.id=a.appraisal_id
   d.dataset.type='appraised'
-  d.style.animationDelay=`${i*0.05}s`
-  d.innerHTML=`
-    <div class="inv-card-head">
-      <div class="inv-card-rarity"></div>
-      <div class="appraisal-badge"></div>
-    </div>
-    <div class="inv-card-name"></div>
-    <div class="appraisal-rating"></div>
-    <div class="inv-card-price"></div>
-    <div class="inv-card-value"></div>
-  `
+  d.style.animationDelay=i*0.05+'s'
+  d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="appraisal-badge"></div></div><div class="inv-card-name"></div><div class="appraisal-rating"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
   d.onclick=()=>select(a.appraisal_id,'appraised')
   return d
 }
@@ -134,11 +116,18 @@ const act=async()=>{
   let r=await fetch('/sell',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
   if(r.ok){
     let j=await r.json()
-    if(j.ok){
-      toast(`Sold for $${money(j.total)}!`)
-      sel=null;selType=null
-      fetchState()
-    }else toast(j.error||'Failed','error')
+    if(j.ok){toast('Sold for $'+money(j.total)+'!');sel=null;selType=null;fetchState()}
+    else toast(j.error||'Failed','error')
+  }else toast('Request failed','error')
+}
+
+const sellAll=async()=>{
+  if(!confirm('Sell ALL shoes in your inventory?'))return
+  let r=await fetch('/sell-all',{method:'POST'})
+  if(r.ok){
+    let j=await r.json()
+    if(j.ok){toast('Sold all for $'+money(j.total)+'!');sel=null;selType=null;fetchState()}
+    else toast(j.error||'Failed','error')
   }else toast('Request failed','error')
 }
 
@@ -179,7 +168,7 @@ const upd=()=>{
       d.querySelector('.inv-card-name').textContent=a.name
       let rat=d.querySelector('.appraisal-rating')
       let pctVal=((a.multiplier-1)*100).toFixed(0)
-      rat.innerHTML=`<span class="${a.multiplier>=1?'up':'down'}">${a.multiplier>=1?'+':''}${pctVal}% value</span>`
+      rat.innerHTML='<span class="'+(a.multiplier>=1?'up':'down')+'">'+(a.multiplier>=1?'+':'')+pctVal+'% value</span>'
       d.querySelector('.inv-card-price').textContent='$'+money(a.sell_price)+' ea'
       d.querySelector('.inv-card-value').textContent='Value: $'+money(a.sell_price)
       d.classList.add('rating-'+a.rating_class)
@@ -192,10 +181,10 @@ const upd=()=>{
       let rb=d.querySelector('.inv-card-rarity')
       rb.textContent=h.rarity.toUpperCase()
       rb.className='inv-card-rarity '+rarClass(h.rarity)
-      d.querySelector('.inv-card-qty').textContent='×'+h.qty
+      d.querySelector('.inv-card-qty').textContent='x'+h.qty
       d.querySelector('.inv-card-name').textContent=h.name
       let st=d.querySelector('.inv-card-status')
-      st.textContent=h.in_market?'📈 In Market':'⏸️ Off-Market (-5%)'
+      st.textContent=h.in_market?'In Market':'Off-Market (-5%)'
       st.className='inv-card-status'+(h.in_market?' in-market':' off-market')
       d.querySelector('.inv-card-price').textContent='$'+money(price)+' ea'
       d.querySelector('.inv-card-value').textContent='Value: $'+money(price*h.qty)
@@ -221,12 +210,27 @@ const stream=()=>{
 }
 setInterval(fetchState,3000)
 
+const updBadge=async()=>{
+  let r=await fetch('/api/trade-count')
+  if(r.ok){
+    let j=await r.json()
+    let b=$('#trade-badge')
+    if(b){
+      if(j.count>0){b.textContent=j.count;b.classList.remove('hidden')}
+      else{b.classList.add('hidden')}
+    }
+  }
+}
+
 $('#btn-sell').onclick=act
 $('#btn-details').onclick=()=>{let item=getSelected();if(item)location.href='/shoe/'+item.id}
 $('#qty-dec').onclick=()=>{let q=$('#s-qty');q.value=Math.max(1,parseInt(q.value)-1);updSellPreview()}
 $('#qty-inc').onclick=()=>{let q=$('#s-qty');q.value=Math.min(parseInt(q.max)||99,parseInt(q.value)+1);updSellPreview()}
 $('#qty-max').onclick=()=>{let q=$('#s-qty');q.value=q.max||1;updSellPreview()}
 $('#s-qty').oninput=updSellPreview
+$('#sell-all').onclick=sellAll
 
 fetchState()
 stream()
+updBadge()
+setInterval(updBadge,10000)
