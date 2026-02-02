@@ -841,14 +841,24 @@ def create_trade():
         return jsonify({"ok": False, "error": "Not enough balance"})
     
     for shoe in offer_shoes:
-        hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe["id"])).fetchone()
-        if not hold or hold["qty"] < shoe.get("qty", 1):
-            return jsonify({"ok": False, "error": f"You don't have enough of that shoe"})
+        if shoe.get("appraised"):
+            app = d.execute("select id from appraised where id=? and user_id=?", (shoe.get("appraisal_id"), u)).fetchone()
+            if not app:
+                return jsonify({"ok": False, "error": "You don't have that appraised shoe"})
+        else:
+            hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe["id"])).fetchone()
+            if not hold or hold["qty"] < shoe.get("qty", 1):
+                return jsonify({"ok": False, "error": "You don't have enough of that shoe"})
     
     for shoe in want_shoes:
-        hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (to_acc["id"], shoe["id"])).fetchone()
-        if not hold or hold["qty"] < shoe.get("qty", 1):
-            return jsonify({"ok": False, "error": f"They don't have enough of that shoe"})
+        if shoe.get("appraised"):
+            app = d.execute("select id from appraised where id=? and user_id=?", (shoe.get("appraisal_id"), to_acc["id"])).fetchone()
+            if not app:
+                return jsonify({"ok": False, "error": "They don't have that appraised shoe"})
+        else:
+            hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (to_acc["id"], shoe["id"])).fetchone()
+            if not hold or hold["qty"] < shoe.get("qty", 1):
+                return jsonify({"ok": False, "error": "They don't have enough of that shoe"})
     
     now = int(time.time())
     d.execute("""
@@ -882,16 +892,28 @@ def accept_trade(trade_id):
         return jsonify({"ok": False, "error": "You don't have enough cash"})
     
     for shoe in offer_shoes:
-        hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (from_user, shoe["id"])).fetchone()
-        if not hold or hold["qty"] < shoe.get("qty", 1):
-            d.execute("update trades set status='cancelled' where id=?", (trade_id,))
-            d.commit()
-            return jsonify({"ok": False, "error": "Sender no longer has those shoes"})
+        if shoe.get("appraised"):
+            app = d.execute("select id from appraised where id=? and user_id=?", (shoe.get("appraisal_id"), from_user)).fetchone()
+            if not app:
+                d.execute("update trades set status='cancelled' where id=?", (trade_id,))
+                d.commit()
+                return jsonify({"ok": False, "error": "Sender no longer has that appraised shoe"})
+        else:
+            hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (from_user, shoe["id"])).fetchone()
+            if not hold or hold["qty"] < shoe.get("qty", 1):
+                d.execute("update trades set status='cancelled' where id=?", (trade_id,))
+                d.commit()
+                return jsonify({"ok": False, "error": "Sender no longer has those shoes"})
     
     for shoe in want_shoes:
-        hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe["id"])).fetchone()
-        if not hold or hold["qty"] < shoe.get("qty", 1):
-            return jsonify({"ok": False, "error": "You no longer have those shoes"})
+        if shoe.get("appraised"):
+            app = d.execute("select id from appraised where id=? and user_id=?", (shoe.get("appraisal_id"), u)).fetchone()
+            if not app:
+                return jsonify({"ok": False, "error": "You no longer have that appraised shoe"})
+        else:
+            hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe["id"])).fetchone()
+            if not hold or hold["qty"] < shoe.get("qty", 1):
+                return jsonify({"ok": False, "error": "You no longer have those shoes"})
     
     if offer_cash > 0:
         d.execute("update users set balance=balance-? where id=?", (offer_cash, from_user))
@@ -901,16 +923,22 @@ def accept_trade(trade_id):
         d.execute("update users set balance=balance+? where id=?", (want_cash, from_user))
     
     for shoe in offer_shoes:
-        qty = shoe.get("qty", 1)
-        d.execute("update hold set qty=qty-? where user_id=? and shoe_id=?", (qty, from_user, shoe["id"]))
-        d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (from_user, shoe["id"]))
-        d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+?", (u, shoe["id"], qty, qty))
+        if shoe.get("appraised"):
+            d.execute("update appraised set user_id=? where id=?", (u, shoe.get("appraisal_id")))
+        else:
+            qty = shoe.get("qty", 1)
+            d.execute("update hold set qty=qty-? where user_id=? and shoe_id=?", (qty, from_user, shoe["id"]))
+            d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (from_user, shoe["id"]))
+            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+?", (u, shoe["id"], qty, qty))
     
     for shoe in want_shoes:
-        qty = shoe.get("qty", 1)
-        d.execute("update hold set qty=qty-? where user_id=? and shoe_id=?", (qty, u, shoe["id"]))
-        d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (u, shoe["id"]))
-        d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+?", (from_user, shoe["id"], qty, qty))
+        if shoe.get("appraised"):
+            d.execute("update appraised set user_id=? where id=?", (from_user, shoe.get("appraisal_id")))
+        else:
+            qty = shoe.get("qty", 1)
+            d.execute("update hold set qty=qty-? where user_id=? and shoe_id=?", (qty, u, shoe["id"]))
+            d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (u, shoe["id"]))
+            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+?", (from_user, shoe["id"], qty, qty))
     
     d.execute("update trades set status='accepted', updated=? where id=?", (int(time.time()), trade_id))
     d.commit()
