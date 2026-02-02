@@ -554,6 +554,7 @@ def shoe_page(shoe_id):
     return render_template("details.html", shoe_id=shoe_id, is_admin=is_admin())
 
 @app.route("/api/state")
+@login_required
 def api_state():
     u = uid()
     refresh()
@@ -562,6 +563,7 @@ def api_state():
     return jsonify(state(u))
 
 @app.route("/api/shoe/<int:shoe_id>")
+@login_required
 def api_shoe(shoe_id):
     u = uid()
     refresh()
@@ -572,6 +574,7 @@ def api_shoe(shoe_id):
     return jsonify(s)
 
 @app.route("/buy", methods=["POST"])
+@login_required
 def buy():
     u = uid()
     shoe = int(request.json.get("id", 0))
@@ -606,6 +609,7 @@ def get_sell_price(shoe_id):
     return shoe["base"] * 0.9
 
 @app.route("/sell", methods=["POST"])
+@login_required
 def sell():
     u = uid()
     shoe = int(request.json.get("id", 0))
@@ -640,6 +644,7 @@ def sell():
     return jsonify({"ok": True, "price": price, "total": gain})
 
 @app.route("/sell-all", methods=["POST"])
+@login_required
 def sell_all():
     u = uid()
     d = db()
@@ -726,6 +731,7 @@ def bob_comment(tier):
     return template.format(factor1=detail1, factor2=detail2)
 
 @app.route("/api/appraise", methods=["POST"])
+@login_required
 def do_appraise():
     u = uid()
     shoe_id = int(request.json.get("id", 0))
@@ -1108,6 +1114,7 @@ def api_user_shoes(username):
     return jsonify(result)
 
 @app.route("/stream")
+@login_required
 def stream():
     u = uid()
     def gen():

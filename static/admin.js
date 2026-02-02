@@ -65,5 +65,11 @@ window.resetStock=async()=>{
     else toast(j.error||'Failed','error')
 }
 
+const fetchBalance=async()=>{
+    let r=await fetch('/api/state')
+    if(r.ok){let s=await r.json();$('#bal').textContent=s.balance.toFixed(2)}
+}
+
 loadUsers()
 loadShoes()
+fetchBalance()

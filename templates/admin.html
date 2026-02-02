@@ -1,25 +1,55 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Admin - Cryptoshoe</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="/static/admin.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin - Cryptoshoe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/admin.css">
 </head>
 <body>
-<nav class="nav">
-    <a href="/" class="nav-brand">👟 Cryptoshoe</a>
-    <div class="nav-links">
-        <a href="/">Market</a>
-        <a href="/inventory">Inventory</a>
-        <a href="/appraise">Appraise</a>
-        <a href="/users">Users</a>
-        <a href="/admin" class="active">Admin</a>
-        <a href="/logout" class="nav-logout">Logout</a>
+  <div class="bg-grid"></div>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">👟</span>
+        <span class="logo-text">CRYPTO<span class="accent">SHOE</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">
+          <span class="nav-icon">📈</span>
+          <span class="nav-text">Market</span>
+        </a>
+        <a href="/inventory" class="nav-link">
+          <span class="nav-icon">🎒</span>
+          <span class="nav-text">Inventory</span>
+        </a>
+        <a href="/appraise" class="nav-link">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Appraise</span>
+        </a>
+        <a href="/users" class="nav-link">
+          <span class="nav-icon">👥</span>
+          <span class="nav-text">Users</span>
+        </a>
+        <a href="/admin" class="nav-link nav-admin active">
+          <span class="nav-icon">🔐</span>
+          <span class="nav-text">Admin</span>
+        </a>
+      </div>
+      <div class="nav-user">
+        <div class="nav-bal">
+          <div class="bal-label">BALANCE</div>
+          <div class="bal-val">$<span id="bal">0.00</span></div>
+        </div>
+        <a href="/logout" class="nav-logout" title="Logout">🚪</a>
+      </div>
     </div>
-</nav>
-<main class="admin-main">
+  </nav>
+  <main class="admin-main">
     <h1>🔐 Admin Panel</h1>
     
     <section class="admin-section">
@@ -51,8 +81,8 @@
         <h2>👥 Users</h2>
         <div id="users-list"></div>
     </section>
-</main>
-<div id="toast" class="toast"></div>
-<script src="/static/admin.js"></script>
+  </main>
+  <div id="toast" class="toast"></div>
+  <script src="/static/admin.js"></script>
 </body>
 </html>
