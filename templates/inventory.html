@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cryptoshoe - Inventory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">👟</span>
+        <span class="logo-text">CRYPTO<span class="accent">SHOE</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">
+          <span class="nav-icon">📈</span>
+          Market
+        </a>
+        <a href="/inventory" class="nav-link active">
+          <span class="nav-icon">🎒</span>
+          Inventory
+        </a>
+        <a href="/appraise" class="nav-link">
+          <span class="nav-icon">🔍</span>
+          Appraise
+        </a>
+      </div>
+      <div class="nav-user">
+        <div class="nav-bal">
+          <div class="bal-label">BALANCE</div>
+          <div class="bal-val">$<span id="bal">0.00</span></div>
+        </div>
+        <a href="/logout" class="nav-logout" title="Logout">🚪</a>
+      </div>
+    </div>
+  </nav>
+  <div class="wrap">
+    <div class="layout">
+      <div class="main">
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">
+              <span class="nav-icon" style="font-size:20px">🎒</span>
+              YOUR INVENTORY
+            </h2>
+            <div class="section-sub" id="inv-count">0 shoes owned</div>
+          </div>
+          <div class="inv-stats">
+            <div class="inv-stat">
+              <div class="inv-stat-label">TOTAL VALUE</div>
+              <div class="inv-stat-val" id="inv-value">$0.00</div>
+            </div>
+            <div class="inv-stat">
+              <div class="inv-stat-label">PROFIT/LOSS</div>
+              <div class="inv-stat-val" id="inv-pnl">$0.00</div>
+            </div>
+            <div class="inv-stat">
+              <div class="inv-stat-label">NET WORTH</div>
+              <div class="inv-stat-val" id="inv-worth">$0.00</div>
+            </div>
+            <div class="inv-stat timer-stat">
+              <div class="inv-stat-label">⏱ PRICE UPDATE</div>
+              <div class="inv-stat-val timer-val" id="price-timer">--</div>
+            </div>
+            <div class="inv-stat timer-stat">
+              <div class="inv-stat-label">🔄 STOCK REFRESH</div>
+              <div class="inv-stat-val timer-val" id="stock-timer">--:--</div>
+            </div>
+          </div>
+          <div id="inv-empty" class="empty">
+            <div class="empty-icon">📦</div>
+            <div class="empty-text">Your inventory is empty</div>
+            <a href="/" class="empty-btn">Go to Market</a>
+          </div>
+          <div id="inventory" class="inv-grid"></div>
+        </section>
+      </div>
+      <aside class="sidebar">
+        <div class="sidebar-inner">
+          <div class="sidebar-head">
+            <div class="sidebar-title">SELL PANEL</div>
+          </div>
+          <div id="sidebar-empty" class="sidebar-empty">
+            <div class="sidebar-empty-icon">👆</div>
+            <div>Select a shoe to sell</div>
+          </div>
+          <div id="sidebar-content" class="sidebar-content hidden">
+            <div class="shoe-preview">
+              <div class="shoe-rarity-badge" id="s-rarity"></div>
+              <div class="shoe-name" id="s-name"></div>
+            </div>
+            <div class="price-display">
+              <div class="price-current">
+                <div class="price-label">MARKET PRICE</div>
+                <div class="price-val" id="s-price">$0.00</div>
+              </div>
+              <div class="price-change" id="s-pct-wrap">
+                <span id="s-pct">0.00%</span>
+                <span class="price-change-label">from base</span>
+              </div>
+            </div>
+            <div class="meta-row">
+              <div class="meta-item">
+                <div class="meta-label">YOU OWN</div>
+                <div class="meta-val" id="s-owned">0</div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-label">TOTAL VALUE</div>
+                <div class="meta-val" id="s-total">$0.00</div>
+              </div>
+            </div>
+            <div class="sell-preview">
+              <div class="sell-label">SELL VALUE</div>
+              <div class="sell-val" id="sell-preview">$0.00</div>
+            </div>
+            <div class="trade-controls">
+              <div class="qty-row">
+                <label class="qty-label">QTY</label>
+                <div class="qty-input-wrap">
+                  <button class="qty-btn" id="qty-dec">−</button>
+                  <input id="s-qty" type="number" min="1" value="1">
+                  <button class="qty-btn" id="qty-inc">+</button>
+                </div>
+                <button class="qty-max" id="qty-max">MAX</button>
+              </div>
+              <button class="trade-btn sell full" id="btn-sell">
+                <span class="trade-btn-icon">💰</span>
+                SELL SHOES
+              </button>
+            </div>
+            <button class="details-btn" id="btn-details">
+              VIEW DETAILS & CHART
+              <span class="details-arrow">→</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="/static/inventory.js"></script>
+</body>
+</html>

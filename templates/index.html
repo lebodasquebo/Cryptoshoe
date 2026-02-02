@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cryptoshoe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">👟</span>
+        <span class="logo-text">CRYPTO<span class="accent">SHOE</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link active">
+          <span class="nav-icon">📈</span>
+          Market
+        </a>
+        <a href="/inventory" class="nav-link">
+          <span class="nav-icon">🎒</span>
+          Inventory
+        </a>
+        <a href="/appraise" class="nav-link">
+          <span class="nav-icon">🔍</span>
+          Appraise
+        </a>
+      </div>
+      <div class="nav-user">
+        <div class="nav-bal">
+          <div class="bal-label">BALANCE</div>
+          <div class="bal-val">$<span id="bal">0.00</span></div>
+        </div>
+        <a href="/logout" class="nav-logout" title="Logout">🚪</a>
+      </div>
+    </div>
+  </nav>
+  <div class="wrap">
+    <div class="layout">
+      <div class="main">
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">
+              <span class="pulse"></span>
+              LIVE MARKET
+            </h2>
+            <div class="stock-timer">
+              <span class="timer-icon">🔄</span>
+              <span class="timer-label">New stock in</span>
+              <span class="timer-val" id="stock-timer">--:--</span>
+              <button class="test-refresh" id="test-refresh" title="Test: Force refresh stock">⚡</button>
+            </div>
+          </div>
+          <div id="market" class="grid"></div>
+        </section>
+      </div>
+      <aside class="sidebar">
+        <div class="sidebar-inner">
+          <div class="sidebar-head">
+            <div class="sidebar-title">TRADE PANEL</div>
+          </div>
+          <div id="sidebar-empty" class="sidebar-empty">
+            <div class="sidebar-empty-icon">👆</div>
+            <div>Select a shoe from the market to trade</div>
+          </div>
+          <div id="sidebar-content" class="sidebar-content hidden">
+            <div class="shoe-preview">
+              <div class="shoe-rarity-badge" id="s-rarity"></div>
+              <div class="shoe-name" id="s-name"></div>
+            </div>
+            <div class="price-display">
+              <div class="price-current">
+                <div class="price-label">CURRENT PRICE</div>
+                <div class="price-val" id="s-price">$0.00</div>
+              </div>
+              <div class="price-change" id="s-pct-wrap">
+                <span id="s-pct">0.00%</span>
+                <span class="price-change-label">from base</span>
+              </div>
+            </div>
+            <div class="meta-row">
+              <div class="meta-item">
+                <div class="meta-label">BASE PRICE</div>
+                <div class="meta-val" id="s-base">$0.00</div>
+              </div>
+              <div class="meta-item">
+                <div class="meta-label">IN STOCK</div>
+                <div class="meta-val" id="s-stock">0</div>
+              </div>
+            </div>
+            <div class="news-box" id="s-news-wrap">
+              <div class="news-label">📰 NEWS</div>
+              <div class="news-text" id="s-news">No news</div>
+            </div>
+            <div class="trade-controls">
+              <div class="qty-row">
+                <label class="qty-label">QTY</label>
+                <div class="qty-input-wrap">
+                  <button class="qty-btn" id="qty-dec">−</button>
+                  <input id="s-qty" type="number" min="1" value="1">
+                  <button class="qty-btn" id="qty-inc">+</button>
+                </div>
+                <button class="qty-max" id="qty-max">MAX</button>
+              </div>
+              <div class="trade-btns">
+                <button class="trade-btn buy" id="btn-buy">
+                  <span class="trade-btn-icon">↓</span>
+                  BUY
+                </button>
+                <button class="trade-btn sell" id="btn-sell">
+                  <span class="trade-btn-icon">↑</span>
+                  SELL
+                </button>
+              </div>
+            </div>
+            <button class="details-btn" id="btn-details">
+              VIEW DETAILS & CHART
+              <span class="details-arrow">→</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

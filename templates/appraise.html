@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cryptoshoe - Bob's Appraisals</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/appraise.css">
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">👟</span>
+        <span class="logo-text">CRYPTO<span class="accent">SHOE</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">
+          <span class="nav-icon">📈</span>
+          Market
+        </a>
+        <a href="/inventory" class="nav-link">
+          <span class="nav-icon">🎒</span>
+          Inventory
+        </a>
+        <a href="/appraise" class="nav-link active">
+          <span class="nav-icon">🔍</span>
+          Appraise
+        </a>
+      </div>
+      <div class="nav-user">
+        <div class="nav-bal">
+          <div class="bal-label">BALANCE</div>
+          <div class="bal-val">$<span id="bal">0.00</span></div>
+        </div>
+        <a href="/logout" class="nav-logout" title="Logout">🚪</a>
+      </div>
+    </div>
+  </nav>
+  <div class="wrap">
+    <div class="appraise-layout">
+      <div class="bob-section">
+        <div class="bob-card">
+          <div class="bob-avatar">🧔</div>
+          <div class="bob-info">
+            <div class="bob-name">BOB THE APPRAISER</div>
+            <div class="bob-title">Master Shoe Evaluator • 40 Years Experience</div>
+          </div>
+        </div>
+        <div class="bob-speech" id="bob-speech">
+          <div class="speech-bubble">
+            <p>"Welcome to my appraisal shop! Select a shoe from your inventory and I'll give it a professional rating."</p>
+            <p class="speech-sub">"Each appraisal costs 10% of the shoe's current value. Choose wisely - I can only appraise each shoe once!"</p>
+          </div>
+        </div>
+        <div class="rating-guide">
+          <div class="guide-title">RATING GUIDE</div>
+          <div class="guide-items">
+            <div class="guide-item perfect"><span>10.0</span> Perfect - 2x Value! ⭐</div>
+            <div class="guide-item excellent"><span>8.0-9.9</span> Excellent (+24-40%)</div>
+            <div class="guide-item good"><span>6.0-7.9</span> Good (+6-18%)</div>
+            <div class="guide-item avg"><span>5.0-5.9</span> Average (±4%)</div>
+            <div class="guide-item poor"><span>3.0-4.9</span> Poor (-8-16%)</div>
+            <div class="guide-item terrible"><span>1.0-2.9</span> Terrible (-24-48%)</div>
+          </div>
+        </div>
+      </div>
+      <div class="appraise-main">
+        <div class="section-head">
+          <h2 class="section-title">YOUR SHOES</h2>
+          <div class="section-sub" id="shoe-count">0 shoes available</div>
+        </div>
+        <div id="appraise-empty" class="empty">
+          <div class="empty-icon">📦</div>
+          <div class="empty-text">No shoes to appraise</div>
+          <a href="/" class="empty-btn">Go to Market</a>
+        </div>
+        <div id="shoe-grid" class="appraise-grid"></div>
+      </div>
+    </div>
+  </div>
+  <div class="modal hidden" id="appraise-modal">
+    <div class="modal-content">
+      <div class="modal-close" id="modal-close">×</div>
+      <div class="modal-bob">🧔</div>
+      <div class="modal-title">APPRAISAL COMPLETE</div>
+      <div id="modal-results"></div>
+      <button class="modal-btn" id="modal-btn">NICE!</button>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="/static/appraise.js"></script>
+</body>
+</html>

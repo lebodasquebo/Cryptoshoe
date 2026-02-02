@@ -1,0 +1,183 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cryptoshoe - Details</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/details.css">
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">👟</span>
+        <span class="logo-text">CRYPTO<span class="accent">SHOE</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">
+          <span class="nav-icon">📈</span>
+          Market
+        </a>
+        <a href="/inventory" class="nav-link">
+          <span class="nav-icon">🎒</span>
+          Inventory
+        </a>
+        <a href="/appraise" class="nav-link">
+          <span class="nav-icon">🔍</span>
+          Appraise
+        </a>
+      </div>
+      <div class="nav-user">
+        <div class="nav-bal">
+          <div class="bal-label">BALANCE</div>
+          <div class="bal-val">$<span id="bal">0.00</span></div>
+        </div>
+        <a href="/logout" class="nav-logout" title="Logout">🚪</a>
+      </div>
+    </div>
+  </nav>
+  <div class="wrap">
+    <a class="back-link" href="javascript:history.back()">
+      <span>←</span> Back
+    </a>
+    <div class="detail-layout">
+      <div class="detail-main">
+        <div class="detail-hero">
+          <div class="hero-badge" id="d-rarity"></div>
+          <h1 class="hero-name" id="d-name">Loading...</h1>
+          <div class="hero-prices">
+            <div class="hero-current">
+              <div class="hero-label">CURRENT PRICE</div>
+              <div class="hero-price" id="d-price">$0.00</div>
+            </div>
+            <div class="hero-change" id="d-pct-wrap">
+              <span id="d-pct">0.00%</span>
+              <span class="hero-change-sub">from base ($<span id="d-base">0.00</span>)</span>
+            </div>
+          </div>
+        </div>
+        <div class="chart-section">
+          <div class="chart-head">
+            <h2 class="chart-title">PRICE HISTORY</h2>
+            <div class="chart-spans">
+              <button data-span="60">1M</button>
+              <button data-span="300">5M</button>
+              <button data-span="900">15M</button>
+              <button data-span="3600">1H</button>
+              <button data-span="21600">6H</button>
+              <button data-span="86400" class="active">24H</button>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="d-chart"></canvas>
+            <div class="chart-labels">
+              <span id="chart-high">$0.00</span>
+              <span id="chart-low">$0.00</span>
+            </div>
+          </div>
+          <div class="chart-stats">
+            <div class="stat">
+              <div class="stat-label">HIGH</div>
+              <div class="stat-val up" id="stat-high">$0.00</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">LOW</div>
+              <div class="stat-val down" id="stat-low">$0.00</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">AVG</div>
+              <div class="stat-val" id="stat-avg">$0.00</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">VOLATILITY</div>
+              <div class="stat-val" id="stat-vol">0%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside class="detail-side">
+        <div class="news-section">
+          <div class="news-head">
+            <span class="news-icon">📰</span>
+            <h3 class="news-title">LATEST NEWS</h3>
+          </div>
+          <div class="news-content" id="d-news">
+            <div class="no-news">No news affecting this shoe</div>
+          </div>
+          <div class="news-impact" id="d-impact"></div>
+        </div>
+        <div class="info-section">
+          <h3 class="info-title">SHOE INFO</h3>
+          <div class="info-row">
+            <span class="info-label">Rarity</span>
+            <span class="info-val" id="d-rarity2">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Base Price</span>
+            <span class="info-val" id="d-base2">$0.00</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Current Stock</span>
+            <span class="info-val" id="d-stock">0</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">⏱ Price Update</span>
+            <span class="info-val timer-val" id="price-timer">--</span>
+          </div>
+        </div>
+        <div class="trade-section" id="trade-section">
+          <h3 class="info-title">QUICK TRADE</h3>
+          <div class="trade-owned" id="trade-owned"></div>
+          <div class="trade-panels">
+            <div class="trade-panel-mini" id="buy-panel">
+              <div class="panel-title buy-title">BUY</div>
+              <div class="panel-status" id="buy-status"></div>
+              <div class="trade-qty-row">
+                <div class="trade-qty-wrap">
+                  <button class="qty-btn" id="buy-dec">−</button>
+                  <input type="number" id="buy-qty" min="1" value="1">
+                  <button class="qty-btn" id="buy-inc">+</button>
+                </div>
+                <button class="qty-max-btn" id="buy-max">MAX</button>
+              </div>
+              <div class="trade-total">
+                <span>Cost:</span>
+                <span id="buy-total">$0.00</span>
+              </div>
+              <button class="trade-btn buy full" id="btn-buy">
+                <span class="trade-btn-icon">↓</span> BUY
+              </button>
+            </div>
+            <div class="trade-panel-mini hidden" id="sell-panel">
+              <div class="panel-title sell-title">SELL</div>
+              <div class="panel-status" id="sell-status"></div>
+              <div class="trade-qty-row">
+                <div class="trade-qty-wrap">
+                  <button class="qty-btn" id="sell-dec">−</button>
+                  <input type="number" id="sell-qty" min="1" value="1">
+                  <button class="qty-btn" id="sell-inc">+</button>
+                </div>
+                <button class="qty-max-btn" id="sell-max">MAX</button>
+              </div>
+              <div class="trade-total">
+                <span>Get:</span>
+                <span id="sell-total">$0.00</span>
+              </div>
+              <button class="trade-btn sell full" id="btn-sell">
+                <span class="trade-btn-icon">↑</span> SELL
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <script>window.SHOE_ID={{ shoe_id }}</script>
+  <script src="/static/details.js"></script>
+</body>
+</html>
