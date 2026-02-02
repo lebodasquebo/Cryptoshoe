@@ -10,14 +10,18 @@ const toast=(msg,type='success')=>{
   setTimeout(()=>t.classList.remove('show'),2500)
 }
 
-const userCard=(u)=>`<a href="/user/${u.username}" class="user-card${u.is_me?' is-me':''}">
+const userCard=(u)=>`<div class="user-card${u.is_me?' is-me':''}">
   <div class="user-avatar">👤</div>
   <div class="user-name">${u.username}${u.is_me?' (you)':''}</div>
   <div class="user-stats">
     <div class="user-stat"><span class="user-stat-val">$${money(u.balance)}</span><span>Balance</span></div>
     <div class="user-stat"><span class="user-stat-val">${u.shoes}</span><span>Shoes</span></div>
   </div>
-</a>`
+  <div class="user-actions">
+    <a href="/user/${u.username}" class="user-btn profile-btn">👤 Profile</a>
+    ${!u.is_me?`<a href="/user/${u.username}" class="user-btn trade-btn">🤝 Trade</a>`:''}
+  </div>
+</div>`
 
 const shoePreview=(shoes)=>{
   if(!shoes||!shoes.length)return ''
@@ -31,22 +35,29 @@ const tradeItem=(t,type)=>{
   let wantVal=(t.want_cash||0)+want.reduce((s,x)=>(x.price||0)*(x.qty||1)+s,0)
   
   if(type==='incoming'){
-    return `<div class="trade-item" onclick="viewTrade(${t.id})">
-      <div class="trade-user">From: ${t.from_username}</div>
+    return `<div class="trade-item">
+      <div class="trade-user">From: <strong>${t.from_username}</strong></div>
       <div class="trade-details">
-        <div>Offers: $${money(offerVal)} ${offer.length?'('+offer.length+' shoes)':''}</div>
-        <div>Wants: $${money(wantVal)} ${want.length?'('+want.length+' shoes)':''}</div>
+        <div>📥 You get: <span class="val-green">$${money(offerVal)}</span></div>
+        <div>📤 You give: <span class="val-red">$${money(wantVal)}</span></div>
       </div>
-      <div class="trade-preview">${shoePreview(offer)} → ${shoePreview(want)||'$'+money(t.want_cash||0)}</div>
+      <div class="trade-item-actions">
+        <button class="trade-btn-sm view-btn" onclick="viewTrade(${t.id})">👁 View Details</button>
+        <button class="trade-btn-sm accept-btn" onclick="acceptTrade(${t.id})">✓ Accept</button>
+        <button class="trade-btn-sm decline-btn" onclick="declineTrade(${t.id})">✗ Decline</button>
+      </div>
     </div>`
   }else{
-    return `<div class="trade-item" onclick="viewOutgoing(${t.id})">
-      <div class="trade-user">To: ${t.to_username}</div>
+    return `<div class="trade-item">
+      <div class="trade-user">To: <strong>${t.to_username}</strong></div>
       <div class="trade-details">
-        <div>You offer: $${money(offerVal)}</div>
-        <div>You want: $${money(wantVal)}</div>
+        <div>📤 You offer: <span class="val-red">$${money(offerVal)}</span></div>
+        <div>📥 You want: <span class="val-green">$${money(wantVal)}</span></div>
       </div>
-      <button class="trade-cancel" onclick="event.stopPropagation();declineTrade(${t.id})">Cancel</button>
+      <div class="trade-item-actions">
+        <button class="trade-btn-sm view-btn" onclick="viewOutgoing(${t.id})">👁 View Details</button>
+        <button class="trade-btn-sm decline-btn" onclick="declineTrade(${t.id})">✗ Cancel</button>
+      </div>
     </div>`
   }
 }
