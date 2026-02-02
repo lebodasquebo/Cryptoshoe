@@ -1114,8 +1114,9 @@ def api_user_shoes(username):
     return jsonify(result)
 
 @app.route("/stream")
-@login_required
 def stream():
+    if "user_id" not in session:
+        return Response("data: {\"error\": \"not_logged_in\"}\n\n", mimetype="text/event-stream")
     u = uid()
     def gen():
         while True:
