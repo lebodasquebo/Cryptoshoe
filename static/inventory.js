@@ -122,6 +122,10 @@ $('#qty-max').onclick=()=>{let q=$('#s-qty');q.value=q.max||1;updSellPreview()}
 $('#s-qty').oninput=updSellPreview
 $('#sell-all').onclick=sellAll
 
+const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
+
 fetchState()
 updBadge()
+fetchNotifs()
 setInterval(updBadge,10000)
+setInterval(fetchNotifs,10000)

@@ -132,7 +132,10 @@ $('#qty-inc').onclick=()=>{let q=$('#s-qty');q.value=Math.min(parseInt(q.max)||9
 $('#qty-max').onclick=()=>{let q=$('#s-qty');q.value=q.max||1}
 
 const updBadge=async()=>{let r=await fetch('/api/trade-count');if(r.ok){let j=await r.json(),b=$('#trade-badge');if(j.count>0){b.textContent=j.count;b.classList.remove('hidden')}else{b.classList.add('hidden')}}}
+const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
 
 fetchState()
 updBadge()
+fetchNotifs()
 setInterval(updBadge,10000)
+setInterval(fetchNotifs,10000)

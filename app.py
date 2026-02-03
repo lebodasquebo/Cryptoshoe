@@ -62,6 +62,7 @@ def init():
         created integer, updated integer
     );
     create index if not exists idx_trades on trades(from_user, to_user, status);
+    create table if not exists notifications(id integer primary key autoincrement, user_id text, message text, ts integer);
     insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
     """)
     try:
@@ -1122,6 +1123,16 @@ def stream():
     income(u)
     return jsonify(state(u))
 
+@app.route("/api/notifications")
+@login_required
+def get_notifications():
+    u = uid()
+    d = db()
+    notifs = d.execute("select id, message, ts from notifications where user_id=? order by ts desc limit 10", (u,)).fetchall()
+    d.execute("delete from notifications where user_id=?", (u,))
+    d.commit()
+    return jsonify([dict(n) for n in notifs])
+
 def is_admin():
     return session.get("username") in ADMIN_USERS
 
@@ -1168,6 +1179,8 @@ def admin_money():
     if not acc:
         return jsonify({"ok": False, "error": "User not found"})
     d.execute("update users set balance=balance+? where id=?", (amount, acc["id"]))
+    sign = "+" if amount >= 0 else ""
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"Admin {sign}${amount:.2f} to your balance", int(time.time())))
     d.commit()
     return jsonify({"ok": True})
 
@@ -1185,7 +1198,7 @@ def admin_shoe():
     acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
     if not acc:
         return jsonify({"ok": False, "error": "User not found"})
-    shoe = d.execute("select id from shoes where id=?", (shoe_id,)).fetchone()
+    shoe = d.execute("select id, name from shoes where id=?", (shoe_id,)).fetchone()
     if not shoe:
         return jsonify({"ok": False, "error": "Shoe not found"})
     if action == "give":
@@ -1194,6 +1207,7 @@ def admin_shoe():
             d.execute("update hold set qty=qty+? where user_id=? and shoe_id=?", (qty, acc["id"], shoe_id))
         else:
             d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?)", (acc["id"], shoe_id, qty))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"Admin gave you {qty}x {shoe['name']}", int(time.time())))
     else:
         existing = d.execute("select qty from hold where user_id=? and shoe_id=?", (acc["id"], shoe_id)).fetchone()
         if not existing or existing["qty"] < qty:
@@ -1202,6 +1216,7 @@ def admin_shoe():
             d.execute("delete from hold where user_id=? and shoe_id=?", (acc["id"], shoe_id))
         else:
             d.execute("update hold set qty=qty-? where user_id=? and shoe_id=?", (qty, acc["id"], shoe_id))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"Admin removed {qty}x {shoe['name']}", int(time.time())))
     d.commit()
     return jsonify({"ok": True})
 

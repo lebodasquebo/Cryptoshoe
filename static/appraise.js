@@ -64,5 +64,8 @@ const upd=()=>{
 }
 
 const fetchState=async()=>{let r=await fetch('/api/state');if(r.ok){state=await r.json();serverOffset=state.server_time-Math.floor(Date.now()/1000);upd()}}
+const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
 setInterval(fetchState,3000)
+setInterval(fetchNotifs,10000)
 fetchState()
+fetchNotifs()
