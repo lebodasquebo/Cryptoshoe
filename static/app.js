@@ -3,7 +3,7 @@ const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
 const el=(t,c)=>{let e=document.createElement(t);if(c)e.className=c;return e}
 const money=v=>v.toFixed(2)
 const pct=(p,b)=>((p-b)/b*100)
-const rarClass=r=>({common:'rar-common',uncommon:'rar-uncommon',rare:'rar-rare',epic:'rar-epic',legendary:'rar-legendary',mythic:'rar-mythic',secret:'rar-secret',dexies:'rar-dexies',lebos:'rar-lebos'}[r]||'rar-common')
+const rarClass=r=>({common:'rar-common',uncommon:'rar-uncommon',rare:'rar-rare',epic:'rar-epic',legendary:'rar-legendary',mythic:'rar-mythic',secret:'rar-secret'}[r]||'rar-common')
 
 const updTimer=()=>{
   if(!state.next_stock)return
@@ -216,5 +216,17 @@ $('#qty-dec').onclick=()=>{let q=$('#s-qty');q.value=Math.max(1,parseInt(q.value
 $('#qty-inc').onclick=()=>{let q=$('#s-qty');q.value=Math.min(parseInt(q.max)||99,parseInt(q.value)+1)}
 $('#qty-max').onclick=()=>{let q=$('#s-qty');q.value=q.max||1}
 
+const updBadge=async()=>{
+  let r=await fetch('/api/trade-count')
+  if(r.ok){
+    let j=await r.json()
+    let b=$('#trade-badge')
+    if(j.count>0){b.textContent=j.count;b.classList.remove('hidden')}
+    else{b.classList.add('hidden')}
+  }
+}
+
 fetchState()
 stream()
+updBadge()
+setInterval(updBadge,10000)
