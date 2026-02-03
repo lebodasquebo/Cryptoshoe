@@ -1120,15 +1120,7 @@ def stream():
     refresh()
     prices()
     income(u)
-    data = state(u)
-    def gen():
-        for _ in range(30):
-            yield f"data: {json.dumps(data)}\n\n"
-            time.sleep(2)
-    resp = Response(gen(), mimetype="text/event-stream")
-    resp.headers["Cache-Control"] = "no-cache"
-    resp.headers["X-Accel-Buffering"] = "no"
-    return resp
+    return jsonify(state(u))
 
 def is_admin():
     return session.get("username") in ADMIN_USERS
