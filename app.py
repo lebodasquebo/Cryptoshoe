@@ -1117,13 +1117,12 @@ def api_user_shoes(username):
 @login_required
 def stream():
     u = uid()
+    refresh()
+    prices()
+    income(u)
+    data = state(u)
     def gen():
-        while True:
-            with app.app_context():
-                refresh()
-                prices()
-                income(u)
-                data = state(u)
+        for _ in range(30):
             yield f"data: {json.dumps(data)}\n\n"
             time.sleep(2)
     resp = Response(gen(), mimetype="text/event-stream")
