@@ -19,36 +19,15 @@
         <span class="logo-text">CRYPTO<span class="accent">SHOE</span></span>
       </a>
       <div class="nav-links">
-        <a href="/" class="nav-link">
-          <span class="nav-icon">📈</span>
-          <span class="nav-text">Market</span>
-        </a>
-        <a href="/inventory" class="nav-link">
-          <span class="nav-icon">🎒</span>
-          <span class="nav-text">Inventory</span>
-        </a>
-        <a href="/lootbox" class="nav-link">
-          <span class="nav-icon">🎁</span>
-          <span class="nav-text">Lootbox</span>
-        </a>
-        <a href="/appraise" class="nav-link">
-          <span class="nav-icon">🔍</span>
-          <span class="nav-text">Appraise</span>
-        </a>
-        <a href="/users" class="nav-link">
-          <span class="nav-icon">👥</span>
-          <span class="nav-text">Users</span>
-        </a>
-        <a href="/admin" class="nav-link nav-admin active">
-          <span class="nav-icon">🔐</span>
-          <span class="nav-text">Admin</span>
-        </a>
+        <a href="/" class="nav-link"><span class="nav-icon">📈</span><span class="nav-text">Market</span></a>
+        <a href="/inventory" class="nav-link"><span class="nav-icon">🎒</span><span class="nav-text">Inventory</span></a>
+        <a href="/lootbox" class="nav-link"><span class="nav-icon">🎁</span><span class="nav-text">Lootbox</span></a>
+        <a href="/appraise" class="nav-link"><span class="nav-icon">🔍</span><span class="nav-text">Appraise</span></a>
+        <a href="/users" class="nav-link"><span class="nav-icon">👥</span><span class="nav-text">Users</span></a>
+        <a href="/admin" class="nav-link nav-admin active"><span class="nav-icon">🔐</span><span class="nav-text">Admin</span></a>
       </div>
       <div class="nav-user">
-        <div class="nav-bal">
-          <div class="bal-label">BALANCE</div>
-          <div class="bal-val">$<span id="bal">0.00</span></div>
-        </div>
+        <div class="nav-bal"><div class="bal-label">BALANCE</div><div class="bal-val">$<span id="bal">0.00</span></div></div>
         <a href="/logout" class="nav-logout" title="Logout">🚪</a>
       </div>
     </div>
@@ -56,51 +35,158 @@
   <main class="admin-main">
     <h1>🔐 Admin Panel</h1>
     
-    <section class="admin-section">
+    <div class="admin-grid">
+      <section class="admin-section">
         <h2>💰 Manage Money</h2>
         <div class="admin-form">
-            <input type="text" id="money-user" placeholder="Username">
-            <input type="number" id="money-amount" placeholder="Amount (+/-)">
-            <button onclick="giveMoney()">Apply</button>
+          <input type="text" id="money-user" placeholder="Username">
+          <input type="number" id="money-amount" placeholder="Amount (+/-)">
+          <button onclick="giveMoney()">Apply</button>
         </div>
-    </section>
-    
-    <section class="admin-section">
+      </section>
+      
+      <section class="admin-section">
         <h2>👟 Give/Take Shoes</h2>
         <div class="admin-form">
-            <input type="text" id="shoe-user" placeholder="Username">
-            <select id="shoe-select"></select>
-            <input type="number" id="shoe-qty" placeholder="Qty" value="1" min="1">
-            <button class="give-btn" onclick="giveShoe()">Give</button>
-            <button class="take-btn" onclick="takeShoe()">Take</button>
+          <input type="text" id="shoe-user" placeholder="Username">
+          <select id="shoe-select"></select>
+          <input type="number" id="shoe-qty" placeholder="Qty" value="1" min="1" style="width:60px">
+          <button class="give-btn" onclick="giveShoe()">Give</button>
+          <button class="take-btn" onclick="takeShoe()">Take</button>
         </div>
-    </section>
-    
-    <section class="admin-section">
-        <h2>📦 Reset Stock</h2>
-        <button onclick="resetStock()" class="refresh-btn">Force Stock Refresh</button>
-    </section>
-    
-    <section class="admin-section">
+      </section>
+      
+      <section class="admin-section">
         <h2>🚫 Ban User</h2>
         <div class="admin-form">
-            <input type="text" id="ban-user" placeholder="Username">
-            <select id="ban-duration">
-                <option value="1h">1 Hour</option>
-                <option value="6h">6 Hours</option>
-                <option value="1d">1 Day</option>
-                <option value="7d">7 Days</option>
-                <option value="30d">30 Days</option>
-                <option value="perm">Permanent</option>
-            </select>
-            <button class="ban-btn" onclick="banUser()">Ban</button>
+          <input type="text" id="ban-user" placeholder="Username">
+          <select id="ban-duration">
+            <option value="1h">1 Hour</option>
+            <option value="6h">6 Hours</option>
+            <option value="1d">1 Day</option>
+            <option value="7d">7 Days</option>
+            <option value="30d">30 Days</option>
+            <option value="perm">Permanent</option>
+          </select>
+          <button class="ban-btn" onclick="banUser()">Ban</button>
         </div>
-        <p class="ban-warning">⚠️ Permanent ban deletes the account. Temp bans prevent login.</p>
-    </section>
+      </section>
+      
+      <section class="admin-section">
+        <h2>📦 Stock Control</h2>
+        <button onclick="resetStock()" class="refresh-btn">Force Stock Refresh</button>
+      </section>
+    </div>
+
+    <h2 class="section-divider">🎭 Troll Controls</h2>
     
-    <section class="admin-section">
-        <h2>👥 Users</h2>
-        <div id="users-list"></div>
+    <div class="admin-grid">
+      <section class="admin-section troll-section">
+        <h2>🔄 Swap Balances</h2>
+        <div class="admin-form">
+          <input type="text" id="swap-bal-1" placeholder="User 1">
+          <span class="swap-icon">⇄</span>
+          <input type="text" id="swap-bal-2" placeholder="User 2">
+          <button onclick="swapBalance()">Swap $</button>
+        </div>
+      </section>
+      
+      <section class="admin-section troll-section">
+        <h2>👟 Swap Inventories</h2>
+        <div class="admin-form">
+          <input type="text" id="swap-inv-1" placeholder="User 1">
+          <span class="swap-icon">⇄</span>
+          <input type="text" id="swap-inv-2" placeholder="User 2">
+          <button onclick="swapInventory()">Swap 👟</button>
+        </div>
+      </section>
+      
+      <section class="admin-section troll-section">
+        <h2>📢 Broadcast Message</h2>
+        <div class="admin-form">
+          <input type="text" id="broadcast-msg" placeholder="Message to all users" style="flex:2">
+          <button onclick="broadcast()">Send All</button>
+        </div>
+      </section>
+      
+      <section class="admin-section troll-section">
+        <h2>💰 Money Rain</h2>
+        <div class="admin-form">
+          <input type="number" id="rain-amount" placeholder="Amount per user">
+          <button class="give-btn" onclick="moneyRain()">💸 Rain!</button>
+        </div>
+        <p class="hint">Give $ to ALL users</p>
+      </section>
+      
+      <section class="admin-section troll-section">
+        <h2>💸 Tax Everyone</h2>
+        <div class="admin-form">
+          <input type="number" id="tax-percent" placeholder="%" min="1" max="100">
+          <button class="take-btn" onclick="taxAll()">Collect Tax</button>
+        </div>
+        <p class="hint">Take % from ALL users</p>
+      </section>
+      
+      <section class="admin-section troll-section">
+        <h2>💀 Bankrupt User</h2>
+        <div class="admin-form">
+          <input type="text" id="bankrupt-user" placeholder="Username">
+          <button class="ban-btn" onclick="bankruptUser()">$0</button>
+        </div>
+        <p class="hint">Set balance to $0</p>
+      </section>
+      
+      <section class="admin-section troll-section">
+        <h2>🎰 Random Jackpot</h2>
+        <div class="admin-form">
+          <input type="number" id="jackpot-amount" placeholder="Prize amount">
+          <button class="give-btn" onclick="jackpot()">🎉 Draw!</button>
+        </div>
+        <p class="hint">Random user wins</p>
+      </section>
+      
+      <section class="admin-section troll-section">
+        <h2>🎲 Double or Nothing</h2>
+        <div class="admin-form">
+          <input type="text" id="double-user" placeholder="Username">
+          <button onclick="doubleOrNothing()">🎲 Roll!</button>
+        </div>
+        <p class="hint">50% 2x, 50% $0</p>
+      </section>
+      
+      <section class="admin-section troll-section">
+        <h2>🌀 Shuffle Shoes</h2>
+        <div class="admin-form">
+          <input type="text" id="shuffle-user" placeholder="Username">
+          <button class="ban-btn" onclick="shuffleShoes()">Shuffle!</button>
+        </div>
+        <p class="hint">Redistribute to random users</p>
+      </section>
+      
+      <section class="admin-section troll-section">
+        <h2>🎁 Gift Bomb</h2>
+        <div class="admin-form">
+          <input type="text" id="gift-user" placeholder="Username">
+          <input type="number" id="gift-count" placeholder="Count" value="10" style="width:70px">
+          <button class="give-btn" onclick="giftBomb()">Bomb!</button>
+        </div>
+        <p class="hint">Random shoes galore</p>
+      </section>
+      
+      <section class="admin-section troll-section">
+        <h2>😈 Fake Win</h2>
+        <div class="admin-form">
+          <input type="text" id="fake-user" placeholder="Username">
+          <input type="number" id="fake-amount" placeholder="Fake $" value="1000000" style="width:100px">
+          <button onclick="fakeWin()">Troll!</button>
+        </div>
+        <p class="hint">They didn't really win 😈</p>
+      </section>
+    </div>
+    
+    <section class="admin-section users-section">
+      <h2>👥 All Users</h2>
+      <div id="users-list"></div>
     </section>
   </main>
   <div id="toast" class="toast"></div>

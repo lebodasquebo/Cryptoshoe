@@ -1275,6 +1275,276 @@ def admin_ban():
         d.commit()
         return jsonify({"ok": True, "msg": f"Banned {username} for {duration}"})
 
+@app.route("/api/admin/swap-balance", methods=["POST"])
+@login_required
+def admin_swap_balance():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    data = request.json
+    user1 = data.get("user1", "").lower().strip()
+    user2 = data.get("user2", "").lower().strip()
+    if not user1 or not user2:
+        return jsonify({"ok": False, "error": "Enter both usernames"})
+    acc1 = d.execute("select id from accounts where username=?", (user1,)).fetchone()
+    acc2 = d.execute("select id from accounts where username=?", (user2,)).fetchone()
+    if not acc1:
+        return jsonify({"ok": False, "error": f"User '{user1}' not found"})
+    if not acc2:
+        return jsonify({"ok": False, "error": f"User '{user2}' not found"})
+    bal1 = d.execute("select balance from users where id=?", (acc1["id"],)).fetchone()["balance"]
+    bal2 = d.execute("select balance from users where id=?", (acc2["id"],)).fetchone()["balance"]
+    d.execute("update users set balance=? where id=?", (bal2, acc1["id"]))
+    d.execute("update users set balance=? where id=?", (bal1, acc2["id"]))
+    now = int(time.time())
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc1["id"], f"🔄 Your balance was swapped with {user2}! You now have ${bal2:,.0f}", now))
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc2["id"], f"🔄 Your balance was swapped with {user1}! You now have ${bal1:,.0f}", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Swapped balances: {user1} (${bal1:,.0f} → ${bal2:,.0f}), {user2} (${bal2:,.0f} → ${bal1:,.0f})"})
+
+@app.route("/api/admin/swap-inventory", methods=["POST"])
+@login_required
+def admin_swap_inventory():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    data = request.json
+    user1 = data.get("user1", "").lower().strip()
+    user2 = data.get("user2", "").lower().strip()
+    if not user1 or not user2:
+        return jsonify({"ok": False, "error": "Enter both usernames"})
+    acc1 = d.execute("select id from accounts where username=?", (user1,)).fetchone()
+    acc2 = d.execute("select id from accounts where username=?", (user2,)).fetchone()
+    if not acc1 or not acc2:
+        return jsonify({"ok": False, "error": "User not found"})
+    hold1 = d.execute("select shoe_id, qty from hold where user_id=?", (acc1["id"],)).fetchall()
+    hold2 = d.execute("select shoe_id, qty from hold where user_id=?", (acc2["id"],)).fetchall()
+    app1 = d.execute("select shoe_id, rating, multiplier, ts from appraised where user_id=?", (acc1["id"],)).fetchall()
+    app2 = d.execute("select shoe_id, rating, multiplier, ts from appraised where user_id=?", (acc2["id"],)).fetchall()
+    d.execute("delete from hold where user_id=?", (acc1["id"],))
+    d.execute("delete from hold where user_id=?", (acc2["id"],))
+    d.execute("delete from appraised where user_id=?", (acc1["id"],))
+    d.execute("delete from appraised where user_id=?", (acc2["id"],))
+    for h in hold2:
+        d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?)", (acc1["id"], h["shoe_id"], h["qty"]))
+    for h in hold1:
+        d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?)", (acc2["id"], h["shoe_id"], h["qty"]))
+    for a in app2:
+        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (acc1["id"], a["shoe_id"], a["rating"], a["multiplier"], a["ts"]))
+    for a in app1:
+        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (acc2["id"], a["shoe_id"], a["rating"], a["multiplier"], a["ts"]))
+    now = int(time.time())
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc1["id"], f"🔄 Your entire inventory was swapped with {user2}!", now))
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc2["id"], f"🔄 Your entire inventory was swapped with {user1}!", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Swapped inventories between {user1} and {user2}"})
+
+@app.route("/api/admin/broadcast", methods=["POST"])
+@login_required
+def admin_broadcast():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    msg = request.json.get("message", "").strip()
+    if not msg:
+        return jsonify({"ok": False, "error": "Enter a message"})
+    users = d.execute("select id from users").fetchall()
+    now = int(time.time())
+    for u in users:
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (u["id"], f"📢 {msg}", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Broadcasted to {len(users)} users"})
+
+@app.route("/api/admin/rain", methods=["POST"])
+@login_required
+def admin_rain():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    amount = int(request.json.get("amount", 0))
+    if amount < 1:
+        return jsonify({"ok": False, "error": "Enter an amount"})
+    users = d.execute("select id from users").fetchall()
+    now = int(time.time())
+    for u in users:
+        d.execute("update users set balance=balance+? where id=?", (amount, u["id"]))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (u["id"], f"💰 MONEY RAIN! You received ${amount:,}!", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Rained ${amount:,} on {len(users)} users (${amount * len(users):,} total)"})
+
+@app.route("/api/admin/tax", methods=["POST"])
+@login_required
+def admin_tax():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    percent = int(request.json.get("percent", 0))
+    if percent < 1 or percent > 100:
+        return jsonify({"ok": False, "error": "Percent must be 1-100"})
+    users = d.execute("select id, balance from users").fetchall()
+    now = int(time.time())
+    total = 0
+    for u in users:
+        tax = round(u["balance"] * percent / 100, 2)
+        total += tax
+        d.execute("update users set balance=balance-? where id=?", (tax, u["id"]))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (u["id"], f"💸 TAX COLLECTION! {percent}% of your balance (${tax:,.0f}) was taken!", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Taxed {percent}% from {len(users)} users (${total:,.0f} total)"})
+
+@app.route("/api/admin/bankrupt", methods=["POST"])
+@login_required
+def admin_bankrupt():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    username = request.json.get("username", "").lower().strip()
+    if not username:
+        return jsonify({"ok": False, "error": "Enter a username"})
+    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": f"User '{username}' not found"})
+    old_bal = d.execute("select balance from users where id=?", (acc["id"],)).fetchone()["balance"]
+    d.execute("update users set balance=0 where id=?", (acc["id"],))
+    now = int(time.time())
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"💀 BANKRUPTED! Your ${old_bal:,.0f} balance is now $0!", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Bankrupted {username} (${old_bal:,.0f} → $0)"})
+
+@app.route("/api/admin/jackpot", methods=["POST"])
+@login_required
+def admin_jackpot():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    amount = int(request.json.get("amount", 0))
+    if amount < 1:
+        return jsonify({"ok": False, "error": "Enter an amount"})
+    users = d.execute("select a.username, u.id from accounts a join users u on u.id=a.id").fetchall()
+    if not users:
+        return jsonify({"ok": False, "error": "No users"})
+    winner = random.choice(users)
+    d.execute("update users set balance=balance+? where id=?", (amount, winner["id"]))
+    now = int(time.time())
+    for u in users:
+        if u["id"] == winner["id"]:
+            d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (u["id"], f"🎉 JACKPOT WINNER! You won ${amount:,}!!!", now))
+        else:
+            d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (u["id"], f"🎰 {winner['username']} won the ${amount:,} jackpot!", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"{winner['username']} won the ${amount:,} jackpot!"})
+
+@app.route("/api/admin/double-or-nothing", methods=["POST"])
+@login_required
+def admin_double_or_nothing():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    username = request.json.get("username", "").lower().strip()
+    if not username:
+        return jsonify({"ok": False, "error": "Enter a username"})
+    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": f"User '{username}' not found"})
+    bal = d.execute("select balance from users where id=?", (acc["id"],)).fetchone()["balance"]
+    now = int(time.time())
+    if random.random() < 0.5:
+        d.execute("update users set balance=balance*2 where id=?", (acc["id"],))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"🎲 DOUBLE OR NOTHING: DOUBLED! ${bal:,.0f} → ${bal*2:,.0f}!", now))
+        d.commit()
+        return jsonify({"ok": True, "msg": f"{username} DOUBLED: ${bal:,.0f} → ${bal*2:,.0f}"})
+    else:
+        d.execute("update users set balance=0 where id=?", (acc["id"],))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"🎲 DOUBLE OR NOTHING: NOTHING! ${bal:,.0f} → $0!", now))
+        d.commit()
+        return jsonify({"ok": True, "msg": f"{username} got NOTHING: ${bal:,.0f} → $0"})
+
+@app.route("/api/admin/shuffle-shoes", methods=["POST"])
+@login_required
+def admin_shuffle_shoes():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    username = request.json.get("username", "").lower().strip()
+    if not username:
+        return jsonify({"ok": False, "error": "Enter a username"})
+    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": f"User '{username}' not found"})
+    shoes = d.execute("select shoe_id, qty from hold where user_id=?", (acc["id"],)).fetchall()
+    appraised = d.execute("select id, shoe_id, rating, multiplier, ts from appraised where user_id=?", (acc["id"],)).fetchall()
+    if not shoes and not appraised:
+        return jsonify({"ok": False, "error": f"{username} has no shoes to shuffle"})
+    other_users = d.execute("select u.id from users u join accounts a on a.id=u.id where a.username != ?", (username,)).fetchall()
+    if not other_users:
+        return jsonify({"ok": False, "error": "No other users to shuffle to"})
+    d.execute("delete from hold where user_id=?", (acc["id"],))
+    d.execute("delete from appraised where user_id=?", (acc["id"],))
+    now = int(time.time())
+    count = 0
+    for s in shoes:
+        for _ in range(s["qty"]):
+            target = random.choice(other_users)["id"]
+            existing = d.execute("select qty from hold where user_id=? and shoe_id=?", (target, s["shoe_id"])).fetchone()
+            if existing:
+                d.execute("update hold set qty=qty+1 where user_id=? and shoe_id=?", (target, s["shoe_id"]))
+            else:
+                d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?)", (target, s["shoe_id"], 1))
+            count += 1
+    for a in appraised:
+        target = random.choice(other_users)["id"]
+        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (target, a["shoe_id"], a["rating"], a["multiplier"], a["ts"]))
+        count += 1
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"🌀 YOUR SHOES WERE SHUFFLED! {count} shoes redistributed to random users!", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Shuffled {count} shoes from {username} to random users"})
+
+@app.route("/api/admin/fake-win", methods=["POST"])
+@login_required  
+def admin_fake_win():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    username = request.json.get("username", "").lower().strip()
+    amount = request.json.get("amount", 100000)
+    if not username:
+        return jsonify({"ok": False, "error": "Enter a username"})
+    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": f"User '{username}' not found"})
+    now = int(time.time())
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"🎉🎊 CONGRATULATIONS! You won ${amount:,} in the MEGA LOTTERY! 🎊🎉 (check your balance 😈)", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Sent fake ${amount:,} win notification to {username}"})
+
+@app.route("/api/admin/gift-bomb", methods=["POST"])
+@login_required
+def admin_gift_bomb():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    username = request.json.get("username", "").lower().strip()
+    count = int(request.json.get("count", 10))
+    if not username:
+        return jsonify({"ok": False, "error": "Enter a username"})
+    if count < 1 or count > 100:
+        return jsonify({"ok": False, "error": "Count must be 1-100"})
+    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": f"User '{username}' not found"})
+    shoes = d.execute("select id, name from shoes").fetchall()
+    now = int(time.time())
+    for _ in range(count):
+        shoe = random.choice(shoes)
+        existing = d.execute("select qty from hold where user_id=? and shoe_id=?", (acc["id"], shoe["id"])).fetchone()
+        if existing:
+            d.execute("update hold set qty=qty+1 where user_id=? and shoe_id=?", (acc["id"], shoe["id"]))
+        else:
+            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?)", (acc["id"], shoe["id"], 1))
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"🎁 GIFT BOMB! You received {count} random shoes!", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Gift bombed {username} with {count} random shoes"})
+
 @app.route("/lootbox")
 @login_required
 def lootbox_page():
