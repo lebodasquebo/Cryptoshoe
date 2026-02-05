@@ -133,7 +133,7 @@
     </div>
   </div>
   <div class="toast" id="toast"></div>
-  <script>window.PROFILE_USER = "{{ profile_username }}";</script>
+  <script>window.PROFILE_USER = "{{ profile_username }}";window.IS_ADMIN={{ 'true' if is_admin else 'false' }};</script>
   <script src="/static/profile.js"></script>
 </body>
 </html>
