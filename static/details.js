@@ -1,6 +1,6 @@
 let data=null,span=86400,balance=0,nextPrice=0,serverOffset=0
 const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
-const checkCourt=async()=>{if(window.IS_ADMIN)return;let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
+const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
 checkCourt();setInterval(checkCourt,5000)
 const money=v=>v.toFixed(2)
 const pct=(p,b)=>((p-b)/b*100)

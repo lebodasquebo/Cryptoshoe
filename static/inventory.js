@@ -1,6 +1,6 @@
 let state={market:[],hold:[],appraised:[],hist:{},balance:0,next_stock:0,next_price:0,server_time:0},sel=null,selType=null,serverOffset=0
 const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
-const checkCourt=async()=>{if(window.IS_ADMIN)return;let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
+const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
 checkCourt();setInterval(checkCourt,5000)
 const el=(t,c)=>{let e=document.createElement(t);if(c)e.className=c;return e}
 const money=v=>v.toFixed(2)
