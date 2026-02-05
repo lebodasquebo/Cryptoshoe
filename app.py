@@ -14,13 +14,12 @@ def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if "user_id" not in session:
-            return redirect(url_for("signup_page"))
-        # Check if account still exists
+            return redirect(url_for("notice_page"))
         d = db()
         acc = d.execute("select id from accounts where id=?", (session["user_id"],)).fetchone()
         if not acc:
             session.clear()
-            return redirect(url_for("signup_page"))
+            return redirect(url_for("notice_page"))
         return f(*args, **kwargs)
     return decorated
 
@@ -521,6 +520,12 @@ def login_page():
     if "user_id" in session:
         return redirect(url_for("home"))
     return render_template("login.html")
+
+@app.route("/notice")
+def notice_page():
+    if "user_id" in session:
+        return redirect(url_for("home"))
+    return render_template("notice.html")
 
 @app.route("/signup", methods=["GET"])
 def signup_page():
