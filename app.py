@@ -93,6 +93,8 @@ def init():
     create table if not exists court_votes(session_id integer, voter text, vote text, primary key(session_id, voter));
     create table if not exists global_chat(id integer primary key autoincrement, user_id text, username text, message text, ts integer);
     create index if not exists idx_chat on global_chat(ts);
+    create table if not exists gambling_pots(id integer primary key autoincrement, market_cap real, total_value real default 0, status text default 'open', winner_id text, created integer, ended integer);
+    create table if not exists pot_entries(id integer primary key autoincrement, pot_id integer, user_id text, username text, shoe_id integer, appraisal_id integer, value real, ts integer);
     insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
     insert or ignore into court_session(id, status) values(1, 'inactive');
     """)
@@ -1855,10 +1857,15 @@ def admin_court_end():
     d.commit()
     return jsonify({"ok": True, "msg": "Court adjourned"})
 
+@app.route("/gambling")
+@login_required
+def gambling_page():
+    return render_template("gambling.html", is_admin=is_admin())
+
 @app.route("/lootbox")
 @login_required
 def lootbox_page():
-    return render_template("lootbox.html", is_admin=is_admin())
+    return redirect(url_for("gambling_page"))
 
 @app.route("/api/lootbox", methods=["POST"])
 @login_required
@@ -1924,6 +1931,167 @@ def api_lootbox():
         "value": round(final_val, 2),
         "paid": amount
     })
+
+@app.route("/api/pot/current")
+@login_required
+def api_pot_current():
+    d = db()
+    u = uid()
+    now = int(time.time())
+    pot = d.execute("select * from gambling_pots where status='open' order by id desc limit 1").fetchone()
+    if not pot:
+        caps = [50000, 100000, 250000, 500000, 1000000, 999999999]
+        cap = random.choice(caps)
+        d.execute("insert into gambling_pots(market_cap, created) values(?,?)", (cap, now))
+        d.commit()
+        pot = d.execute("select * from gambling_pots where status='open' order by id desc limit 1").fetchone()
+    entries = d.execute("""
+        select pe.*, s.name as shoe_name, s.rarity 
+        from pot_entries pe 
+        join shoes s on s.id = pe.shoe_id 
+        where pe.pot_id=? order by pe.value desc
+    """, (pot["id"],)).fetchall()
+    participants = {}
+    for e in entries:
+        if e["username"] not in participants:
+            participants[e["username"]] = {"value": 0, "shoes": [], "user_id": e["user_id"]}
+        participants[e["username"]]["value"] += e["value"]
+        participants[e["username"]]["shoes"].append({
+            "name": e["shoe_name"], "rarity": e["rarity"], "value": e["value"],
+            "appraisal_id": e["appraisal_id"]
+        })
+    total = pot["total_value"] or 0
+    result = []
+    for username, data in participants.items():
+        pct = (data["value"] / total * 100) if total > 0 else 0
+        result.append({
+            "username": username, "value": data["value"], "percent": round(pct, 1),
+            "shoes": data["shoes"], "is_me": data["user_id"] == u
+        })
+    result.sort(key=lambda x: -x["value"])
+    cap_display = "∞" if pot["market_cap"] >= 999999999 else f"${pot['market_cap']:,.0f}"
+    return jsonify({
+        "id": pot["id"],
+        "market_cap": pot["market_cap"],
+        "cap_display": cap_display,
+        "total": total,
+        "percent_filled": min(100, (total / pot["market_cap"] * 100)) if pot["market_cap"] < 999999999 else 0,
+        "participants": result,
+        "status": pot["status"]
+    })
+
+@app.route("/api/pot/enter", methods=["POST"])
+@login_required
+def api_pot_enter():
+    u = uid()
+    d = db()
+    now = int(time.time())
+    acc = d.execute("select username from accounts where id=?", (u,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": "Not logged in"})
+    pot = d.execute("select * from gambling_pots where status='open' order by id desc limit 1").fetchone()
+    if not pot:
+        return jsonify({"ok": False, "error": "No active pot"})
+    shoe_id = request.json.get("shoe_id")
+    appraisal_id = request.json.get("appraisal_id")
+    if appraisal_id:
+        shoe = d.execute("""
+            select a.*, s.name, s.rarity, s.base from appraised a 
+            join shoes s on s.id=a.shoe_id 
+            where a.id=? and a.user_id=?
+        """, (appraisal_id, u)).fetchone()
+        if not shoe:
+            return jsonify({"ok": False, "error": "Shoe not found"})
+        market = d.execute("select price from market where shoe_id=?", (shoe["shoe_id"],)).fetchone()
+        base_price = market["price"] if market else shoe["base"]
+        value = base_price * shoe["multiplier"]
+        d.execute("delete from appraised where id=?", (appraisal_id,))
+        shoe_id = shoe["shoe_id"]
+    else:
+        if not shoe_id:
+            return jsonify({"ok": False, "error": "No shoe selected"})
+        hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
+        if not hold or hold["qty"] < 1:
+            return jsonify({"ok": False, "error": "You don't own this shoe"})
+        shoe = d.execute("select * from shoes where id=?", (shoe_id,)).fetchone()
+        market = d.execute("select price from market where shoe_id=?", (shoe_id,)).fetchone()
+        value = market["price"] if market else shoe["base"]
+        d.execute("update hold set qty=qty-1 where user_id=? and shoe_id=?", (u, shoe_id))
+        d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (u, shoe_id))
+    d.execute("insert into pot_entries(pot_id, user_id, username, shoe_id, appraisal_id, value, ts) values(?,?,?,?,?,?,?)",
+              (pot["id"], u, acc["username"], shoe_id, appraisal_id, value, now))
+    new_total = (pot["total_value"] or 0) + value
+    d.execute("update gambling_pots set total_value=? where id=?", (new_total, pot["id"]))
+    if pot["market_cap"] < 999999999 and new_total >= pot["market_cap"]:
+        pick_pot_winner(pot["id"], d)
+    d.commit()
+    return jsonify({"ok": True, "value": value})
+
+def pick_pot_winner(pot_id, d):
+    now = int(time.time())
+    entries = d.execute("select user_id, username, sum(value) as total from pot_entries where pot_id=? group by user_id", (pot_id,)).fetchall()
+    if not entries:
+        return
+    total = sum(e["total"] for e in entries)
+    roll = random.uniform(0, total)
+    cumulative = 0
+    winner = entries[0]
+    for e in entries:
+        cumulative += e["total"]
+        if roll <= cumulative:
+            winner = e
+            break
+    all_shoes = d.execute("select shoe_id, appraisal_id, value from pot_entries where pot_id=?", (pot_id,)).fetchall()
+    for shoe in all_shoes:
+        if shoe["appraisal_id"]:
+            orig = d.execute("select * from pot_entries where pot_id=? and appraisal_id=?", (pot_id, shoe["appraisal_id"])).fetchone()
+            if orig:
+                d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,5.0,1.0,?)",
+                          (winner["user_id"], shoe["shoe_id"], now))
+        else:
+            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1",
+                      (winner["user_id"], shoe["shoe_id"]))
+    d.execute("update gambling_pots set status='closed', winner_id=?, ended=? where id=?", (winner["user_id"], now, pot_id))
+    for e in entries:
+        if e["user_id"] == winner["user_id"]:
+            d.execute("insert into notifications(user_id, message, ts) values(?,?,?)",
+                      (e["user_id"], f"🎰 YOU WON THE POT! ${total:,.0f} worth of shoes!", now))
+        else:
+            d.execute("insert into notifications(user_id, message, ts) values(?,?,?)",
+                      (e["user_id"], f"🎰 {winner['username']} won the pot. Better luck next time!", now))
+
+@app.route("/api/pot/spin", methods=["POST"])
+@login_required
+def api_pot_spin():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Admin only"})
+    d = db()
+    pot = d.execute("select * from gambling_pots where status='open' order by id desc limit 1").fetchone()
+    if not pot:
+        return jsonify({"ok": False, "error": "No active pot"})
+    entries = d.execute("select user_id from pot_entries where pot_id=?", (pot["id"],)).fetchall()
+    if len(entries) < 2:
+        return jsonify({"ok": False, "error": "Need at least 2 participants"})
+    pick_pot_winner(pot["id"], d)
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/pot/history")
+@login_required
+def api_pot_history():
+    d = db()
+    pots = d.execute("""
+        select p.*, a.username as winner_name 
+        from gambling_pots p 
+        left join accounts a on a.id = p.winner_id 
+        where p.status='closed' 
+        order by p.ended desc limit 10
+    """).fetchall()
+    return jsonify([{
+        "id": p["id"], "total": p["total_value"], "winner": p["winner_name"],
+        "cap": "∞" if p["market_cap"] >= 999999999 else f"${p['market_cap']:,.0f}",
+        "ended": p["ended"]
+    } for p in pots])
 
 @app.route("/hanging/<username>")
 def hanging_page(username):
