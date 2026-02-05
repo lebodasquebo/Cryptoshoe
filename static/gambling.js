@@ -158,6 +158,34 @@ $('#confirm-enter').onclick = async () => {
   }
 }
 
+$('#add-all-btn').onclick = async () => {
+  if (myShoes.length === 0) {
+    toast('No shoes to add', 'error')
+    return
+  }
+  if (!confirm(`Add all ${myShoes.length} shoes to the pot?`)) return
+  let total = 0, count = 0
+  for (const s of myShoes) {
+    const body = s.appraised 
+      ? { appraisal_id: s.appraisal_id }
+      : { shoe_id: s.id }
+    let r = await fetch('/api/pot/enter', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    })
+    let j = await r.json()
+    if (j.ok) {
+      total += j.value
+      count++
+    }
+  }
+  toast(`Added ${count} shoes worth $${Math.round(total).toLocaleString()}!`)
+  $('#enter-modal').classList.add('hidden')
+  fetchPot()
+  fetchBalance()
+}
+
 if ($('#spin-btn')) {
   $('#spin-btn').onclick = async () => {
     if (!confirm('Force spin the pot?')) return

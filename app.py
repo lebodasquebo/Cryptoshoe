@@ -94,7 +94,7 @@ def init():
     create table if not exists global_chat(id integer primary key autoincrement, user_id text, username text, message text, ts integer);
     create index if not exists idx_chat on global_chat(ts);
     create table if not exists gambling_pots(id integer primary key autoincrement, market_cap real, total_value real default 0, status text default 'open', winner_id text, created integer, ended integer);
-    create table if not exists pot_entries(id integer primary key autoincrement, pot_id integer, user_id text, username text, shoe_id integer, appraisal_id integer, value real, ts integer);
+    create table if not exists pot_entries(id integer primary key autoincrement, pot_id integer, user_id text, username text, shoe_id integer, appraisal_id integer, rating real, multiplier real, value real, ts integer);
     insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
     insert or ignore into court_session(id, status) values(1, 'inactive');
     """)
@@ -1948,12 +1948,12 @@ def api_pot_current():
             pick_pot_winner(pot["id"], d)
             d.commit()
         elif len(entries) == 1:
-            e = d.execute("select * from pot_entries where pot_id=?", (pot["id"],)).fetchone()
-            if e["appraisal_id"]:
-                d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,5.0,1.0,?)", (e["user_id"], e["shoe_id"], now))
-            else:
-                d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1", (e["user_id"], e["shoe_id"]))
-            d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (e["user_id"], "🎰 Pot ended - your shoe was returned (not enough players)", now))
+            for e in d.execute("select * from pot_entries where pot_id=?", (pot["id"],)).fetchall():
+                if e["appraisal_id"] and e["rating"]:
+                    d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (e["user_id"], e["shoe_id"], e["rating"], e["multiplier"], now))
+                else:
+                    d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1", (e["user_id"], e["shoe_id"]))
+            d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (d.execute("select user_id from pot_entries where pot_id=? limit 1", (pot["id"],)).fetchone()["user_id"], "🎰 Pot ended - your shoes were returned (not enough players)", now))
         d.execute("update gambling_pots set status='closed', ended=? where id=?", (now, pot["id"]))
         d.commit()
         pot = None
@@ -2015,6 +2015,7 @@ def api_pot_enter():
         return jsonify({"ok": False, "error": "No active pot"})
     shoe_id = request.json.get("shoe_id")
     appraisal_id = request.json.get("appraisal_id")
+    rating, multiplier = None, None
     if appraisal_id:
         shoe = d.execute("""
             select a.*, s.name, s.rarity, s.base from appraised a 
@@ -2026,6 +2027,8 @@ def api_pot_enter():
         market = d.execute("select price from market where shoe_id=?", (shoe["shoe_id"],)).fetchone()
         base_price = market["price"] if market else shoe["base"]
         value = base_price * shoe["multiplier"]
+        rating = shoe["rating"]
+        multiplier = shoe["multiplier"]
         d.execute("delete from appraised where id=?", (appraisal_id,))
         shoe_id = shoe["shoe_id"]
     else:
@@ -2039,8 +2042,8 @@ def api_pot_enter():
         value = market["price"] if market else shoe["base"]
         d.execute("update hold set qty=qty-1 where user_id=? and shoe_id=?", (u, shoe_id))
         d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (u, shoe_id))
-    d.execute("insert into pot_entries(pot_id, user_id, username, shoe_id, appraisal_id, value, ts) values(?,?,?,?,?,?,?)",
-              (pot["id"], u, acc["username"], shoe_id, appraisal_id, value, now))
+    d.execute("insert into pot_entries(pot_id, user_id, username, shoe_id, appraisal_id, rating, multiplier, value, ts) values(?,?,?,?,?,?,?,?,?)",
+              (pot["id"], u, acc["username"], shoe_id, appraisal_id, rating, multiplier, value, now))
     new_total = (pot["total_value"] or 0) + value
     d.execute("update gambling_pots set total_value=? where id=?", (new_total, pot["id"]))
     if pot["market_cap"] < 999999999 and new_total >= pot["market_cap"]:
@@ -2062,13 +2065,11 @@ def pick_pot_winner(pot_id, d):
         if roll <= cumulative:
             winner = e
             break
-    all_shoes = d.execute("select shoe_id, appraisal_id, value from pot_entries where pot_id=?", (pot_id,)).fetchall()
+    all_shoes = d.execute("select shoe_id, appraisal_id, rating, multiplier from pot_entries where pot_id=?", (pot_id,)).fetchall()
     for shoe in all_shoes:
-        if shoe["appraisal_id"]:
-            orig = d.execute("select * from pot_entries where pot_id=? and appraisal_id=?", (pot_id, shoe["appraisal_id"])).fetchone()
-            if orig:
-                d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,5.0,1.0,?)",
-                          (winner["user_id"], shoe["shoe_id"], now))
+        if shoe["appraisal_id"] and shoe["rating"]:
+            d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)",
+                      (winner["user_id"], shoe["shoe_id"], shoe["rating"], shoe["multiplier"], now))
         else:
             d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1",
                       (winner["user_id"], shoe["shoe_id"]))
