@@ -1,3 +1,4 @@
+console.log('Admin JS loaded')
 const $=q=>document.querySelector(q)
 const toast=(msg,type='success')=>{let t=$('#toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),3000)}
 
