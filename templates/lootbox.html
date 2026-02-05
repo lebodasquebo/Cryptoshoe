@@ -56,11 +56,12 @@
     </div>
   </nav>
   <main class="lootbox-main">
-    <h1>🎁 LOOTBOX</h1>
-    <p class="lootbox-desc">Pay $1,000 - $100,000 and receive a random pre-appraised shoe worth around your bet!</p>
-    
+    <div class="lootbox-header">
+      <h1>🎁 LOOTBOX</h1>
+      <p>Pay $1K-$100K for a random pre-appraised shoe!</p>
+    </div>
     <div class="lootbox-container">
-      <div class="amount-section">
+      <div class="lootbox-left">
         <label>BET AMOUNT</label>
         <div class="amount-presets">
           <button class="preset-btn" data-amt="1000">$1K</button>
@@ -74,41 +75,27 @@
           <span class="currency">$</span>
           <input type="number" id="amount" min="1000" max="100000" value="1000" step="100">
         </div>
+        <button class="open-btn" id="open-btn">🎁 OPEN LOOTBOX</button>
       </div>
-      
-      <div class="lootbox-box" id="lootbox">
-        <div class="box-closed" id="box-closed">
+      <div class="lootbox-right" id="lootbox">
+        <div class="box-idle" id="box-idle">
           <div class="box-icon">📦</div>
-          <div class="box-text">Click to Open!</div>
+          <div class="box-hint">Select amount & open!</div>
         </div>
         <div class="box-opening hidden" id="box-opening">
           <div class="spinner">🎰</div>
         </div>
         <div class="box-result hidden" id="box-result">
-          <div class="result-shoe">
-            <div class="result-rarity" id="result-rarity"></div>
-            <div class="result-name" id="result-name"></div>
-          </div>
-          <div class="result-rating">
-            <span class="rating-label">Rating:</span>
-            <span class="rating-val" id="result-rating"></span>
-          </div>
-          <div class="result-value">
-            <div class="value-row">
-              <span>You Paid:</span>
-              <span id="result-paid">$0</span>
-            </div>
-            <div class="value-row result-final">
-              <span>Shoe Value:</span>
-              <span id="result-value">$0</span>
-            </div>
+          <div class="result-rarity" id="result-rarity"></div>
+          <div class="result-name" id="result-name"></div>
+          <div class="result-rating" id="result-rating"></div>
+          <div class="result-stats">
+            <div class="stat-row"><span>Paid</span><span id="result-paid">$0</span></div>
+            <div class="stat-row"><span>Value</span><span id="result-value">$0</span></div>
           </div>
           <div class="result-verdict" id="result-verdict"></div>
-          <button class="open-another" id="open-another">Open Another</button>
         </div>
       </div>
-      
-      <button class="open-btn" id="open-btn">🎁 OPEN LOOTBOX</button>
     </div>
   </main>
   <div id="toast" class="toast"></div>
