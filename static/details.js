@@ -229,7 +229,10 @@ const updBadge=async()=>{
   }
 }
 const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
+const checkHanging=async()=>{if(window.IS_ADMIN)return;let r=await fetch('/api/hanging');if(r.ok){let h=await r.json();if(h.active&&!location.pathname.includes('/hanging')){location.href='/hanging/'+h.victim}}}
 updBadge()
 fetchNotifs()
+checkHanging()
 setInterval(updBadge,10000)
 setInterval(fetchNotifs,10000)
+setInterval(checkHanging,3000)

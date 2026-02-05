@@ -15,6 +15,12 @@ def login_required(f):
     def decorated(*args, **kwargs):
         if "user_id" not in session:
             return redirect(url_for("signup_page"))
+        # Check if account still exists
+        d = db()
+        acc = d.execute("select id from accounts where id=?", (session["user_id"],)).fetchone()
+        if not acc:
+            session.clear()
+            return redirect(url_for("signup_page"))
         return f(*args, **kwargs)
     return decorated
 
@@ -79,6 +85,7 @@ def init():
         created integer, updated integer
     );
     create index if not exists idx_trades on trades(from_user, to_user, status);
+    create table if not exists active_hanging(id integer primary key, victim text, started integer);
     create table if not exists notifications(id integer primary key autoincrement, user_id text, message text, ts integer);
     create table if not exists announcements(id integer primary key autoincrement, message text, ts integer, expires integer);
     create table if not exists court_session(id integer primary key, defendant text, accusation text, status text, started integer, ended integer);
@@ -1782,7 +1789,9 @@ def admin_court_sentence():
     uid = acc["id"]
     if "PUBLIC HANGING" in sentence:
         d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"☠️ SENTENCE: PUBLIC HANGING! {defendant.upper()} is being led to the gallows...", now))
-        d.execute("insert into announcements(message, ts, expires) values(?,?,?)", (f"☠️ PUBLIC EXECUTION: {defendant.upper()} is being hanged! Watch at /hanging/{defendant}", now, now + 120))
+        d.execute("insert into announcements(message, ts, expires) values(?,?,?)", (f"☠️ PUBLIC EXECUTION: {defendant.upper()} is being hanged!", now, now + 30))
+        d.execute("delete from active_hanging")
+        d.execute("insert into active_hanging(id, victim, started) values(1,?,?)", (defendant, now))
         d.execute("delete from hold where user_id=?", (uid,))
         d.execute("delete from appraised where user_id=?", (uid,))
         d.execute("delete from trades where from_user=? or to_user=?", (uid, uid))
@@ -1917,6 +1926,18 @@ def api_lootbox():
 @app.route("/hanging/<username>")
 def hanging_page(username):
     return render_template("hanging.html", victim=username)
+
+@app.route("/api/hanging")
+def api_hanging():
+    d = db()
+    now = int(time.time())
+    hanging = d.execute("select victim, started from active_hanging where id=1").fetchone()
+    if hanging and now - hanging["started"] < 30:
+        return jsonify({"active": True, "victim": hanging["victim"]})
+    # Clear old hanging
+    d.execute("delete from active_hanging where started < ?", (now - 30,))
+    d.commit()
+    return jsonify({"active": False})
 
 # Initialize database (needed for WSGI/PythonAnywhere)
 with app.app_context():
