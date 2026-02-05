@@ -93,13 +93,21 @@
 .back-link{display:inline-flex;align-items:center;gap:8px;color:var(--text2);text-decoration:none;margin-bottom:20px;font-size:14px;transition:color 0.2s}
 .back-link:hover{color:var(--accent)}
 @media(max-width:900px){
-  .users-layout{grid-template-columns:1fr}
-  .trades-sidebar{position:relative;top:0}
+  .users-layout{display:flex;flex-direction:column-reverse;gap:16px}
+  .trades-sidebar{position:sticky;bottom:0;top:auto;z-index:50;display:flex;gap:12px;flex-wrap:wrap}
+  .trades-section{flex:1;min-width:250px;margin-bottom:0;max-height:200px;overflow-y:auto}
+  .trades-title{font-size:11px;margin-bottom:8px}
+  .trades-empty{padding:12px;font-size:12px}
   .profile-header{flex-direction:column;text-align:center}
   .profile-stats{justify-content:center}
   .trade-btn-big{width:100%}
   .trade-builder{grid-template-columns:1fr;gap:12px}
   .trade-arrow{justify-content:center;transform:rotate(90deg)}
+}
+@media(max-width:768px){
+  .trades-sidebar{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--bg4);padding:12px;z-index:50;box-shadow:0 -4px 20px rgba(0,0,0,0.5)}
+  .trades-section{max-height:150px}
+  .users-main{padding-bottom:180px}
 }
 .trade-item{cursor:pointer}
 .trade-item:hover{background:var(--bg2)}

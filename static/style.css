@@ -180,8 +180,11 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
 .toast.success{border-color:var(--green);color:var(--green)}
 .toast.error{border-color:var(--red);color:var(--red)}
 @media(max-width:1100px){
-  .layout{grid-template-columns:1fr}
-  .sidebar{position:relative;top:0}
+  .layout{display:flex;flex-direction:column-reverse;gap:16px}
+  .sidebar{position:sticky;bottom:0;top:auto;z-index:50;max-height:50vh;overflow-y:auto}
+  .sidebar-inner{border-radius:var(--radius) var(--radius) 0 0}
+  .sidebar-empty{padding:20px;font-size:12px}
+  .sidebar-empty-icon{font-size:24px;margin-bottom:8px}
 }
 .nav-link{position:relative}
 .nav-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;background:var(--red);color:#fff;border-radius:10px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;animation:pulse 2s ease-in-out infinite}
@@ -189,31 +192,47 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
 .sell-all-btn{padding:12px 20px;background:linear-gradient(135deg,var(--red),#cc3355);border:none;border-radius:var(--radius-sm);color:#fff;font-family:'Orbitron',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap}
 .sell-all-btn:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(255,68,102,0.3)}
 @media(max-width:768px){
-  .navbar{height:auto;padding:8px 0}
-  .nav-inner{flex-wrap:wrap;padding:8px 16px;gap:8px}
+  .navbar{height:auto;padding:4px 0}
+  .nav-inner{flex-wrap:wrap;padding:6px 12px;gap:4px}
   .nav-logo{order:1}
+  .logo-text{font-size:16px}
+  .logo-icon{font-size:20px}
   .nav-user{order:2;margin-left:auto}
-  .nav-links{order:3;width:100%;justify-content:center;gap:4px;padding-top:8px;border-top:1px solid var(--bg4)}
-  .nav-link{padding:8px 12px;font-size:12px}
+  .nav-links{order:3;width:100%;justify-content:center;gap:2px;padding-top:6px;border-top:1px solid var(--bg4)}
+  .nav-link{padding:6px 10px;font-size:12px}
   .nav-text{display:none}
-  .nav-icon{font-size:18px}
+  .nav-icon{font-size:16px}
   .nav-bal{text-align:right}
   .bal-label{font-size:8px}
-  .bal-val{font-size:16px}
-  .wrap{padding:16px}
-  body{padding-top:100px}
-  .section-head{flex-direction:column;gap:12px;align-items:flex-start}
-  .stock-timer{width:100%;justify-content:center}
+  .bal-val{font-size:14px}
+  .wrap{padding:12px}
+  body{padding-top:85px}
+  .section-head{flex-direction:column;gap:8px;align-items:flex-start}
+  .section-title{font-size:14px}
+  .stock-timer{width:100%;justify-content:center;padding:6px 12px}
+  .timer-val{font-size:14px}
+  .sidebar{position:fixed;bottom:0;left:0;right:0;max-height:45vh;border-radius:var(--radius) var(--radius) 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.5)}
+  .sidebar-content{padding:12px}
+  .price-val{font-size:22px}
+  .trade-btn{padding:12px}
+  .main{padding-bottom:80px}
 }
 @media(max-width:600px){
   .grid{grid-template-columns:1fr 1fr}
-  .card{padding:12px}
-  .card-name{font-size:12px}
-  .card-price{font-size:18px}
-  .inv-stats{grid-template-columns:1fr 1fr}
+  .card{padding:10px}
+  .card-name{font-size:11px}
+  .card-price{font-size:16px}
+  .card-meta{font-size:10px}
+  .inv-stats{grid-template-columns:repeat(3,1fr);gap:8px}
+  .inv-stat{padding:12px 8px}
+  .inv-stat-label{font-size:9px}
+  .inv-stat-val{font-size:16px}
   .inv-grid{grid-template-columns:1fr}
+  .sell-all-btn{padding:8px 12px;font-size:10px}
 }
 @media(max-width:400px){
   .grid{grid-template-columns:1fr}
-  .nav-link{padding:6px 8px}
+  .nav-link{padding:5px 7px}
+  .nav-icon{font-size:14px}
+  .inv-stats{grid-template-columns:1fr 1fr}
 }
