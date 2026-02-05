@@ -53,20 +53,34 @@
     .beam-v {
       position: absolute;
       width: 20px;
-      height: 250px;
+      height: 260px;
       background: linear-gradient(90deg, #3d2817, #5c3d2e, #3d2817);
       left: 20px;
       bottom: 0;
       border-radius: 2px;
+      box-shadow: 2px 0 4px rgba(0,0,0,0.5);
     }
     
     .beam-h {
       position: absolute;
       width: 160px;
-      height: 15px;
+      height: 18px;
       background: linear-gradient(180deg, #5c3d2e, #3d2817);
       left: 20px;
-      top: 0;
+      top: 42px;
+      border-radius: 2px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    
+    .beam-support {
+      position: absolute;
+      width: 60px;
+      height: 12px;
+      background: linear-gradient(180deg, #5c3d2e, #3d2817);
+      left: 40px;
+      top: 60px;
+      transform: rotate(45deg);
+      transform-origin: left center;
       border-radius: 2px;
     }
     
@@ -76,7 +90,7 @@
       height: 0;
       background: linear-gradient(90deg, #8b7355, #a0926c, #8b7355);
       left: 140px;
-      top: 15px;
+      top: 60px;
       animation: dropRope 2s ease-out 1s forwards;
     }
     
@@ -91,7 +105,7 @@
       border: 4px solid #8b7355;
       border-radius: 50%;
       left: 127px;
-      top: 95px;
+      top: 140px;
       opacity: 0;
       animation: showNoose 0.5s ease-out 3s forwards;
     }
@@ -103,7 +117,7 @@
     .figure {
       position: absolute;
       left: 117px;
-      top: 125px;
+      top: 170px;
       opacity: 0;
       animation: showFigure 0.5s ease-out 4s forwards, swing 2s ease-in-out 5s infinite;
       transform-origin: top center;
@@ -291,6 +305,7 @@
     <div class="gallows">
       <div class="beam-v"></div>
       <div class="beam-h"></div>
+      <div class="beam-support"></div>
       <div class="rope"></div>
       <div class="noose"></div>
       <div class="figure">

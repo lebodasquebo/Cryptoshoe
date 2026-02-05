@@ -124,6 +124,6 @@ fetchAnn()
 checkHanging()
 
 setInterval(fetchMessages, 1500)
-setInterval(fetchOnline, 10000)
+setInterval(fetchOnline, 5000)
 setInterval(fetchAnn, 5000)
 setInterval(checkHanging, 3000)
