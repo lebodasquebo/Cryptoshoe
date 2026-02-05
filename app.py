@@ -63,6 +63,7 @@ def init():
     );
     create index if not exists idx_trades on trades(from_user, to_user, status);
     create table if not exists notifications(id integer primary key autoincrement, user_id text, message text, ts integer);
+    create table if not exists announcements(id integer primary key autoincrement, message text, ts integer, expires integer);
     create table if not exists court_session(id integer primary key, defendant text, accusation text, status text, started integer, ended integer);
     create table if not exists court_messages(id integer primary key autoincrement, session_id integer, username text, message text, is_system integer, ts integer);
     create table if not exists court_votes(session_id integer, voter text, vote text, primary key(session_id, voter));
@@ -1350,14 +1351,23 @@ def admin_broadcast():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
     d = db()
     msg = request.json.get("message", "").strip()
+    duration = int(request.json.get("duration", 60))
     if not msg:
         return jsonify({"ok": False, "error": "Enter a message"})
-    users = d.execute("select id from users").fetchall()
     now = int(time.time())
-    for u in users:
-        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (u["id"], f"📢 {msg}", now))
+    d.execute("insert into announcements(message, ts, expires) values(?,?,?)", (msg, now, now + duration))
     d.commit()
-    return jsonify({"ok": True, "msg": f"Broadcasted to {len(users)} users"})
+    return jsonify({"ok": True, "msg": f"Announcement live for {duration}s"})
+
+@app.route("/api/announcements")
+@login_required
+def get_announcements():
+    d = db()
+    now = int(time.time())
+    d.execute("delete from announcements where expires < ?", (now,))
+    d.commit()
+    anns = d.execute("select message, expires from announcements order by ts desc limit 3").fetchall()
+    return jsonify([{"message": a["message"], "expires": a["expires"]} for a in anns])
 
 @app.route("/api/admin/rain", methods=["POST"])
 @login_required

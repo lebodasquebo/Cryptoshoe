@@ -102,11 +102,19 @@
       </section>
       
       <section class="admin-section troll-section">
-        <h2>📢 Broadcast Message</h2>
+        <h2>📢 Announcement</h2>
         <div class="admin-form">
           <input type="text" id="broadcast-msg" placeholder="Message to all users" style="flex:2">
-          <button onclick="broadcast()">Send All</button>
+          <select id="broadcast-duration">
+            <option value="30">30s</option>
+            <option value="60" selected>1min</option>
+            <option value="300">5min</option>
+            <option value="600">10min</option>
+            <option value="1800">30min</option>
+          </select>
+          <button onclick="broadcast()">📢 Broadcast</button>
         </div>
+        <p class="hint">Shows banner on all screens</p>
       </section>
       
       <section class="admin-section troll-section">
@@ -181,6 +189,46 @@
           <button onclick="fakeWin()">Troll!</button>
         </div>
         <p class="hint">They didn't really win 😈</p>
+      </section>
+    </div>
+    
+    <h2 class="section-divider">⚖️ Courtroom</h2>
+    
+    <div class="admin-grid">
+      <section class="admin-section court-section">
+        <h2>🚨 Start Trial</h2>
+        <div class="admin-form">
+          <input type="text" id="court-defendant" placeholder="Defendant username">
+          <input type="text" id="court-accusation" placeholder="Accusation" style="flex:2">
+          <button class="ban-btn" onclick="startTrial()">⚖️ Begin</button>
+        </div>
+        <div id="court-status" class="court-status"></div>
+      </section>
+      
+      <section class="admin-section court-section">
+        <h2>📜 Add Charge</h2>
+        <div class="admin-form">
+          <input type="text" id="new-charge" placeholder="New accusation/charge" style="flex:2">
+          <button onclick="addCharge()">Add</button>
+        </div>
+      </section>
+      
+      <section class="admin-section court-section">
+        <h2>🔨 Deliver Verdict</h2>
+        <div class="admin-form">
+          <select id="verdict-choice">
+            <option value="guilty">GUILTY</option>
+            <option value="innocent">INNOCENT</option>
+          </select>
+          <input type="text" id="verdict-punishment" placeholder="Punishment (if guilty)">
+          <button class="give-btn" onclick="deliverVerdict()">Verdict!</button>
+        </div>
+      </section>
+      
+      <section class="admin-section court-section">
+        <h2>🔚 End Session</h2>
+        <button class="ban-btn" onclick="endCourt()">Adjourn Court</button>
+        <p class="hint">Close court and release everyone</p>
       </section>
     </div>
     

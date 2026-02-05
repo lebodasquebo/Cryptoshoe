@@ -25,6 +25,12 @@
 .admin-user{display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:var(--bg3);border-radius:8px}
 .admin-user-name{font-weight:600;color:var(--text);font-size:13px}
 .admin-user-stats{display:flex;gap:12px;font-size:11px;color:var(--text2)}
+.court-section{border-color:rgba(255,200,0,0.3);background:linear-gradient(145deg,var(--bg2),rgba(255,200,0,0.05))}
+.court-section h2{color:#ffc800}
+.court-status{margin-top:12px;padding:8px 12px;border-radius:6px;font-size:12px}
+.court-active{background:rgba(255,50,50,0.15);border:1px solid rgba(255,50,50,0.3);color:#ff6666;line-height:1.6}
+.court-active strong{color:#fff}
+.court-inactive{background:var(--bg3);border:1px solid var(--bg4);color:var(--text3)}
 @media(max-width:600px){
   .admin-grid{grid-template-columns:1fr}
   .admin-form{flex-direction:column}
