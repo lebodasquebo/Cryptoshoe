@@ -1,0 +1,341 @@
+.court-main {
+  max-width: 1100px;
+  margin: 90px auto 40px;
+  padding: 0 20px;
+}
+.court-inactive {
+  text-align: center;
+  padding: 80px 40px;
+  background: var(--bg2);
+  border: 1px solid var(--bg4);
+  border-radius: var(--radius);
+}
+.inactive-icon {
+  font-size: 80px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+.court-inactive h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 24px;
+  color: var(--text2);
+  margin-bottom: 10px;
+}
+.court-inactive p {
+  color: var(--text3);
+}
+.court-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.court-header h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 28px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.court-status {
+  display: inline-block;
+  padding: 6px 16px;
+  background: rgba(255, 68, 68, 0.2);
+  border: 1px solid var(--red);
+  border-radius: 20px;
+  color: var(--red);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  animation: pulse 2s ease-in-out infinite;
+}
+.court-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+}
+.defendant-box {
+  background: linear-gradient(145deg, rgba(255, 68, 68, 0.1), var(--bg2));
+  border: 2px solid var(--red);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+.defendant-label {
+  font-size: 12px;
+  color: var(--red);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+.defendant-name {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 28px;
+  color: #fff;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+.defendant-accusation {
+  color: var(--text2);
+  font-size: 14px;
+}
+.accusation-label {
+  color: var(--red);
+  font-weight: 600;
+}
+.chat-box {
+  background: var(--bg2);
+  border: 1px solid var(--bg4);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  height: 400px;
+}
+.chat-header {
+  padding: 12px 16px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--bg4);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  color: var(--accent);
+}
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chat-msg {
+  padding: 8px 12px;
+  background: var(--bg3);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.chat-msg-user {
+  font-weight: 600;
+  color: var(--accent);
+  margin-right: 8px;
+}
+.chat-msg-text {
+  color: var(--text);
+}
+.chat-msg.system {
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.1), rgba(0, 240, 255, 0.05));
+  border-left: 3px solid var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.chat-msg.defendant .chat-msg-user {
+  color: var(--red);
+}
+.chat-msg.judge .chat-msg-user {
+  color: var(--lebos);
+}
+.chat-input-wrap {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--bg4);
+}
+.chat-input-wrap input {
+  flex: 1;
+  padding: 10px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--bg4);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+}
+.chat-input-wrap button {
+  padding: 10px 20px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: var(--bg);
+  font-weight: 600;
+  cursor: pointer;
+}
+.jury-box, .judge-box {
+  background: var(--bg2);
+  border: 1px solid var(--bg4);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.jury-header, .judge-header {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 16px;
+  text-align: center;
+}
+.jury-counts {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.jury-count {
+  flex: 1;
+  text-align: center;
+  padding: 16px;
+  border-radius: 8px;
+}
+.jury-count.guilty {
+  background: rgba(255, 68, 68, 0.15);
+  border: 1px solid rgba(255, 68, 68, 0.3);
+}
+.jury-count.innocent {
+  background: rgba(0, 255, 136, 0.15);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+.count-num {
+  display: block;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+}
+.guilty .count-num { color: var(--red); }
+.innocent .count-num { color: var(--green); }
+.count-label {
+  font-size: 11px;
+  color: var(--text2);
+  letter-spacing: 1px;
+}
+.jury-buttons {
+  display: flex;
+  gap: 10px;
+}
+.vote-btn {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.vote-btn:hover {
+  transform: translateY(-2px);
+}
+.guilty-btn {
+  background: var(--red);
+  color: #fff;
+}
+.innocent-btn {
+  background: var(--green);
+  color: var(--bg);
+}
+.jury-voted, .defendant-notice {
+  text-align: center;
+  padding: 12px;
+  background: var(--bg3);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text2);
+}
+.defendant-notice {
+  background: rgba(255, 68, 68, 0.1);
+  color: var(--red);
+}
+.judge-box {
+  border-color: var(--lebos);
+  background: linear-gradient(145deg, rgba(255, 215, 0, 0.05), var(--bg2));
+}
+.judge-header {
+  color: var(--lebos);
+}
+.judge-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.judge-controls input {
+  padding: 10px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+.judge-controls button {
+  padding: 10px 16px;
+  background: var(--lebos);
+  border: none;
+  border-radius: 6px;
+  color: var(--bg);
+  font-weight: 600;
+  cursor: pointer;
+}
+.verdict-btns {
+  display: flex;
+  gap: 8px;
+}
+.verdict-btn {
+  flex: 1;
+  padding: 12px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+}
+.guilty-verdict {
+  background: var(--red) !important;
+  color: #fff !important;
+}
+.innocent-verdict {
+  background: var(--green) !important;
+  color: var(--bg) !important;
+}
+.end-btn {
+  background: var(--bg4) !important;
+  color: var(--text) !important;
+}
+.admin-start-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--bg2);
+  border: 1px solid var(--lebos);
+  border-radius: var(--radius);
+  padding: 16px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 280px;
+}
+.admin-start-panel h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  color: var(--lebos);
+  margin: 0;
+}
+.admin-start-panel input {
+  padding: 10px;
+  background: var(--bg3);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+.admin-start-panel button {
+  padding: 12px;
+  background: var(--lebos);
+  border: none;
+  border-radius: 6px;
+  color: var(--bg);
+  font-weight: 600;
+  cursor: pointer;
+}
+.hidden { display: none !important; }
+@media (max-width: 800px) {
+  .court-layout {
+    grid-template-columns: 1fr;
+  }
+  .chat-box {
+    height: 300px;
+  }
+  .admin-start-panel {
+    left: 20px;
+    right: 20px;
+    max-width: none;
+  }
+}

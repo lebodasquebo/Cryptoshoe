@@ -63,7 +63,11 @@ def init():
     );
     create index if not exists idx_trades on trades(from_user, to_user, status);
     create table if not exists notifications(id integer primary key autoincrement, user_id text, message text, ts integer);
+    create table if not exists court_session(id integer primary key, defendant text, accusation text, status text, started integer, ended integer);
+    create table if not exists court_messages(id integer primary key autoincrement, session_id integer, username text, message text, is_system integer, ts integer);
+    create table if not exists court_votes(session_id integer, voter text, vote text, primary key(session_id, voter));
     insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
+    insert or ignore into court_session(id, status) values(1, 'inactive');
     """)
     try:
         d.execute("alter table users add column last_income integer default 0")
@@ -1544,6 +1548,155 @@ def admin_gift_bomb():
     d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"🎁 GIFT BOMB! You received {count} random shoes!", now))
     d.commit()
     return jsonify({"ok": True, "msg": f"Gift bombed {username} with {count} random shoes"})
+
+@app.route("/court")
+@login_required
+def court_page():
+    return render_template("court.html", is_admin=is_admin())
+
+@app.route("/api/court/state")
+@login_required
+def court_state():
+    d = db()
+    sess = d.execute("select defendant, accusation, status, started from court_session where id=1").fetchone()
+    if not sess or sess["status"] == "inactive":
+        return jsonify({"active": False})
+    votes = d.execute("select vote, count(*) as cnt from court_votes where session_id=1 group by vote").fetchall()
+    vote_counts = {v["vote"]: v["cnt"] for v in votes}
+    my_vote = d.execute("select vote from court_votes where session_id=1 and voter=?", (session.get("username"),)).fetchone()
+    return jsonify({
+        "active": True,
+        "defendant": sess["defendant"],
+        "accusation": sess["accusation"],
+        "status": sess["status"],
+        "started": sess["started"],
+        "votes": {"guilty": vote_counts.get("guilty", 0), "innocent": vote_counts.get("innocent", 0)},
+        "my_vote": my_vote["vote"] if my_vote else None,
+        "is_defendant": session.get("username") == sess["defendant"]
+    })
+
+@app.route("/api/court/messages")
+@login_required
+def court_messages():
+    d = db()
+    since = int(request.args.get("since", 0))
+    msgs = d.execute("select id, username, message, is_system, ts from court_messages where session_id=1 and id>? order by id", (since,)).fetchall()
+    return jsonify([dict(m) for m in msgs])
+
+@app.route("/api/court/chat", methods=["POST"])
+@login_required
+def court_chat():
+    d = db()
+    sess = d.execute("select status, defendant from court_session where id=1").fetchone()
+    if not sess or sess["status"] != "active":
+        return jsonify({"ok": False, "error": "No active trial"})
+    msg = request.json.get("message", "").strip()[:200]
+    if not msg:
+        return jsonify({"ok": False, "error": "Empty message"})
+    username = session.get("username")
+    role = "⚖️ JUDGE" if is_admin() else ("🔴 DEFENDANT" if username == sess["defendant"] else "👤")
+    now = int(time.time())
+    d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,?,?,0,?)", (f"{role} {username}", msg, now))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/court/vote", methods=["POST"])
+@login_required
+def court_vote():
+    d = db()
+    sess = d.execute("select status, defendant from court_session where id=1").fetchone()
+    if not sess or sess["status"] != "active":
+        return jsonify({"ok": False, "error": "No active trial"})
+    username = session.get("username")
+    if username == sess["defendant"]:
+        return jsonify({"ok": False, "error": "Defendant cannot vote"})
+    vote = request.json.get("vote")
+    if vote not in ["guilty", "innocent"]:
+        return jsonify({"ok": False, "error": "Invalid vote"})
+    d.execute("insert or replace into court_votes(session_id, voter, vote) values(1,?,?)", (username, vote))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/court/start", methods=["POST"])
+@login_required
+def admin_court_start():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    defendant = request.json.get("defendant", "").lower().strip()
+    accusation = request.json.get("accusation", "unspecified crimes").strip()
+    if not defendant:
+        return jsonify({"ok": False, "error": "Enter defendant username"})
+    acc = d.execute("select id from accounts where username=?", (defendant,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": f"User '{defendant}' not found"})
+    now = int(time.time())
+    d.execute("delete from court_messages where session_id=1")
+    d.execute("delete from court_votes where session_id=1")
+    d.execute("update court_session set defendant=?, accusation=?, status='active', started=?, ended=null where id=1", (defendant, accusation, now))
+    d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"⚖️ COURT IS NOW IN SESSION! {defendant.upper()} stands accused of: {accusation}", now))
+    users = d.execute("select id from users").fetchall()
+    for u in users:
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (u["id"], f"⚖️ COURT IN SESSION! {defendant} is on trial for: {accusation}. Join /court to participate!", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Trial started for {defendant}"})
+
+@app.route("/api/admin/court/accuse", methods=["POST"])
+@login_required
+def admin_court_accuse():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    sess = d.execute("select status from court_session where id=1").fetchone()
+    if not sess or sess["status"] != "active":
+        return jsonify({"ok": False, "error": "No active trial"})
+    accusation = request.json.get("accusation", "").strip()
+    if not accusation:
+        return jsonify({"ok": False, "error": "Enter accusation"})
+    now = int(time.time())
+    d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"📜 NEW CHARGE: {accusation}", now))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/court/verdict", methods=["POST"])
+@login_required
+def admin_court_verdict():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    sess = d.execute("select status, defendant from court_session where id=1").fetchone()
+    if not sess or sess["status"] != "active":
+        return jsonify({"ok": False, "error": "No active trial"})
+    verdict = request.json.get("verdict")
+    punishment = request.json.get("punishment", "")
+    if verdict not in ["guilty", "innocent"]:
+        return jsonify({"ok": False, "error": "Invalid verdict"})
+    now = int(time.time())
+    votes = d.execute("select vote, count(*) as cnt from court_votes where session_id=1 group by vote").fetchall()
+    vote_str = ", ".join([f"{v['vote']}: {v['cnt']}" for v in votes]) or "No votes"
+    if verdict == "guilty":
+        msg = f"🔨 VERDICT: GUILTY! Jury voted: {vote_str}. {punishment if punishment else 'Punishment pending.'}"
+    else:
+        msg = f"✅ VERDICT: INNOCENT! Jury voted: {vote_str}. {sess['defendant']} is free to go."
+    d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (msg, now))
+    d.execute("update court_session set status='verdict' where id=1")
+    acc = d.execute("select id from accounts where username=?", (sess["defendant"],)).fetchone()
+    if acc:
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"⚖️ Your trial verdict: {verdict.upper()}! {punishment if verdict=='guilty' else ''}", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Verdict delivered: {verdict}"})
+
+@app.route("/api/admin/court/end", methods=["POST"])
+@login_required
+def admin_court_end():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    now = int(time.time())
+    d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM','⚖️ COURT IS ADJOURNED!',1,?)", (now,))
+    d.execute("update court_session set status='inactive', ended=? where id=1", (now,))
+    d.commit()
+    return jsonify({"ok": True, "msg": "Court adjourned"})
 
 @app.route("/lootbox")
 @login_required
