@@ -1,6 +1,6 @@
 let profile=null,myShoes=[],theirShoes=[],offerShoes=[],wantShoes=[]
 const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
-const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
+const checkCourt=async()=>{if(window.IS_ADMIN)return;let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
 checkCourt();setInterval(checkCourt,5000)
 const money=v=>v.toFixed(2)
 const rarClass=r=>({common:'rar-common',uncommon:'rar-uncommon',rare:'rar-rare',epic:'rar-epic',legendary:'rar-legendary',mythic:'rar-mythic',secret:'rar-secret',dexies:'rar-dexies',lebos:'rar-lebos'}[r]||'rar-common')
@@ -229,7 +229,17 @@ $('#submit-trade').onclick=submitTrade
 $('#offer-cash').oninput=calcTotals
 $('#want-cash').oninput=calcTotals
 
+const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
+const fetchAnn=async()=>{let r=await fetch('/api/announcements');if(r.ok){let a=await r.json(),bar=document.getElementById('announcement-bar');if(bar){if(a.length){bar.innerHTML=a.map(x=>`<div class="announcement"><span class="ann-icon">📢</span><span class="ann-text">${x.message}</span></div>`).join('');bar.classList.add('show');document.body.classList.add('has-announcement')}else{bar.classList.remove('show');document.body.classList.remove('has-announcement')}}}}
+const checkHanging=async()=>{let r=await fetch('/api/hanging');if(r.ok){let h=await r.json();if(h.active&&!location.pathname.includes('/hanging')){location.href='/hanging/'+h.victim}}}
+
 fetchProfile()
 fetchBalance()
 updBadge()
+fetchNotifs()
+fetchAnn()
+checkHanging()
 setInterval(updBadge,10000)
+setInterval(fetchNotifs,10000)
+setInterval(fetchAnn,5000)
+setInterval(checkHanging,3000)
