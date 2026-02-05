@@ -99,10 +99,11 @@ window.swapInventory=async()=>{
 
 window.broadcast=async()=>{
     let message=$('#broadcast-msg').value.trim()
+    let duration=parseInt($('#broadcast-duration')?.value)||60
     if(!message){toast('Enter a message','error');return}
-    let r=await fetch('/api/admin/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})})
+    let r=await fetch('/api/admin/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,duration})})
     let j=await r.json()
-    if(j.ok){toast(j.msg);$('#broadcast-msg').value=''}
+    if(j.ok){toast('📢 '+j.msg);$('#broadcast-msg').value=''}
     else toast(j.error,'error')
 }
 
@@ -184,6 +185,55 @@ window.fakeWin=async()=>{
     else toast(j.error,'error')
 }
 
+window.startTrial=async()=>{
+    let defendant=$('#court-defendant').value.trim()
+    let accusation=$('#court-accusation').value.trim()||'unspecified crimes'
+    if(!defendant){toast('Enter defendant username','error');return}
+    let r=await fetch('/api/admin/court/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({defendant,accusation})})
+    let j=await r.json()
+    if(j.ok){toast('⚖️ '+j.msg);$('#court-defendant').value='';$('#court-accusation').value='';checkCourtStatus()}
+    else toast(j.error,'error')
+}
+
+window.addCharge=async()=>{
+    let accusation=$('#new-charge').value.trim()
+    if(!accusation){toast('Enter accusation','error');return}
+    let r=await fetch('/api/admin/court/accuse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accusation})})
+    let j=await r.json()
+    if(j.ok){toast('Charge added');$('#new-charge').value=''}
+    else toast(j.error,'error')
+}
+
+window.deliverVerdict=async()=>{
+    let verdict=$('#verdict-choice').value
+    let punishment=$('#verdict-punishment').value.trim()
+    let r=await fetch('/api/admin/court/verdict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({verdict,punishment})})
+    let j=await r.json()
+    if(j.ok){toast('🔨 '+j.msg);$('#verdict-punishment').value='';checkCourtStatus()}
+    else toast(j.error,'error')
+}
+
+window.endCourt=async()=>{
+    if(!confirm('End court session and release everyone?'))return
+    let r=await fetch('/api/admin/court/end',{method:'POST'})
+    let j=await r.json()
+    if(j.ok){toast(j.msg);checkCourtStatus()}
+    else toast(j.error,'error')
+}
+
+const checkCourtStatus=async()=>{
+    let r=await fetch('/api/court/state')
+    if(r.ok){
+        let s=await r.json()
+        let el=$('#court-status')
+        if(s.active){
+            el.innerHTML=`<div class="court-active">🔴 COURT IN SESSION<br>Defendant: <strong>${s.defendant}</strong><br>Charge: ${s.accusation}<br>Votes: Guilty ${s.votes.guilty} | Innocent ${s.votes.innocent}</div>`
+        }else{
+            el.innerHTML='<div class="court-inactive">No active trial</div>'
+        }
+    }
+}
+
 const fetchBalance=async()=>{
     let r=await fetch('/api/state')
     if(r.ok){let s=await r.json();$('#bal').textContent=s.balance.toFixed(2)}
@@ -192,4 +242,5 @@ const fetchBalance=async()=>{
 loadUsers()
 loadShoes()
 fetchBalance()
-
+checkCourtStatus()
+setInterval(checkCourtStatus,5000)
