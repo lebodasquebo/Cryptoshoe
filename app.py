@@ -1312,6 +1312,25 @@ def admin_ban():
         d.commit()
         return jsonify({"ok": True, "msg": f"Banned {username} for {duration}"})
 
+@app.route("/api/admin/unban", methods=["POST"])
+@login_required
+def admin_unban():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    username = request.json.get("username", "").lower().strip()
+    if not username:
+        return jsonify({"ok": False, "error": "Enter a username"})
+    acc = d.execute("select id, ban_until from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": f"User '{username}' not found"})
+    if not acc["ban_until"] or acc["ban_until"] < int(time.time()):
+        return jsonify({"ok": False, "error": f"{username} is not banned"})
+    d.execute("update accounts set ban_until=0 where id=?", (acc["id"],))
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], "🔓 You have been unbanned!", int(time.time())))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Unbanned {username}"})
+
 @app.route("/api/admin/swap-balance", methods=["POST"])
 @login_required
 def admin_swap_balance():

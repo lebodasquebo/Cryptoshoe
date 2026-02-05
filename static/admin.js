@@ -77,6 +77,15 @@ window.banUser=async()=>{
     else toast(j.error,'error')
 }
 
+window.unbanUser=async()=>{
+    let user=$('#ban-user').value.trim()
+    if(!user){toast('Enter a username','error');return}
+    let r=await fetch('/api/admin/unban',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user})})
+    let j=await r.json()
+    if(j.ok){toast('🔓 '+j.msg);loadUsers();$('#ban-user').value=''}
+    else toast(j.error,'error')
+}
+
 window.swapBalance=async()=>{
     let user1=$('#swap-bal-1').value.trim()
     let user2=$('#swap-bal-2').value.trim()
