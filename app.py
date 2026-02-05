@@ -1918,7 +1918,7 @@ def api_lootbox():
 def hanging_page(username):
     return render_template("hanging.html", victim=username)
 
-# Initialize database on import (needed for WSGI/PythonAnywhere)
+# Initialize database (needed for WSGI/PythonAnywhere)
 with app.app_context():
     init()
     seed()
