@@ -74,6 +74,7 @@ def init():
     create table if not exists hold(user_id text, shoe_id integer, qty integer, primary key(user_id, shoe_id));
     create table if not exists history(shoe_id integer, ts integer, price real);
     create table if not exists appraised(id integer primary key autoincrement, user_id text, shoe_id integer, rating real, multiplier real, ts integer);
+    create table if not exists favorites(user_id text, shoe_id integer, appraisal_id integer, primary key(user_id, shoe_id, appraisal_id));
     create index if not exists idx_hist on history(shoe_id, ts);
     create index if not exists idx_appraised on appraised(user_id, shoe_id);
     create table if not exists trades(
@@ -719,19 +720,42 @@ def sell_all():
     u = uid()
     d = db()
     total = 0
+    fav_shoes = {r["shoe_id"] for r in d.execute("select shoe_id from favorites where user_id=? and appraisal_id=0", (u,)).fetchall()}
+    fav_appraisals = {r["appraisal_id"] for r in d.execute("select appraisal_id from favorites where user_id=? and appraisal_id>0", (u,)).fetchall()}
     holds = d.execute("select shoe_id, qty from hold where user_id=?", (u,)).fetchall()
     for h in holds:
+        if h["shoe_id"] in fav_shoes:
+            continue
         price = get_sell_price(h["shoe_id"]) or 0
         total += price * h["qty"]
+        d.execute("delete from hold where user_id=? and shoe_id=?", (u, h["shoe_id"]))
     appraised = d.execute("select a.id, a.shoe_id, a.multiplier from appraised a where a.user_id=?", (u,)).fetchall()
     for a in appraised:
+        if a["id"] in fav_appraisals:
+            continue
         price = get_sell_price(a["shoe_id"]) or 0
         total += price * a["multiplier"]
-    d.execute("delete from hold where user_id=?", (u,))
-    d.execute("delete from appraised where user_id=?", (u,))
+        d.execute("delete from appraised where id=?", (a["id"],))
     d.execute("update users set balance=balance+? where id=?", (round(total, 2), u))
     d.commit()
     return jsonify({"ok": True, "total": round(total, 2)})
+
+@app.route("/api/favorite", methods=["POST"])
+@login_required
+def toggle_favorite():
+    u = uid()
+    d = db()
+    shoe_id = request.json.get("shoe_id", 0)
+    appraisal_id = request.json.get("appraisal_id", 0)
+    exists = d.execute("select 1 from favorites where user_id=? and shoe_id=? and appraisal_id=?", (u, shoe_id, appraisal_id)).fetchone()
+    if exists:
+        d.execute("delete from favorites where user_id=? and shoe_id=? and appraisal_id=?", (u, shoe_id, appraisal_id))
+        d.commit()
+        return jsonify({"ok": True, "favorited": False})
+    else:
+        d.execute("insert into favorites(user_id, shoe_id, appraisal_id) values(?,?,?)", (u, shoe_id, appraisal_id))
+        d.commit()
+        return jsonify({"ok": True, "favorited": True})
 
 @app.route("/appraise")
 @login_required
@@ -1130,6 +1154,8 @@ def decline_trade(trade_id):
 def api_my_shoes():
     u = uid()
     d = db()
+    fav_shoes = {r["shoe_id"] for r in d.execute("select shoe_id from favorites where user_id=? and appraisal_id=0", (u,)).fetchall()}
+    fav_appraisals = {r["appraisal_id"] for r in d.execute("select appraisal_id from favorites where user_id=? and appraisal_id>0", (u,)).fetchall()}
     shoes = d.execute("""
         select h.shoe_id as id, s.name, s.rarity, s.base, h.qty from hold h 
         join shoes s on s.id=h.shoe_id 
@@ -1140,6 +1166,7 @@ def api_my_shoes():
         r = dict(s)
         r["price"] = get_sell_price(s["id"]) or s["base"]
         r["appraised"] = False
+        r["favorited"] = s["id"] in fav_shoes
         result.append(r)
     appraised = d.execute("""
         select a.id as appraisal_id, a.shoe_id as id, s.name, s.rarity, s.base, a.rating, a.multiplier
@@ -1151,6 +1178,7 @@ def api_my_shoes():
         r["price"] = (get_sell_price(a["id"]) or a["base"]) * a["multiplier"]
         r["qty"] = 1
         r["appraised"] = True
+        r["favorited"] = a["appraisal_id"] in fav_appraisals
         result.append(r)
     return jsonify(result)
 

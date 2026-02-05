@@ -34,8 +34,9 @@ const invCard=(h,i)=>{
   d.dataset.id=h.id
   d.dataset.type='hold'
   d.style.animationDelay=i*0.05+'s'
-  d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="inv-card-qty"></div></div><div class="inv-card-name"></div><div class="inv-card-status"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
-  d.onclick=()=>select(h.id,'hold')
+  d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="inv-card-qty"></div><button class="fav-btn" title="Favorite (protected from Sell All)">★</button></div><div class="inv-card-name"></div><div class="inv-card-status"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
+  d.querySelector('.inv-card-head').onclick=(e)=>{if(!e.target.classList.contains('fav-btn'))select(h.id,'hold')}
+  d.querySelector('.fav-btn').onclick=(e)=>{e.stopPropagation();toggleFav(h.id,0)}
   return d
 }
 
@@ -44,9 +45,15 @@ const appraisedCard=(a,i)=>{
   d.dataset.id=a.appraisal_id
   d.dataset.type='appraised'
   d.style.animationDelay=i*0.05+'s'
-  d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="appraisal-badge"></div></div><div class="inv-card-name"></div><div class="appraisal-rating"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
-  d.onclick=()=>select(a.appraisal_id,'appraised')
+  d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="appraisal-badge"></div><button class="fav-btn" title="Favorite (protected from Sell All)">★</button></div><div class="inv-card-name"></div><div class="appraisal-rating"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
+  d.querySelector('.inv-card-head').onclick=(e)=>{if(!e.target.classList.contains('fav-btn'))select(a.appraisal_id,'appraised')}
+  d.querySelector('.fav-btn').onclick=(e)=>{e.stopPropagation();toggleFav(a.id,a.appraisal_id)}
   return d
+}
+
+const toggleFav=async(shoeId,appraisalId)=>{
+  let r=await fetch('/api/favorite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({shoe_id:shoeId,appraisal_id:appraisalId})})
+  if(r.ok){let j=await r.json();toast(j.favorited?'⭐ Favorited! Protected from Sell All':'Unfavorited');fetchState()}
 }
 
 const select=(id,type)=>{sel=parseInt(id);selType=type;updSidebar();$$('.inv-card').forEach(c=>{let isActive=(c.dataset.type===type&&parseInt(c.dataset.id)===sel);c.classList.toggle('active',isActive)})}
@@ -77,7 +84,7 @@ const act=async()=>{
 }
 
 const sellAll=async()=>{
-  if(!confirm('Sell ALL shoes in your inventory?'))return
+  if(!confirm('Sell ALL shoes? (⭐ Favorited shoes are protected)'))return
   let r=await fetch('/sell-all',{method:'POST'})
   if(r.ok){let j=await r.json();if(j.ok){toast('Sold all for $'+money(j.total)+'!');sel=null;selType=null;fetchState()}else toast(j.error||'Failed','error')}else toast('Request failed','error')
 }
@@ -98,14 +105,16 @@ const upd=()=>{
       d.querySelector('.inv-card-name').textContent=a.name
       let rat=d.querySelector('.appraisal-rating'),pctVal=((a.multiplier-1)*100).toFixed(0);rat.innerHTML='<span class="'+(a.multiplier>=1?'up':'down')+'">'+(a.multiplier>=1?'+':'')+pctVal+'% value</span>'
       d.querySelector('.inv-card-price').textContent='$'+money(a.sell_price)+' ea';d.querySelector('.inv-card-value').textContent='Value: $'+money(a.sell_price)
-      d.classList.add('rating-'+a.rating_class);d.classList.toggle('active',selType==='appraised'&&sel===parseInt(a.appraisal_id));inv.append(d)
+      d.classList.add('rating-'+a.rating_class);d.classList.toggle('active',selType==='appraised'&&sel===parseInt(a.appraisal_id))
+      d.classList.toggle('favorited',a.favorited);d.querySelector('.fav-btn').classList.toggle('active',a.favorited);inv.append(d)
     })
     state.hold.forEach((h,idx)=>{
       let d=invCard(h,idx+state.appraised.length),price=h.sell_price||h.base,rb=d.querySelector('.inv-card-rarity');rb.textContent=h.rarity.toUpperCase();rb.className='inv-card-rarity '+rarClass(h.rarity)
       d.querySelector('.inv-card-qty').textContent='x'+h.qty;d.querySelector('.inv-card-name').textContent=h.name
       let st=d.querySelector('.inv-card-status');st.textContent=h.in_market?'In Market':'Off-Market (-5%)';st.className='inv-card-status'+(h.in_market?' in-market':' off-market')
       d.querySelector('.inv-card-price').textContent='$'+money(price)+' ea';d.querySelector('.inv-card-value').textContent='Value: $'+money(price*h.qty)
-      d.classList.toggle('active',selType==='hold'&&sel===parseInt(h.id));d.classList.toggle('off-market',!h.in_market);inv.append(d)
+      d.classList.toggle('active',selType==='hold'&&sel===parseInt(h.id));d.classList.toggle('off-market',!h.in_market)
+      d.classList.toggle('favorited',h.favorited);d.querySelector('.fav-btn').classList.toggle('active',h.favorited);inv.append(d)
     })
   }else{empty.classList.remove('hidden');inv.classList.add('hidden');inv.innerHTML='';cnt.textContent='0 shoes owned'}
   if(sel!==null)updSidebar()
