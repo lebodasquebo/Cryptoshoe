@@ -19,3 +19,5 @@
 .admin-user-stats{display:flex;gap:16px;font-size:13px;color:var(--text2)}
 .admin-user-stat{display:flex;gap:4px}
 .admin-user-val{color:var(--accent);font-weight:600}
+.ban-btn{background:#ff4444!important;color:#fff!important}
+.ban-warning{color:#ff6666;font-size:12px;margin-top:10px;opacity:0.8}

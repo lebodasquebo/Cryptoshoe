@@ -39,13 +39,14 @@ const showResult=(data)=>{
     $('#result-rating').textContent=`${data.rating}/10 (${sign}${pct}%)`
     $('#result-rating').className='result-rating '+ratingClass
     $('#result-paid').textContent='$'+data.paid.toLocaleString()
-    $('#result-value').textContent='$'+data.value.toLocaleString()
+    $('#result-price').textContent='$'+data.price.toLocaleString()
+    $('#result-value').textContent='$'+Math.round(data.value).toLocaleString()
     let diff=data.value-data.paid
     if(diff>=0){
-        $('#result-verdict').textContent='WIN +$'+diff.toLocaleString()
+        $('#result-verdict').textContent='WIN +$'+Math.round(diff).toLocaleString()
         $('#result-verdict').className='result-verdict verdict-win'
     }else{
-        $('#result-verdict').textContent='LOSS $'+diff.toLocaleString()
+        $('#result-verdict').textContent='LOSS -$'+Math.round(Math.abs(diff)).toLocaleString()
         $('#result-verdict').className='result-verdict verdict-loss'
     }
     $('#box-result').classList.remove('hidden')

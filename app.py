@@ -1261,37 +1261,51 @@ def api_lootbox():
     bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
     if bal < amount:
         return jsonify({"ok": False, "error": "Not enough balance"})
-    min_val = amount * 0.6
-    max_val = amount * 1.4
-    shoes = d.execute("select id, name, rarity, base from shoes where base >= ? and base <= ?", (min_val / 1.5, max_val / 0.5)).fetchall()
-    if not shoes:
-        shoes = d.execute("select id, name, rarity, base from shoes order by abs(base - ?) limit 20", (amount,)).fetchall()
-    shoe = random.choice(shoes)
-    rating = round(random.uniform(1.0, 10.0), 1)
-    if rating == 10.0:
-        multiplier = 2.0
-    elif rating >= 8.0:
-        multiplier = 1.0 + (rating - 5.0) * 0.08
-    elif rating >= 6.0:
-        multiplier = 1.0 + (rating - 5.0) * 0.06
-    elif rating >= 5.0:
-        multiplier = 1.0 + (rating - 5.0) * 0.04
-    elif rating >= 3.0:
-        multiplier = 1.0 - (5.0 - rating) * 0.08
+    min_target = amount * 0.6
+    max_target = amount * 1.4
+    candidates = []
+    all_shoes = d.execute("select s.id, s.name, s.rarity, s.base, m.price from shoes s left join market m on m.shoe_id=s.id").fetchall()
+    for s in all_shoes:
+        price = s["price"] if s["price"] else s["base"]
+        for _ in range(50):
+            rating = round(random.uniform(1.0, 10.0), 1)
+            if rating == 10.0:
+                mult = 2.0
+            elif rating >= 8.0:
+                mult = 1.0 + (rating - 5.0) * 0.08
+            elif rating >= 6.0:
+                mult = 1.0 + (rating - 5.0) * 0.06
+            elif rating >= 5.0:
+                mult = 1.0 + (rating - 5.0) * 0.04
+            elif rating >= 3.0:
+                mult = 1.0 - (5.0 - rating) * 0.08
+            else:
+                mult = 1.0 - (5.0 - rating) * 0.12
+            mult = round(mult, 2)
+            final = price * mult
+            if min_target <= final <= max_target:
+                candidates.append({"shoe": s, "price": price, "rating": rating, "multiplier": mult, "final": final})
+                break
+    if not candidates:
+        shoe = random.choice(all_shoes)
+        price = shoe["price"] if shoe["price"] else shoe["base"]
+        rating = round(random.uniform(1.0, 10.0), 1)
+        mult = 1.0
+        final = price
     else:
-        multiplier = 1.0 - (5.0 - rating) * 0.12
-    multiplier = round(multiplier, 2)
-    final_val = shoe["base"] * multiplier
+        pick = random.choice(candidates)
+        shoe, price, rating, mult, final = pick["shoe"], pick["price"], pick["rating"], pick["multiplier"], pick["final"]
     now = int(time.time())
-    d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (u, shoe["id"], rating, multiplier, now))
+    d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (u, shoe["id"], rating, mult, now))
     d.execute("update users set balance=balance-? where id=?", (amount, u))
     d.commit()
     return jsonify({
         "ok": True,
         "shoe": {"id": shoe["id"], "name": shoe["name"], "rarity": shoe["rarity"], "base": shoe["base"]},
         "rating": rating,
-        "multiplier": multiplier,
-        "value": round(final_val, 2),
+        "multiplier": mult,
+        "price": round(price, 2),
+        "value": round(final, 2),
         "paid": amount
     })
 
