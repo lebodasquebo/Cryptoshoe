@@ -499,16 +499,8 @@ def api_signup():
     data = request.json
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-    if ip:
-        ip = ip.split(",")[0].strip()
     d = db()
     now = int(time.time())
-    cooldown = d.execute("select last_signup from signup_cooldowns where ip=?", (ip,)).fetchone()
-    if cooldown and now - cooldown["last_signup"] < 3600:
-        remaining = 3600 - (now - cooldown["last_signup"])
-        mins = remaining // 60
-        return jsonify({"ok": False, "error": f"You can't make a new account so soon. Please try again in {mins} minutes."})
     if not username or len(username) < 3:
         return jsonify({"ok": False, "error": "Username must be at least 3 characters"})
     if len(username) > 20:
@@ -525,7 +517,6 @@ def api_signup():
               (user_id, username, hash_pw(password), now))
     d.execute("insert into users(id, balance, last_income) values(?,?,?)", 
               (user_id, 10000, 0))
-    d.execute("insert or replace into signup_cooldowns(ip, last_signup) values(?,?)", (ip, now))
     d.commit()
     session["user_id"] = user_id
     session["username"] = username

@@ -226,5 +226,8 @@ const updBadge=async()=>{
     }
   }
 }
+const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
 updBadge()
+fetchNotifs()
 setInterval(updBadge,10000)
+setInterval(fetchNotifs,10000)

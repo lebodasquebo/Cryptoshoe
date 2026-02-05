@@ -213,7 +213,12 @@ $('#search').oninput=(e)=>{
   searchTimeout=setTimeout(()=>fetchUsers(e.target.value),300)
 }
 
+const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
+
 fetchUsers()
 fetchTrades()
 fetchBalance()
+fetchNotifs()
+setInterval(fetchUsers,5000)
 setInterval(fetchTrades,10000)
+setInterval(fetchNotifs,10000)
