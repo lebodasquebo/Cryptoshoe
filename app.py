@@ -64,6 +64,7 @@ def init():
     create table if not exists users(id text primary key, balance real);
     create table if not exists global_state(id integer primary key, last_stock integer, last_price integer);
     create table if not exists market(shoe_id integer primary key, stock integer, price real, base real, news text, news_val real, news_until integer);
+    create table if not exists user_stock(user_id text, shoe_id integer, stock_cycle integer, bought integer, primary key(user_id, shoe_id, stock_cycle));
     create table if not exists hold(user_id text, shoe_id integer, qty integer, primary key(user_id, shoe_id));
     create table if not exists history(shoe_id integer, ts integer, price real);
     create table if not exists appraised(id integer primary key autoincrement, user_id text, shoe_id integer, rating real, multiplier real, ts integer);
@@ -409,11 +410,18 @@ def state(u):
     last_price = gs["last_price"] if gs else now
     next_stock = last_stock + 300
     next_price = last_price + 10
-    m = d.execute("""
+    m_raw = d.execute("""
     select m.shoe_id id, s.name, s.rarity, m.stock, m.price, m.base, m.news, m.news_until
     from market m join shoes s on s.id=m.shoe_id
     order by s.rarity, s.name
     """).fetchall()
+    stock_cycle = last_stock
+    user_bought = {r["shoe_id"]: r["bought"] for r in d.execute("select shoe_id, bought from user_stock where user_id=? and stock_cycle=?", (u, stock_cycle)).fetchall()}
+    m = []
+    for r in m_raw:
+        rd = dict(r)
+        rd["stock"] = max(0, rd["stock"] - user_bought.get(rd["id"], 0))
+        m.append(rd)
     h = d.execute("""
     select h.shoe_id id, s.name, s.rarity, s.base, h.qty
     from hold h join shoes s on s.id=h.shoe_id
@@ -452,7 +460,7 @@ def state(u):
         hist[row["id"]] = [{"ts": r["ts"], "price": r["price"]} for r in rows][::-1]
     return {
         "balance": round(bal, 2),
-        "market": [dict(r) for r in m],
+        "market": m,
         "hold": hold_list,
         "appraised": appraised_list,
         "hist": hist,
@@ -627,13 +635,20 @@ def buy():
         return jsonify({"ok": False})
     d = db()
     row = d.execute("select stock, price from market where shoe_id=?", (shoe,)).fetchone()
-    if not row or row["stock"] < qty:
+    if not row:
         return jsonify({"ok": False})
+    gs = d.execute("select last_stock from global_state where id=1").fetchone()
+    stock_cycle = gs["last_stock"] if gs else 0
+    user_bought = d.execute("select bought from user_stock where user_id=? and shoe_id=? and stock_cycle=?", (u, shoe, stock_cycle)).fetchone()
+    already_bought = user_bought["bought"] if user_bought else 0
+    available = row["stock"] - already_bought
+    if available < qty:
+        return jsonify({"ok": False, "error": f"Only {available} left for you"})
     cost = row["price"] * qty
     bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
     if bal < cost:
-        return jsonify({"ok": False})
-    d.execute("update market set stock=stock-? where shoe_id=?", (qty, shoe))
+        return jsonify({"ok": False, "error": "Not enough balance"})
+    d.execute("insert into user_stock(user_id, shoe_id, stock_cycle, bought) values(?,?,?,?) on conflict(user_id, shoe_id, stock_cycle) do update set bought=bought+?", (u, shoe, stock_cycle, qty, qty))
     d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+excluded.qty", (u, shoe, qty))
     d.execute("update users set balance=balance-? where id=?", (cost, u))
     d.commit()
@@ -1766,7 +1781,8 @@ def admin_court_sentence():
         return jsonify({"ok": False, "error": "Defendant not found"})
     uid = acc["id"]
     if "PUBLIC HANGING" in sentence:
-        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"☠️ SENTENCE: PUBLIC HANGING! {defendant.upper()} has been EXECUTED! Their account is permanently deleted.", now))
+        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"☠️ SENTENCE: PUBLIC HANGING! {defendant.upper()} is being led to the gallows...", now))
+        d.execute("insert into announcements(message, ts, expires) values(?,?,?)", (f"☠️ PUBLIC EXECUTION: {defendant.upper()} is being hanged! Watch at /hanging/{defendant}", now, now + 120))
         d.execute("delete from hold where user_id=?", (uid,))
         d.execute("delete from appraised where user_id=?", (uid,))
         d.execute("delete from trades where from_user=? or to_user=?", (uid, uid))
@@ -1897,6 +1913,10 @@ def api_lootbox():
         "value": round(final_val, 2),
         "paid": amount
     })
+
+@app.route("/hanging/<username>")
+def hanging_page(username):
+    return render_template("hanging.html", victim=username)
 
 if __name__ == "__main__":
     with app.app_context():

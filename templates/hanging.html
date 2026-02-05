@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>☠️ PUBLIC EXECUTION</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Special+Elite&display=swap');
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      background: #0a0a0a;
+      color: #e0d5c0;
+      font-family: 'Special Elite', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    
+    .scene {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+    }
+    
+    .title {
+      font-family: 'Creepster', cursive;
+      font-size: 3rem;
+      color: #8b0000;
+      text-shadow: 0 0 20px #ff0000, 0 0 40px #8b0000;
+      animation: flicker 2s infinite;
+      margin-bottom: 2rem;
+    }
+    
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+      25%, 75% { opacity: 0.9; }
+    }
+    
+    .gallows {
+      position: relative;
+      width: 200px;
+      height: 300px;
+      margin: 0 auto 2rem;
+    }
+    
+    .beam-v {
+      position: absolute;
+      width: 20px;
+      height: 250px;
+      background: linear-gradient(90deg, #3d2817, #5c3d2e, #3d2817);
+      left: 20px;
+      bottom: 0;
+      border-radius: 2px;
+    }
+    
+    .beam-h {
+      position: absolute;
+      width: 160px;
+      height: 15px;
+      background: linear-gradient(180deg, #5c3d2e, #3d2817);
+      left: 20px;
+      top: 0;
+      border-radius: 2px;
+    }
+    
+    .rope {
+      position: absolute;
+      width: 4px;
+      height: 0;
+      background: linear-gradient(90deg, #8b7355, #a0926c, #8b7355);
+      left: 140px;
+      top: 15px;
+      animation: dropRope 2s ease-out 1s forwards;
+    }
+    
+    @keyframes dropRope {
+      to { height: 80px; }
+    }
+    
+    .noose {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border: 4px solid #8b7355;
+      border-radius: 50%;
+      left: 127px;
+      top: 95px;
+      opacity: 0;
+      animation: showNoose 0.5s ease-out 3s forwards;
+    }
+    
+    @keyframes showNoose {
+      to { opacity: 1; }
+    }
+    
+    .figure {
+      position: absolute;
+      left: 117px;
+      top: 125px;
+      opacity: 0;
+      animation: showFigure 0.5s ease-out 4s forwards, swing 2s ease-in-out 5s infinite;
+      transform-origin: top center;
+    }
+    
+    @keyframes showFigure {
+      to { opacity: 1; }
+    }
+    
+    @keyframes swing {
+      0%, 100% { transform: rotate(-3deg); }
+      50% { transform: rotate(3deg); }
+    }
+    
+    .head {
+      width: 25px;
+      height: 25px;
+      background: #d4a574;
+      border-radius: 50%;
+      margin: 0 auto;
+    }
+    
+    .body-part {
+      width: 4px;
+      height: 40px;
+      background: #333;
+      margin: 0 auto;
+    }
+    
+    .arms {
+      width: 40px;
+      height: 4px;
+      background: #333;
+      position: relative;
+      top: -30px;
+      left: -8px;
+    }
+    
+    .legs {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: -4px;
+    }
+    
+    .leg {
+      width: 4px;
+      height: 35px;
+      background: #333;
+    }
+    
+    .platform {
+      position: absolute;
+      width: 100px;
+      height: 15px;
+      background: linear-gradient(180deg, #5c3d2e, #3d2817);
+      left: 92px;
+      bottom: 0;
+      border-radius: 2px;
+      animation: dropPlatform 0.3s ease-in 3.5s forwards;
+      transform-origin: right center;
+    }
+    
+    @keyframes dropPlatform {
+      to { transform: rotate(90deg); }
+    }
+    
+    .victim-name {
+      font-family: 'Creepster', cursive;
+      font-size: 2.5rem;
+      color: #ff4444;
+      margin-bottom: 1rem;
+      opacity: 0;
+      animation: fadeIn 1s ease-out 0.5s forwards;
+    }
+    
+    .message {
+      font-size: 1.2rem;
+      color: #888;
+      margin-bottom: 2rem;
+      opacity: 0;
+      animation: fadeIn 1s ease-out 5.5s forwards;
+    }
+    
+    .final-message {
+      font-family: 'Creepster', cursive;
+      font-size: 2rem;
+      color: #8b0000;
+      text-shadow: 0 0 10px #ff0000;
+      opacity: 0;
+      animation: fadeIn 1s ease-out 6.5s forwards;
+    }
+    
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+    
+    .crowd {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+      opacity: 0;
+      animation: fadeIn 1s ease-out 2s forwards;
+    }
+    
+    .spectator {
+      font-size: 2rem;
+      animation: bob 1s ease-in-out infinite;
+    }
+    
+    .spectator:nth-child(2) { animation-delay: 0.2s; }
+    .spectator:nth-child(3) { animation-delay: 0.4s; }
+    .spectator:nth-child(4) { animation-delay: 0.1s; }
+    .spectator:nth-child(5) { animation-delay: 0.3s; }
+    
+    @keyframes bob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    
+    .back-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 10px 20px;
+      background: #222;
+      color: #888;
+      text-decoration: none;
+      border-radius: 5px;
+      font-size: 0.9rem;
+      transition: all 0.3s;
+    }
+    
+    .back-btn:hover {
+      background: #333;
+      color: #fff;
+    }
+    
+    .blood {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(ellipse at center, transparent 0%, rgba(139,0,0,0.3) 100%);
+      pointer-events: none;
+      opacity: 0;
+      animation: bloodFade 2s ease-out 5s forwards;
+    }
+    
+    @keyframes bloodFade {
+      to { opacity: 1; }
+    }
+    
+    .drumroll {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.5rem;
+      color: #666;
+      opacity: 0;
+      animation: fadeIn 0.5s ease-out 2.5s forwards, fadeOut 0.5s ease-out 3.5s forwards;
+    }
+    
+    @keyframes fadeOut {
+      to { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <a href="/" class="back-btn">← Leave</a>
+  
+  <div class="blood"></div>
+  
+  <div class="scene">
+    <h1 class="title">☠️ PUBLIC EXECUTION ☠️</h1>
+    <p class="victim-name">{{ victim }}</p>
+    
+    <div class="gallows">
+      <div class="beam-v"></div>
+      <div class="beam-h"></div>
+      <div class="rope"></div>
+      <div class="noose"></div>
+      <div class="figure">
+        <div class="head"></div>
+        <div class="body-part"></div>
+        <div class="arms"></div>
+        <div class="legs">
+          <div class="leg"></div>
+          <div class="leg"></div>
+        </div>
+      </div>
+      <div class="platform"></div>
+    </div>
+    
+    <p class="message">For crimes against the Cryptoshoe community...</p>
+    <p class="final-message">ACCOUNT DELETED FOREVER</p>
+  </div>
+  
+  <div class="drumroll">🥁 🥁 🥁</div>
+  
+  <div class="crowd">
+    <span class="spectator">👤</span>
+    <span class="spectator">👥</span>
+    <span class="spectator">🧑</span>
+    <span class="spectator">👤</span>
+    <span class="spectator">👥</span>
+  </div>
+  
+  <script>
+    // Play dramatic sound effects if available
+    setTimeout(() => {
+      // Crowd murmur
+    }, 2000);
+    
+    setTimeout(() => {
+      // Drumroll
+    }, 2500);
+    
+    setTimeout(() => {
+      // Trapdoor drop
+    }, 3500);
+  </script>
+</body>
+</html>
