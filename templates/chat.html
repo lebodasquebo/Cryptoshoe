@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cryptoshoe - Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/chat.css">
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">👟</span>
+        <span class="logo-text">CRYPTO<span class="accent">SHOE</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">
+          <span class="nav-icon">📈</span>
+          <span class="nav-text">Market</span>
+        </a>
+        <a href="/inventory" class="nav-link">
+          <span class="nav-icon">🎒</span>
+          <span class="nav-text">Inventory</span>
+        </a>
+        <a href="/lootbox" class="nav-link">
+          <span class="nav-icon">🎁</span>
+          <span class="nav-text">Lootbox</span>
+        </a>
+        <a href="/appraise" class="nav-link">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Appraise</span>
+        </a>
+        <a href="/users" class="nav-link">
+          <span class="nav-icon">👥</span>
+          <span class="nav-text">Users</span>
+        </a>
+        <a href="/chat" class="nav-link active">
+          <span class="nav-icon">💬</span>
+          <span class="nav-text">Chat</span>
+        </a>
+        {% if is_admin %}
+        <a href="/admin" class="nav-link nav-admin">
+          <span class="nav-icon">🔐</span>
+          <span class="nav-text">Admin</span>
+        </a>
+        {% endif %}
+      </div>
+      <div class="nav-user">
+        <div class="nav-bal">
+          <span class="bal-label">Balance</span>
+          <span class="bal-amt">$<span id="bal">0</span></span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div id="announcement-bar" class="announcement-bar"></div>
+
+  <main class="chat-main">
+    <div class="chat-container">
+      <div class="chat-header">
+        <h1>💬 Global Chat</h1>
+        <div class="online-count">🟢 <span id="online-count">0</span> online</div>
+      </div>
+      
+      <div class="chat-body">
+        <div class="chat-sidebar">
+          <h3>Online Users</h3>
+          <div id="online-users" class="online-list"></div>
+        </div>
+        
+        <div class="chat-area">
+          <div id="messages" class="messages"></div>
+          <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Type a message..." maxlength="200" autocomplete="off">
+            <button id="send-btn">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  
+  <script>window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
+  <script src="/static/chat.js?v={{ range(10000) | random }}"></script>
+</body>
+</html>

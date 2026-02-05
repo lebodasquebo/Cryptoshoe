@@ -91,6 +91,8 @@ def init():
     create table if not exists court_session(id integer primary key, defendant text, accusation text, status text, started integer, ended integer);
     create table if not exists court_messages(id integer primary key autoincrement, session_id integer, username text, message text, is_system integer, ts integer);
     create table if not exists court_votes(session_id integer, voter text, vote text, primary key(session_id, voter));
+    create table if not exists global_chat(id integer primary key autoincrement, user_id text, username text, message text, ts integer);
+    create index if not exists idx_chat on global_chat(ts);
     insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
     insert or ignore into court_session(id, status) values(1, 'inactive');
     """)
@@ -1938,6 +1940,51 @@ def api_hanging():
     d.execute("delete from active_hanging where started < ?", (now - 30,))
     d.commit()
     return jsonify({"active": False})
+
+@app.route("/chat")
+@login_required
+def chat_page():
+    return render_template("chat.html", is_admin=is_admin())
+
+@app.route("/api/chat/messages")
+@login_required
+def api_chat_messages():
+    d = db()
+    since = int(request.args.get("since", 0))
+    msgs = d.execute("select id, username, message, ts from global_chat where id > ? order by id asc limit 100", (since,)).fetchall()
+    return jsonify([dict(m) for m in msgs])
+
+@app.route("/api/chat/send", methods=["POST"])
+@login_required
+def api_chat_send():
+    u = uid()
+    d = db()
+    acc = d.execute("select username from accounts where id=?", (u,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": "Not logged in"})
+    msg = request.json.get("message", "").strip()[:200]
+    if not msg:
+        return jsonify({"ok": False, "error": "Empty message"})
+    now = int(time.time())
+    username = acc["username"]
+    if is_admin():
+        username = "👑 " + username
+    d.execute("insert into global_chat(user_id, username, message, ts) values(?,?,?,?)", (u, username, msg, now))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/chat/online")
+@login_required
+def api_chat_online():
+    d = db()
+    now = int(time.time())
+    online = d.execute("""
+        select a.username from accounts a
+        join users u on u.id = a.id
+        where u.last_seen > ?
+        order by u.last_seen desc limit 50
+    """, (now - 300,)).fetchall()
+    return jsonify([r["username"] for r in online])
 
 # Initialize database (needed for WSGI/PythonAnywhere)
 with app.app_context():
