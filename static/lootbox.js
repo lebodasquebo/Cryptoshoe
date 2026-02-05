@@ -57,3 +57,7 @@ const showResult=(data)=>{
 
 $('#open-btn').addEventListener('click',openBox)
 fetchBal()
+
+const checkHanging=async()=>{if(window.IS_ADMIN)return;let r=await fetch('/api/hanging');if(r.ok){let h=await r.json();if(h.active&&!location.pathname.includes('/hanging')){location.href='/hanging/'+h.victim}}}
+checkHanging()
+setInterval(checkHanging,3000)
