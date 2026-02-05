@@ -12,8 +12,9 @@ const toast=(msg,type='success')=>{
   setTimeout(()=>t.classList.remove('show'),2500)
 }
 
-const userCard=(u)=>`<div class="user-card${u.is_me?' is-me':''}">
+const userCard=(u)=>`<div class="user-card${u.is_me?' is-me':''}${u.online?' online':''}">
   <div class="user-avatar">👤</div>
+  <div class="user-status ${u.online?'online':'offline'}">${u.online?'🟢 Online':'⚫ Offline'}</div>
   <div class="user-name">${u.username}${u.is_me?' (you)':''}</div>
   <div class="user-stats">
     <div class="user-stat"><span class="user-stat-val">$${money(u.balance)}</span><span>Balance</span></div>

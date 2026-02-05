@@ -45,6 +45,16 @@ def set_device_id(response):
         response.set_cookie('device_id', str(uuid.uuid4()), max_age=60*60*24*365, httponly=True, samesite='Lax')
     return response
 
+@app.before_request
+def update_last_seen():
+    if "user_id" in session:
+        try:
+            d = db()
+            d.execute("update users set last_seen=? where id=?", (int(time.time()), session["user_id"]))
+            d.commit()
+        except:
+            pass
+
 def init():
     d = db()
     d.executescript("""
@@ -82,6 +92,10 @@ def init():
         pass
     try:
         d.execute("alter table accounts add column ban_until integer default 0")
+    except:
+        pass
+    try:
+        d.execute("alter table users add column last_seen integer default 0")
     except:
         pass
     d.commit()
@@ -832,24 +846,26 @@ def user_profile(username):
 def api_users():
     u = uid()
     d = db()
+    now = int(time.time())
     q = request.args.get("q", "").strip().lower()
     if q:
         users = d.execute("""
-            select a.username, u.balance from accounts a 
+            select a.username, u.balance, u.last_seen from accounts a 
             join users u on u.id=a.id 
             where lower(a.username) like ? 
-            order by u.balance desc limit 50
-        """, (f"%{q}%",)).fetchall()
+            order by (case when u.last_seen > ? then 0 else 1 end), u.balance desc limit 50
+        """, (f"%{q}%", now - 60)).fetchall()
     else:
         users = d.execute("""
-            select a.username, u.balance from accounts a 
+            select a.username, u.balance, u.last_seen from accounts a 
             join users u on u.id=a.id 
-            order by u.balance desc limit 50
-        """).fetchall()
+            order by (case when u.last_seen > ? then 0 else 1 end), u.balance desc limit 50
+        """, (now - 60,)).fetchall()
     result = []
     for row in users:
         udata = get_user_stats(row["username"])
         udata["is_me"] = (row["username"] == session.get("username"))
+        udata["online"] = row["last_seen"] and row["last_seen"] > now - 60
         result.append(udata)
     return jsonify(result)
 
@@ -1711,6 +1727,75 @@ def admin_court_verdict():
         d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"⚖️ Your trial verdict: {verdict.upper()}! {punishment if verdict=='guilty' else ''}", now))
     d.commit()
     return jsonify({"ok": True, "msg": f"Verdict delivered: {verdict}"})
+
+@app.route("/api/admin/court/sentence", methods=["POST"])
+@login_required
+def admin_court_sentence():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    sess = d.execute("select status, defendant from court_session where id=1").fetchone()
+    if not sess or sess["status"] not in ["active", "verdict"]:
+        return jsonify({"ok": False, "error": "No active trial"})
+    sentence = request.json.get("sentence", "").strip()
+    if not sentence:
+        return jsonify({"ok": False, "error": "Enter a sentence"})
+    now = int(time.time())
+    defendant = sess["defendant"]
+    acc = d.execute("select id from accounts where username=?", (defendant,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": "Defendant not found"})
+    uid = acc["id"]
+    if "PUBLIC HANGING" in sentence:
+        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"☠️ SENTENCE: PUBLIC HANGING! {defendant.upper()} has been EXECUTED! Their account is permanently deleted.", now))
+        d.execute("delete from hold where user_id=?", (uid,))
+        d.execute("delete from appraised where user_id=?", (uid,))
+        d.execute("delete from trades where from_user=? or to_user=?", (uid, uid))
+        d.execute("delete from notifications where user_id=?", (uid,))
+        d.execute("delete from users where id=?", (uid,))
+        d.execute("delete from accounts where id=?", (uid,))
+    elif "Life Sentence" in sentence:
+        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"⛓️ SENTENCE: LIFE IMPRISONMENT! {defendant.upper()} is permanently banned.", now))
+        d.execute("update accounts set ban_until=? where id=?", (now + 999999999, uid))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, "⛓️ You have been sentenced to LIFE IMPRISONMENT (permanent ban)", now))
+    elif "1 Week Prison" in sentence:
+        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"⛓️ SENTENCE: 1 WEEK PRISON! {defendant.upper()} is banned for 7 days.", now))
+        d.execute("update accounts set ban_until=? where id=?", (now + 604800, uid))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, "⛓️ You have been sentenced to 1 WEEK PRISON (7 day ban)", now))
+    elif "1 Day Jail" in sentence:
+        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"🔒 SENTENCE: 1 DAY JAIL! {defendant.upper()} is banned for 24 hours.", now))
+        d.execute("update accounts set ban_until=? where id=?", (now + 86400, uid))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, "🔒 You have been sentenced to 1 DAY JAIL (24 hour ban)", now))
+    elif "1 Hour Jail" in sentence:
+        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"🔒 SENTENCE: 1 HOUR JAIL! {defendant.upper()} is banned for 1 hour.", now))
+        d.execute("update accounts set ban_until=? where id=?", (now + 3600, uid))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, "🔒 You have been sentenced to 1 HOUR JAIL (1 hour ban)", now))
+    elif "Bankruptcy" in sentence:
+        old_bal = d.execute("select balance from users where id=?", (uid,)).fetchone()["balance"]
+        d.execute("update users set balance=0 where id=?", (uid,))
+        d.execute("delete from hold where user_id=?", (uid,))
+        d.execute("delete from appraised where user_id=?", (uid,))
+        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"💀 SENTENCE: BANKRUPTCY! {defendant.upper()} loses ALL assets (${old_bal:,.0f} + all shoes)!", now))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, f"💀 You have been sentenced to BANKRUPTCY! All ${old_bal:,.0f} and shoes seized.", now))
+    elif "Asset Seizure" in sentence:
+        old_bal = d.execute("select balance from users where id=?", (uid,)).fetchone()["balance"]
+        seized = old_bal * 0.5
+        d.execute("update users set balance=balance-? where id=?", (seized, uid))
+        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"🏦 SENTENCE: ASSET SEIZURE! 50% of {defendant.upper()}'s balance (${seized:,.0f}) has been seized!", now))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, f"🏦 ASSET SEIZURE: ${seized:,.0f} (50%) of your balance was taken!", now))
+    elif "Heavy Fine" in sentence or "$25,000" in sentence:
+        d.execute("update users set balance=balance-25000 where id=?", (uid,))
+        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"💸 SENTENCE: HEAVY FINE! {defendant.upper()} must pay $25,000!", now))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, "💸 You have been fined $25,000!", now))
+    elif "Fine" in sentence or "$5,000" in sentence:
+        d.execute("update users set balance=balance-5000 where id=?", (uid,))
+        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"💸 SENTENCE: FINE! {defendant.upper()} must pay $5,000!", now))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, "💸 You have been fined $5,000!", now))
+    else:
+        d.execute("insert into court_messages(session_id, username, message, is_system, ts) values(1,'SYSTEM',?,1,?)", (f"⚖️ SENTENCE: {sentence}", now))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, f"⚖️ Your sentence: {sentence}", now))
+    d.commit()
+    return jsonify({"ok": True})
 
 @app.route("/api/admin/court/end", methods=["POST"])
 @login_required

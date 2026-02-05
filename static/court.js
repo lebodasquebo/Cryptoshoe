@@ -156,6 +156,29 @@ window.deliverVerdict = async (verdict) => {
     }
 }
 
+window.executeSentence = async () => {
+    let sentence = $('#sentencing')?.value || ''
+    let custom = $('#punishment')?.value?.trim() || ''
+    let punishment = custom || sentence
+    if (!punishment) { toast('Select or enter a sentence', 'error'); return }
+    if (punishment.includes('PUBLIC HANGING') && !confirm('⚠️ PUBLIC HANGING will PERMANENTLY DELETE their account! Are you sure?')) return
+    let r = await fetch('/api/admin/court/sentence', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sentence: punishment})
+    })
+    let j = await r.json()
+    if (j.ok) {
+        toast('⚖️ Sentence executed!')
+        $('#sentencing').value = ''
+        $('#punishment').value = ''
+        fetchState()
+        fetchMessages()
+    } else {
+        toast(j.error, 'error')
+    }
+}
+
 window.endCourt = async () => {
     if (!confirm('End court session?')) return
     let r = await fetch('/api/admin/court/end', {method: 'POST'})

@@ -8,6 +8,10 @@
 .user-card{background:linear-gradient(145deg,var(--bg2),var(--bg3));border:1px solid var(--bg4);border-radius:var(--radius);padding:20px;transition:all 0.3s;color:var(--text);display:block}
 .user-card:hover{border-color:var(--accent);box-shadow:0 8px 32px rgba(0,0,0,0.4)}
 .user-card.is-me{border-color:var(--green);background:linear-gradient(145deg,rgba(0,255,136,0.05),var(--bg3))}
+.user-card.online{border-color:var(--green)}
+.user-status{text-align:center;font-size:11px;margin-bottom:8px;padding:3px 8px;border-radius:10px;display:inline-block;width:100%}
+.user-status.online{color:var(--green);background:rgba(0,255,136,0.1)}
+.user-status.offline{color:var(--text3);background:var(--bg4)}
 .user-actions{display:flex;gap:8px;margin-top:12px}
 .user-btn{flex:1;padding:8px 12px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;text-align:center;transition:all 0.2s}
 .profile-btn{background:var(--bg4);color:var(--text)}

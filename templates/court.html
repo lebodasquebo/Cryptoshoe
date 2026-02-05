@@ -105,7 +105,21 @@
                 <button class="verdict-btn guilty-verdict" onclick="deliverVerdict('guilty')">GUILTY</button>
                 <button class="verdict-btn innocent-verdict" onclick="deliverVerdict('innocent')">INNOCENT</button>
               </div>
-              <input type="text" id="punishment" placeholder="Punishment (for guilty)">
+              <select id="sentencing">
+                <option value="">Select Sentence...</option>
+                <option value="Warning - verbal reprimand">⚠️ Warning</option>
+                <option value="Fine - $5,000">💸 Fine ($5k)</option>
+                <option value="Fine - $25,000">💸 Heavy Fine ($25k)</option>
+                <option value="Asset Seizure - 50% balance taken">🏦 Asset Seizure (50%)</option>
+                <option value="Bankruptcy - all assets seized">💀 Bankruptcy</option>
+                <option value="1 Hour Jail - banned for 1 hour">🔒 1 Hour Jail</option>
+                <option value="1 Day Jail - banned for 24 hours">🔒 1 Day Jail</option>
+                <option value="1 Week Prison - banned for 7 days">⛓️ 1 Week Prison</option>
+                <option value="Life Sentence - permanent ban">⛓️ Life Sentence</option>
+                <option value="PUBLIC HANGING - account deleted forever">☠️ PUBLIC HANGING</option>
+              </select>
+              <input type="text" id="punishment" placeholder="Custom punishment (optional)">
+              <button class="execute-btn" onclick="executeSentence()">⚖️ Execute Sentence</button>
               <button class="end-btn" onclick="endCourt()">End Court Session</button>
             </div>
           </div>

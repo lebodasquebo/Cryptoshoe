@@ -288,6 +288,19 @@
   background: var(--bg4) !important;
   color: var(--text) !important;
 }
+.execute-btn {
+  background: var(--red) !important;
+  color: #fff !important;
+}
+.judge-controls select {
+  padding: 10px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--bg4);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  width: 100%;
+}
 .admin-start-panel {
   position: fixed;
   bottom: 20px;
