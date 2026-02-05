@@ -1938,8 +1938,26 @@ def api_pot_current():
     d = db()
     u = uid()
     now = int(time.time())
+    gs = d.execute("select last_stock from global_state where id=1").fetchone()
+    last_stock = gs["last_stock"] if gs else 0
+    next_stock = last_stock + 300
     pot = d.execute("select * from gambling_pots where status='open' order by id desc limit 1").fetchone()
-    if not pot:
+    if pot and now >= next_stock:
+        entries = d.execute("select user_id from pot_entries where pot_id=?", (pot["id"],)).fetchall()
+        if len(entries) >= 2:
+            pick_pot_winner(pot["id"], d)
+            d.commit()
+        elif len(entries) == 1:
+            e = d.execute("select * from pot_entries where pot_id=?", (pot["id"],)).fetchone()
+            if e["appraisal_id"]:
+                d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,5.0,1.0,?)", (e["user_id"], e["shoe_id"], now))
+            else:
+                d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1", (e["user_id"], e["shoe_id"]))
+            d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (e["user_id"], "🎰 Pot ended - your shoe was returned (not enough players)", now))
+        d.execute("update gambling_pots set status='closed', ended=? where id=?", (now, pot["id"]))
+        d.commit()
+        pot = None
+    if not pot or pot["status"] != "open":
         caps = [50000, 100000, 250000, 500000, 1000000, 999999999]
         cap = random.choice(caps)
         d.execute("insert into gambling_pots(market_cap, created) values(?,?)", (cap, now))
@@ -1970,6 +1988,7 @@ def api_pot_current():
         })
     result.sort(key=lambda x: -x["value"])
     cap_display = "∞" if pot["market_cap"] >= 999999999 else f"${pot['market_cap']:,.0f}"
+    time_left = max(0, next_stock - now)
     return jsonify({
         "id": pot["id"],
         "market_cap": pot["market_cap"],
@@ -1977,7 +1996,9 @@ def api_pot_current():
         "total": total,
         "percent_filled": min(100, (total / pot["market_cap"] * 100)) if pot["market_cap"] < 999999999 else 0,
         "participants": result,
-        "status": pot["status"]
+        "status": pot["status"],
+        "time_left": time_left,
+        "next_spin": next_stock
     })
 
 @app.route("/api/pot/enter", methods=["POST"])

@@ -6,6 +6,7 @@ checkCourt();setInterval(checkCourt,5000)
 
 let selectedShoe = null
 let myShoes = []
+let nextSpin = 0
 
 // Tab switching
 $$('.tab-btn').forEach(btn => {
@@ -25,12 +26,12 @@ const fetchPot = async () => {
   if (!r.ok) return
   let pot = await r.json()
   
+  nextSpin = pot.next_spin
   $('#pot-cap').textContent = pot.cap_display
   $('#pot-total').textContent = pot.total.toLocaleString()
   $('#pot-percent').textContent = pot.percent_filled.toFixed(0)
   $('#pot-fill').style.width = pot.percent_filled + '%'
   
-  // Draw wheel
   const wheel = $('#wheel-container')
   if (pot.participants.length === 0) {
     wheel.innerHTML = '<div class="wheel-empty">No entries yet</div>'
@@ -47,7 +48,6 @@ const fetchPot = async () => {
     wheel.innerHTML = ''
   }
   
-  // Participants list
   const list = $('#participants-list')
   list.innerHTML = pot.participants.map((p, i) => `
     <div class="participant${p.is_me ? ' me' : ''}">
@@ -63,6 +63,16 @@ const fetchPot = async () => {
     </div>
   `).join('')
 }
+
+const updateTimer = () => {
+  const now = Math.floor(Date.now() / 1000)
+  const left = Math.max(0, nextSpin - now)
+  const mins = Math.floor(left / 60)
+  const secs = left % 60
+  $('#pot-timer').textContent = `${mins}:${secs.toString().padStart(2, '0')}`
+  if (left <= 0 && nextSpin > 0) fetchPot()
+}
+setInterval(updateTimer, 1000)
 
 const fetchHistory = async () => {
   let r = await fetch('/api/pot/history')
