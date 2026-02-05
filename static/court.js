@@ -3,6 +3,7 @@ const toast=(msg,type='success')=>{let t=$('#toast');t.textContent=msg;t.classNa
 
 let lastMsgId = 0
 let courtActive = false
+let renderedMsgIds = new Set()
 
 const fetchState = async () => {
     let r = await fetch('/api/court/state')
@@ -37,6 +38,7 @@ const fetchState = async () => {
         
         if (!courtActive) {
             lastMsgId = 0
+            renderedMsgIds.clear()
             $('#chat-messages').innerHTML = ''
         }
         courtActive = true
@@ -54,7 +56,10 @@ const fetchMessages = async () => {
     if (!r.ok) return
     let msgs = await r.json()
     let container = $('#chat-messages')
+    let added = false
     for (let m of msgs) {
+        if (renderedMsgIds.has(m.id)) continue
+        renderedMsgIds.add(m.id)
         let div = document.createElement('div')
         div.className = 'chat-msg'
         if (m.is_system) {
@@ -67,8 +72,9 @@ const fetchMessages = async () => {
         }
         container.appendChild(div)
         lastMsgId = m.id
+        added = true
     }
-    if (msgs.length) container.scrollTop = container.scrollHeight
+    if (added) container.scrollTop = container.scrollHeight
 }
 
 const sendChat = async () => {
