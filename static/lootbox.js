@@ -1,5 +1,7 @@
 const $=q=>document.querySelector(q)
 const toast=(msg,type='success')=>{let t=$('#toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),2500)}
+const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
+checkCourt();setInterval(checkCourt,5000)
 
 const presets=document.querySelectorAll('.preset-btn')
 const amtInput=$('#amount')
