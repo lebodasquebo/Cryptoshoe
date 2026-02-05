@@ -39,11 +39,17 @@ def boot():
     seed()
     booted = True
 
+@app.after_request
+def set_device_id(response):
+    if 'device_id' not in request.cookies:
+        response.set_cookie('device_id', str(uuid.uuid4()), max_age=60*60*24*365, httponly=True, samesite='Lax')
+    return response
+
 def init():
     d = db()
     d.executescript("""
     create table if not exists accounts(id text primary key, username text unique, password text, created integer);
-    create table if not exists signup_cooldowns(ip text primary key, last_signup integer);
+    create table if not exists device_signups(device_id text primary key, last_signup integer);
     create table if not exists shoes(id integer primary key, name text unique, rarity text, base real);
     create table if not exists users(id text primary key, balance real);
     create table if not exists global_state(id integer primary key, last_stock integer, last_price integer);
@@ -523,6 +529,14 @@ def api_signup():
     password = data.get("password", "")
     d = db()
     now = int(time.time())
+    device_id = request.cookies.get('device_id')
+    if device_id:
+        last = d.execute("select last_signup from device_signups where device_id=?", (device_id,)).fetchone()
+        if last and now - last["last_signup"] < 21600:
+            remaining = 21600 - (now - last["last_signup"])
+            hrs = remaining // 3600
+            mins = (remaining % 3600) // 60
+            return jsonify({"ok": False, "error": f"You can't create another account yet. Try again in {hrs}h {mins}m"})
     if not username or len(username) < 3:
         return jsonify({"ok": False, "error": "Username must be at least 3 characters"})
     if len(username) > 20:
@@ -539,6 +553,8 @@ def api_signup():
               (user_id, username, hash_pw(password), now))
     d.execute("insert into users(id, balance, last_income) values(?,?,?)", 
               (user_id, 10000, 0))
+    if device_id:
+        d.execute("insert or replace into device_signups(device_id, last_signup) values(?,?)", (device_id, now))
     d.commit()
     session["user_id"] = user_id
     session["username"] = username
