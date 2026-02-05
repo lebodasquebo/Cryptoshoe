@@ -65,6 +65,16 @@ window.resetStock=async()=>{
     else toast(j.error||'Failed','error')
 }
 
+window.banUser=async()=>{
+    let user=$('#ban-user').value.trim()
+    if(!user){toast('Enter username','error');return}
+    if(!confirm(`Permanently ban and delete ${user}? This cannot be undone!`))return
+    let r=await fetch('/api/admin/ban',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user})})
+    let j=await r.json()
+    if(j.ok){toast(`Banned ${user}`);loadUsers();$('#ban-user').value=''}
+    else toast(j.error||'Failed','error')
+}
+
 const fetchBalance=async()=>{
     let r=await fetch('/api/state')
     if(r.ok){let s=await r.json();$('#bal').textContent=s.balance.toFixed(2)}

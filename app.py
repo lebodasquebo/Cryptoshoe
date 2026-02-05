@@ -1222,6 +1222,79 @@ def admin_refresh():
     refresh()
     return jsonify({"ok": True})
 
+@app.route("/api/admin/ban", methods=["POST"])
+@login_required
+def admin_ban():
+    if not is_admin():
+        return jsonify({"error": "Unauthorized"}), 403
+    d = db()
+    data = request.json
+    username = data.get("username", "").lower()
+    if username in ADMIN_USERS:
+        return jsonify({"ok": False, "error": "Cannot ban admin"})
+    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": "User not found"})
+    uid = acc["id"]
+    d.execute("delete from hold where user_id=?", (uid,))
+    d.execute("delete from appraised where user_id=?", (uid,))
+    d.execute("delete from trades where from_user=? or to_user=?", (uid, uid))
+    d.execute("delete from notifications where user_id=?", (uid,))
+    d.execute("delete from users where id=?", (uid,))
+    d.execute("delete from accounts where id=?", (uid,))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/lootbox")
+@login_required
+def lootbox_page():
+    return render_template("lootbox.html", is_admin=is_admin())
+
+@app.route("/api/lootbox", methods=["POST"])
+@login_required
+def api_lootbox():
+    u = uid()
+    d = db()
+    amount = int(request.json.get("amount", 0))
+    if amount < 1000 or amount > 100000:
+        return jsonify({"ok": False, "error": "Amount must be between $1,000 and $100,000"})
+    bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
+    if bal < amount:
+        return jsonify({"ok": False, "error": "Not enough balance"})
+    min_val = amount * 0.6
+    max_val = amount * 1.4
+    shoes = d.execute("select id, name, rarity, base from shoes where base >= ? and base <= ?", (min_val / 1.5, max_val / 0.5)).fetchall()
+    if not shoes:
+        shoes = d.execute("select id, name, rarity, base from shoes order by abs(base - ?) limit 20", (amount,)).fetchall()
+    shoe = random.choice(shoes)
+    rating = round(random.uniform(1.0, 10.0), 1)
+    if rating == 10.0:
+        multiplier = 2.0
+    elif rating >= 8.0:
+        multiplier = 1.0 + (rating - 5.0) * 0.08
+    elif rating >= 6.0:
+        multiplier = 1.0 + (rating - 5.0) * 0.06
+    elif rating >= 5.0:
+        multiplier = 1.0 + (rating - 5.0) * 0.04
+    elif rating >= 3.0:
+        multiplier = 1.0 - (5.0 - rating) * 0.08
+    else:
+        multiplier = 1.0 - (5.0 - rating) * 0.12
+    multiplier = round(multiplier, 2)
+    final_val = shoe["base"] * multiplier
+    now = int(time.time())
+    d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (u, shoe["id"], rating, multiplier, now))
+    d.execute("update users set balance=balance-? where id=?", (amount, u))
+    d.commit()
+    return jsonify({
+        "ok": True,
+        "shoe": {"id": shoe["id"], "name": shoe["name"], "rarity": shoe["rarity"], "base": shoe["base"]},
+        "rating": rating,
+        "multiplier": multiplier,
+        "value": round(final_val, 2),
+        "paid": amount
+    })
+
 if __name__ == "__main__":
     with app.app_context():
         init()

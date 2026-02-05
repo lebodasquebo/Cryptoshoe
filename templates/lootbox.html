@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Lootbox - Cryptoshoe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/lootbox.css">
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">👟</span>
+        <span class="logo-text">CRYPTO<span class="accent">SHOE</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">
+          <span class="nav-icon">📈</span>
+          <span class="nav-text">Market</span>
+        </a>
+        <a href="/inventory" class="nav-link">
+          <span class="nav-icon">🎒</span>
+          <span class="nav-text">Inventory</span>
+        </a>
+        <a href="/lootbox" class="nav-link active">
+          <span class="nav-icon">🎁</span>
+          <span class="nav-text">Lootbox</span>
+        </a>
+        <a href="/appraise" class="nav-link">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Appraise</span>
+        </a>
+        <a href="/users" class="nav-link">
+          <span class="nav-icon">👥</span>
+          <span class="nav-text">Users</span>
+        </a>
+        {% if is_admin %}
+        <a href="/admin" class="nav-link nav-admin">
+          <span class="nav-icon">🔐</span>
+          <span class="nav-text">Admin</span>
+        </a>
+        {% endif %}
+      </div>
+      <div class="nav-user">
+        <div class="nav-bal">
+          <div class="bal-label">BALANCE</div>
+          <div class="bal-val">$<span id="bal">0.00</span></div>
+        </div>
+        <a href="/logout" class="nav-logout" title="Logout">🚪</a>
+      </div>
+    </div>
+  </nav>
+  <main class="lootbox-main">
+    <h1>🎁 LOOTBOX</h1>
+    <p class="lootbox-desc">Pay $1,000 - $100,000 and receive a random pre-appraised shoe worth around your bet!</p>
+    
+    <div class="lootbox-container">
+      <div class="amount-section">
+        <label>BET AMOUNT</label>
+        <div class="amount-presets">
+          <button class="preset-btn" data-amt="1000">$1K</button>
+          <button class="preset-btn" data-amt="5000">$5K</button>
+          <button class="preset-btn" data-amt="10000">$10K</button>
+          <button class="preset-btn" data-amt="25000">$25K</button>
+          <button class="preset-btn" data-amt="50000">$50K</button>
+          <button class="preset-btn" data-amt="100000">$100K</button>
+        </div>
+        <div class="amount-input-wrap">
+          <span class="currency">$</span>
+          <input type="number" id="amount" min="1000" max="100000" value="1000" step="100">
+        </div>
+      </div>
+      
+      <div class="lootbox-box" id="lootbox">
+        <div class="box-closed" id="box-closed">
+          <div class="box-icon">📦</div>
+          <div class="box-text">Click to Open!</div>
+        </div>
+        <div class="box-opening hidden" id="box-opening">
+          <div class="spinner">🎰</div>
+        </div>
+        <div class="box-result hidden" id="box-result">
+          <div class="result-shoe">
+            <div class="result-rarity" id="result-rarity"></div>
+            <div class="result-name" id="result-name"></div>
+          </div>
+          <div class="result-rating">
+            <span class="rating-label">Rating:</span>
+            <span class="rating-val" id="result-rating"></span>
+          </div>
+          <div class="result-value">
+            <div class="value-row">
+              <span>You Paid:</span>
+              <span id="result-paid">$0</span>
+            </div>
+            <div class="value-row result-final">
+              <span>Shoe Value:</span>
+              <span id="result-value">$0</span>
+            </div>
+          </div>
+          <div class="result-verdict" id="result-verdict"></div>
+          <button class="open-another" id="open-another">Open Another</button>
+        </div>
+      </div>
+      
+      <button class="open-btn" id="open-btn">🎁 OPEN LOOTBOX</button>
+    </div>
+  </main>
+  <div id="toast" class="toast"></div>
+  <script src="/static/lootbox.js"></script>
+</body>
+</html>
