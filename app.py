@@ -1724,42 +1724,46 @@ def api_lootbox():
     bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
     if bal < amount:
         return jsonify({"ok": False, "error": f"Not enough balance (need ${amount:,}, have ${bal:,.0f})"})
-    min_target = amount * 0.6
-    max_target = amount * 1.4
+    target = amount * random.uniform(0.6, 1.4)
     all_shoes = d.execute("select s.id, s.name, s.rarity, s.base, m.price from shoes s left join market m on m.shoe_id=s.id").fetchall()
-    random.shuffle(list(all_shoes))
-    shoe = None
+    best, best_diff = None, float('inf')
     for s in all_shoes:
         price = s["price"] if s["price"] else s["base"]
-        min_mult = min_target / price
-        max_mult = max_target / price
-        if min_mult > 2.0 or max_mult < 0.52:
+        needed_mult = target / price
+        if needed_mult < 0.52 or needed_mult > 2.0:
             continue
-        min_mult = max(0.52, min_mult)
-        max_mult = min(2.0, max_mult)
-        for _ in range(100):
-            rating = round(random.uniform(1.0, 10.0), 1)
-            if rating == 10.0:
-                mult = 2.0
-            elif rating >= 8.0:
-                mult = 1.0 + (rating - 5.0) * 0.08
-            elif rating >= 6.0:
-                mult = 1.0 + (rating - 5.0) * 0.06
-            elif rating >= 5.0:
-                mult = 1.0 + (rating - 5.0) * 0.04
-            elif rating >= 3.0:
-                mult = 1.0 - (5.0 - rating) * 0.08
-            else:
-                mult = 1.0 - (5.0 - rating) * 0.12
-            mult = round(mult, 2)
-            if min_mult <= mult <= max_mult:
-                final = price * mult
-                shoe = s
-                break
-        if shoe:
-            break
-    if not shoe:
-        return jsonify({"ok": False, "error": "No shoes available in this price range, try a different amount"})
+        if needed_mult >= 2.0:
+            rating = 10.0
+            mult = 2.0
+        elif needed_mult >= 1.24:
+            rating = round(5.0 + (needed_mult - 1.0) / 0.08, 1)
+            rating = min(9.9, max(8.0, rating))
+            mult = 1.0 + (rating - 5.0) * 0.08
+        elif needed_mult >= 1.06:
+            rating = round(5.0 + (needed_mult - 1.0) / 0.06, 1)
+            rating = min(7.9, max(6.0, rating))
+            mult = 1.0 + (rating - 5.0) * 0.06
+        elif needed_mult >= 1.0:
+            rating = round(5.0 + (needed_mult - 1.0) / 0.04, 1)
+            rating = min(5.9, max(5.0, rating))
+            mult = 1.0 + (rating - 5.0) * 0.04
+        elif needed_mult >= 0.84:
+            rating = round(5.0 - (1.0 - needed_mult) / 0.08, 1)
+            rating = min(4.9, max(3.0, rating))
+            mult = 1.0 - (5.0 - rating) * 0.08
+        else:
+            rating = round(5.0 - (1.0 - needed_mult) / 0.12, 1)
+            rating = min(2.9, max(1.0, rating))
+            mult = 1.0 - (5.0 - rating) * 0.12
+        mult = round(mult, 2)
+        final_val = price * mult
+        diff = abs(final_val - target)
+        if diff < best_diff:
+            best_diff = diff
+            best = (s, price, rating, mult, final_val)
+    if not best:
+        return jsonify({"ok": False, "error": "No shoes available in this price range"})
+    shoe, price, rating, mult, final_val = best
     now = int(time.time())
     d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (u, shoe["id"], rating, mult, now))
     d.execute("update users set balance=balance-? where id=?", (amount, u))
@@ -1770,7 +1774,7 @@ def api_lootbox():
         "rating": rating,
         "multiplier": mult,
         "price": round(price, 2),
-        "value": round(price * mult, 2),
+        "value": round(final_val, 2),
         "paid": amount
     })
 
