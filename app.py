@@ -69,6 +69,10 @@ def init():
         d.execute("alter table users add column last_income integer default 0")
     except:
         pass
+    try:
+        d.execute("alter table accounts add column ban_until integer default 0")
+    except:
+        pass
     d.commit()
 
 def pick(w):
@@ -487,9 +491,22 @@ def api_login():
     if not username or not password:
         return jsonify({"ok": False, "error": "Username and password required"})
     d = db()
-    acc = d.execute("select id, password from accounts where username=?", (username,)).fetchone()
+    acc = d.execute("select id, password, ban_until from accounts where username=?", (username,)).fetchone()
     if not acc or acc["password"] != hash_pw(password):
         return jsonify({"ok": False, "error": "Invalid username or password"})
+    now = int(time.time())
+    ban_until = acc["ban_until"] or 0
+    if ban_until > now:
+        remaining = ban_until - now
+        if remaining > 86400:
+            days = remaining // 86400
+            return jsonify({"ok": False, "error": f"Account banned for {days} more day(s)"})
+        elif remaining > 3600:
+            hours = remaining // 3600
+            return jsonify({"ok": False, "error": f"Account banned for {hours} more hour(s)"})
+        else:
+            mins = remaining // 60
+            return jsonify({"ok": False, "error": f"Account banned for {mins} more minute(s)"})
     session["user_id"] = acc["id"]
     session["username"] = username
     return jsonify({"ok": True})
@@ -1226,24 +1243,37 @@ def admin_refresh():
 @login_required
 def admin_ban():
     if not is_admin():
-        return jsonify({"error": "Unauthorized"}), 403
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
     d = db()
     data = request.json
-    username = data.get("username", "").lower()
+    username = data.get("username", "").lower().strip()
+    duration = data.get("duration", "perm")
+    if not username:
+        return jsonify({"ok": False, "error": "Enter a username"})
     if username in ADMIN_USERS:
-        return jsonify({"ok": False, "error": "Cannot ban admin"})
+        return jsonify({"ok": False, "error": "Cannot ban an admin"})
     acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
     if not acc:
-        return jsonify({"ok": False, "error": "User not found"})
+        return jsonify({"ok": False, "error": f"User '{username}' not found"})
     uid = acc["id"]
-    d.execute("delete from hold where user_id=?", (uid,))
-    d.execute("delete from appraised where user_id=?", (uid,))
-    d.execute("delete from trades where from_user=? or to_user=?", (uid, uid))
-    d.execute("delete from notifications where user_id=?", (uid,))
-    d.execute("delete from users where id=?", (uid,))
-    d.execute("delete from accounts where id=?", (uid,))
-    d.commit()
-    return jsonify({"ok": True})
+    now = int(time.time())
+    if duration == "perm":
+        d.execute("delete from hold where user_id=?", (uid,))
+        d.execute("delete from appraised where user_id=?", (uid,))
+        d.execute("delete from trades where from_user=? or to_user=?", (uid, uid))
+        d.execute("delete from notifications where user_id=?", (uid,))
+        d.execute("delete from users where id=?", (uid,))
+        d.execute("delete from accounts where id=?", (uid,))
+        d.commit()
+        return jsonify({"ok": True, "msg": f"Permanently banned {username}"})
+    else:
+        durations = {"1h": 3600, "6h": 21600, "1d": 86400, "7d": 604800, "30d": 2592000}
+        secs = durations.get(duration, 3600)
+        ban_until = now + secs
+        d.execute("update accounts set ban_until=? where id=?", (ban_until, uid))
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, f"You have been banned for {duration}", now))
+        d.commit()
+        return jsonify({"ok": True, "msg": f"Banned {username} for {duration}"})
 
 @app.route("/lootbox")
 @login_required
@@ -1257,17 +1287,24 @@ def api_lootbox():
     d = db()
     amount = int(request.json.get("amount", 0))
     if amount < 1000 or amount > 100000:
-        return jsonify({"ok": False, "error": "Amount must be between $1,000 and $100,000"})
+        return jsonify({"ok": False, "error": "Amount must be $1,000 - $100,000"})
     bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
     if bal < amount:
-        return jsonify({"ok": False, "error": "Not enough balance"})
+        return jsonify({"ok": False, "error": f"Not enough balance (need ${amount:,}, have ${bal:,.0f})"})
     min_target = amount * 0.6
     max_target = amount * 1.4
-    candidates = []
     all_shoes = d.execute("select s.id, s.name, s.rarity, s.base, m.price from shoes s left join market m on m.shoe_id=s.id").fetchall()
+    random.shuffle(list(all_shoes))
+    shoe = None
     for s in all_shoes:
         price = s["price"] if s["price"] else s["base"]
-        for _ in range(50):
+        min_mult = min_target / price
+        max_mult = max_target / price
+        if min_mult > 2.0 or max_mult < 0.52:
+            continue
+        min_mult = max(0.52, min_mult)
+        max_mult = min(2.0, max_mult)
+        for _ in range(100):
             rating = round(random.uniform(1.0, 10.0), 1)
             if rating == 10.0:
                 mult = 2.0
@@ -1282,19 +1319,14 @@ def api_lootbox():
             else:
                 mult = 1.0 - (5.0 - rating) * 0.12
             mult = round(mult, 2)
-            final = price * mult
-            if min_target <= final <= max_target:
-                candidates.append({"shoe": s, "price": price, "rating": rating, "multiplier": mult, "final": final})
+            if min_mult <= mult <= max_mult:
+                final = price * mult
+                shoe = s
                 break
-    if not candidates:
-        shoe = random.choice(all_shoes)
-        price = shoe["price"] if shoe["price"] else shoe["base"]
-        rating = round(random.uniform(1.0, 10.0), 1)
-        mult = 1.0
-        final = price
-    else:
-        pick = random.choice(candidates)
-        shoe, price, rating, mult, final = pick["shoe"], pick["price"], pick["rating"], pick["multiplier"], pick["final"]
+        if shoe:
+            break
+    if not shoe:
+        return jsonify({"ok": False, "error": "No shoes available in this price range, try a different amount"})
     now = int(time.time())
     d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (u, shoe["id"], rating, mult, now))
     d.execute("update users set balance=balance-? where id=?", (amount, u))
@@ -1305,7 +1337,7 @@ def api_lootbox():
         "rating": rating,
         "multiplier": mult,
         "price": round(price, 2),
-        "value": round(final, 2),
+        "value": round(price * mult, 2),
         "paid": amount
     })
 

@@ -67,12 +67,15 @@ window.resetStock=async()=>{
 
 window.banUser=async()=>{
     let user=$('#ban-user').value.trim()
-    if(!user){toast('Enter username','error');return}
-    if(!confirm(`Permanently ban and delete ${user}? This cannot be undone!`))return
-    let r=await fetch('/api/admin/ban',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user})})
+    let duration=$('#ban-duration').value
+    if(!user){toast('Enter a username','error');return}
+    if(duration==='perm'){
+        if(!confirm(`PERMANENTLY ban and DELETE ${user}? This cannot be undone!`))return
+    }
+    let r=await fetch('/api/admin/ban',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,duration})})
     let j=await r.json()
-    if(j.ok){toast(`Banned ${user}`);loadUsers();$('#ban-user').value=''}
-    else toast(j.error||'Failed','error')
+    if(j.ok){toast(j.msg||'Banned');loadUsers();$('#ban-user').value=''}
+    else toast(j.error,'error')
 }
 
 const fetchBalance=async()=>{

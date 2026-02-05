@@ -85,9 +85,17 @@
         <h2>🚫 Ban User</h2>
         <div class="admin-form">
             <input type="text" id="ban-user" placeholder="Username">
-            <button class="ban-btn" onclick="banUser()">Permanently Ban</button>
+            <select id="ban-duration">
+                <option value="1h">1 Hour</option>
+                <option value="6h">6 Hours</option>
+                <option value="1d">1 Day</option>
+                <option value="7d">7 Days</option>
+                <option value="30d">30 Days</option>
+                <option value="perm">Permanent</option>
+            </select>
+            <button class="ban-btn" onclick="banUser()">Ban</button>
         </div>
-        <p class="ban-warning">⚠️ This will permanently delete the account and all their data!</p>
+        <p class="ban-warning">⚠️ Permanent ban deletes the account. Temp bans prevent login.</p>
     </section>
     
     <section class="admin-section">
