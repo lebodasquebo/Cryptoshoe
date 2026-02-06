@@ -1,6 +1,11 @@
 import os, sqlite3, time, random, json, uuid, hashlib, re, urllib.request, urllib.parse
 from flask import Flask, g, render_template, session, request, jsonify, Response, redirect, url_for
 from functools import wraps
+try:
+    from pymemcache.client import base as memcache
+    MC = memcache.Client(('127.0.0.1', 11211))
+except:
+    MC = None
 
 RECAPTCHA_SECRET = os.environ.get("RECAPTCHA_SECRET", "6Ldd32IsAAAAAKrY5NSlh8D3Mzefb4sxqWL6G-Od")
 RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "6Ldd32IsAAAAAC0k5zVL2qCkOkvl2BmS4uD9vm45")
@@ -56,6 +61,17 @@ def get_client_ip():
     return request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
 
 def is_rate_limited(key, limit, window):
+    if MC:
+        try:
+            k = f"rl:{key}".encode()
+            val = MC.get(k)
+            count = int(val) if val else 0
+            if count >= limit:
+                return True
+            MC.set(k, str(count + 1).encode(), expire=window)
+            return False
+        except:
+            pass
     now = time.time()
     if key not in RATE_LIMITS:
         RATE_LIMITS[key] = []
