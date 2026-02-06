@@ -38,6 +38,7 @@ const showWinner = (name, total) => {
 
 let isSpinning = false
 let lastWinner = null
+let spinStartTime = 0
 
 const fetchPot = async () => {
   let r = await fetch('/api/pot/current')
@@ -54,20 +55,30 @@ const fetchPot = async () => {
   
   if (pot.spinning && !isSpinning) {
     isSpinning = true
-    wheel.classList.add('spinning')
+    spinStartTime = Date.now()
+    wheel.style.transition = 'none'
+    wheel.style.transform = 'rotate(0deg)'
     setTimeout(() => {
-      wheel.classList.remove('spinning')
+      wheel.style.transition = 'transform 5s cubic-bezier(0.2, 0.8, 0.3, 1)'
+      wheel.style.transform = 'rotate(' + (1800 + Math.random() * 360) + 'deg)'
+    }, 50)
+    setTimeout(() => {
       isSpinning = false
+      wheel.style.transition = 'none'
+      wheel.style.transform = 'rotate(0deg)'
       if (pot.winner) {
-        showWinner(pot.winner, pot.winner_total)
+        showWinner(pot.winner, pot.total)
+        lastWinner = pot.winner
       }
-    }, 5000)
+    }, 5500)
   }
   
-  if (pot.winner && pot.winner !== lastWinner && !isSpinning) {
+  if (pot.winner && pot.winner !== lastWinner && !isSpinning && !pot.spinning) {
     lastWinner = pot.winner
-    showWinner(pot.winner, pot.winner_total)
+    showWinner(pot.winner, pot.total)
   }
+  
+  if (isSpinning) return
   
   if (pot.participants.length === 0) {
     wheel.innerHTML = '<div class="wheel-empty">No entries yet</div>'
@@ -82,7 +93,7 @@ const fetchPot = async () => {
       angle += size
     })
     wheel.style.background = `conic-gradient(${gradient.slice(0,-1)})`
-    if (!isSpinning) wheel.innerHTML = ''
+    wheel.innerHTML = ''
   }
   
   const list = $('#participants-list')
