@@ -21,6 +21,24 @@ $$('.tab-btn').forEach(btn => {
 // === POT GAMBLING ===
 const COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#3b82f6','#8b5cf6','#ec4899','#f43f5e','#06b6d4']
 
+const showWinner = (name, total) => {
+  const overlay = document.createElement('div')
+  overlay.className = 'winner-overlay'
+  overlay.innerHTML = `
+    <div class="winner-card">
+      <div class="winner-icon">🎰</div>
+      <div class="winner-title">WINNER!</div>
+      <div class="winner-name">${name}</div>
+      <div class="winner-amount">$${(total||0).toLocaleString()}</div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+  setTimeout(() => overlay.remove(), 4000)
+}
+
+let isSpinning = false
+let lastWinner = null
+
 const fetchPot = async () => {
   let r = await fetch('/api/pot/current')
   if (!r.ok) return
@@ -33,8 +51,27 @@ const fetchPot = async () => {
   $('#pot-fill').style.width = pot.percent_filled + '%'
   
   const wheel = $('#wheel-container')
+  
+  if (pot.spinning && !isSpinning) {
+    isSpinning = true
+    wheel.classList.add('spinning')
+    setTimeout(() => {
+      wheel.classList.remove('spinning')
+      isSpinning = false
+      if (pot.winner) {
+        showWinner(pot.winner, pot.winner_total)
+      }
+    }, 5000)
+  }
+  
+  if (pot.winner && pot.winner !== lastWinner && !isSpinning) {
+    lastWinner = pot.winner
+    showWinner(pot.winner, pot.winner_total)
+  }
+  
   if (pot.participants.length === 0) {
     wheel.innerHTML = '<div class="wheel-empty">No entries yet</div>'
+    wheel.style.background = 'var(--card)'
   } else {
     let gradient = ''
     let angle = 0
@@ -45,7 +82,7 @@ const fetchPot = async () => {
       angle += size
     })
     wheel.style.background = `conic-gradient(${gradient.slice(0,-1)})`
-    wheel.innerHTML = ''
+    if (!isSpinning) wheel.innerHTML = ''
   }
   
   const list = $('#participants-list')

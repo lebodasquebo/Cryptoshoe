@@ -167,7 +167,7 @@ def init():
     create table if not exists court_votes(session_id integer, voter text, vote text, primary key(session_id, voter));
     create table if not exists global_chat(id integer primary key autoincrement, user_id text, username text, message text, ts integer);
     create index if not exists idx_chat on global_chat(ts);
-    create table if not exists gambling_pots(id integer primary key autoincrement, market_cap real, total_value real default 0, status text default 'open', winner_id text, created integer, ended integer);
+    create table if not exists gambling_pots(id integer primary key autoincrement, market_cap real, total_value real default 0, status text default 'open', winner_id text, winner_name text, created integer, ended integer, spin_start integer);
     create table if not exists pot_entries(id integer primary key autoincrement, pot_id integer, user_id text, username text, shoe_id integer, appraisal_id integer, rating real, multiplier real, value real, ts integer);
     insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
     insert or ignore into court_session(id, status) values(1, 'inactive');
@@ -220,6 +220,8 @@ VOLATILITY = {
     "lebos": 4.25,
 }
 ADMIN_USERS = ["lebodapotato"]
+ADMIN_IPS = []
+MAX_BALANCE = 100000000
 
 DEXIES_SHOES = [
     "Dexies Phantom Protocol", "Dexies Neural Apex", "Dexies Quantum Flux",
@@ -1355,7 +1357,16 @@ def get_notifications():
     return jsonify([dict(n) for n in notifs])
 
 def is_admin():
-    return session.get("username") in ADMIN_USERS
+    if session.get("username") not in ADMIN_USERS:
+        return False
+    if ADMIN_IPS and get_client_ip() not in ADMIN_IPS:
+        return False
+    return True
+
+def cap_balance(user_id):
+    d = db()
+    d.execute("update users set balance=? where id=? and balance>?", (MAX_BALANCE, user_id, MAX_BALANCE))
+    d.commit()
 
 @app.route("/admin")
 @login_required
@@ -2230,6 +2241,8 @@ def api_pot_current():
     result.sort(key=lambda x: -x["value"])
     cap_display = "∞" if pot["market_cap"] >= 999999999 else f"${pot['market_cap']:,.0f}"
     time_left = max(0, next_stock - now)
+    recent_winner = d.execute("select winner_name, total_value, ended from gambling_pots where status='closed' and ended>? order by ended desc limit 1", (now - 10,)).fetchone()
+    spinning_pot = d.execute("select winner_name, spin_start from gambling_pots where status='spinning' limit 1").fetchone()
     return jsonify({
         "id": pot["id"],
         "market_cap": pot["market_cap"],
@@ -2237,9 +2250,12 @@ def api_pot_current():
         "total": total,
         "percent_filled": min(100, (total / pot["market_cap"] * 100)) if pot["market_cap"] < 999999999 else 0,
         "participants": result,
-        "status": pot["status"],
+        "status": "spinning" if spinning_pot else pot["status"],
         "time_left": time_left,
-        "next_spin": next_stock
+        "next_spin": next_stock,
+        "spinning": bool(spinning_pot),
+        "winner": spinning_pot["winner_name"] if spinning_pot else (recent_winner["winner_name"] if recent_winner else None),
+        "winner_total": recent_winner["total_value"] if recent_winner else 0
     })
 
 @app.route("/api/pot/enter", methods=["POST"])
@@ -2306,6 +2322,9 @@ def pick_pot_winner(pot_id, d):
         if roll <= cumulative:
             winner = e
             break
+    d.execute("update gambling_pots set status='spinning', spin_start=?, winner_id=?, winner_name=? where id=?", 
+              (now, winner["user_id"], winner["username"], pot_id))
+    d.commit()
     all_shoes = d.execute("select shoe_id, appraisal_id, rating, multiplier from pot_entries where pot_id=?", (pot_id,)).fetchall()
     for shoe in all_shoes:
         if shoe["appraisal_id"] and shoe["rating"]:
@@ -2314,7 +2333,7 @@ def pick_pot_winner(pot_id, d):
         else:
             d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1",
                       (winner["user_id"], shoe["shoe_id"]))
-    d.execute("update gambling_pots set status='closed', winner_id=?, ended=? where id=?", (winner["user_id"], now, pot_id))
+    d.execute("update gambling_pots set status='closed', ended=? where id=?", (now, pot_id))
     for e in entries:
         if e["user_id"] == winner["user_id"]:
             d.execute("insert into notifications(user_id, message, ts) values(?,?,?)",
