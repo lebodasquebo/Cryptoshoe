@@ -2264,6 +2264,7 @@ def api_pot_current():
         if len(entries) >= 2:
             pick_pot_winner(pot["id"], d)
             d.commit()
+            pot = d.execute("select * from gambling_pots where status='spinning' order by id desc limit 1").fetchone()
         elif len(entries) == 1:
             for e in d.execute("select * from pot_entries where pot_id=?", (pot["id"],)).fetchall():
                 if e["appraisal_id"] and e["rating"]:
@@ -2271,9 +2272,13 @@ def api_pot_current():
                 else:
                     d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1", (e["user_id"], e["shoe_id"]))
             d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (d.execute("select user_id from pot_entries where pot_id=? limit 1", (pot["id"],)).fetchone()["user_id"], "🎰 Pot ended - your shoes were returned (not enough players)", now))
-        d.execute("update gambling_pots set status='closed', ended=? where id=?", (now, pot["id"]))
-        d.commit()
-        pot = None
+            d.execute("update gambling_pots set status='closed', ended=? where id=?", (now, pot["id"]))
+            d.commit()
+            pot = None
+        else:
+            d.execute("update gambling_pots set status='closed', ended=? where id=?", (now, pot["id"]))
+            d.commit()
+            pot = None
     if not pot or pot["status"] != "open":
         caps = [50000, 100000, 250000, 500000, 1000000, 999999999]
         cap = random.choice(caps)
