@@ -1,6 +1,9 @@
-import os, sqlite3, time, random, json, uuid, hashlib, re
+import os, sqlite3, time, random, json, uuid, hashlib, re, urllib.request, urllib.parse
 from flask import Flask, g, render_template, session, request, jsonify, Response, redirect, url_for
 from functools import wraps
+
+RECAPTCHA_SECRET = os.environ.get("RECAPTCHA_SECRET", "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe")
+RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "cryptoshoe-secret-key-change-me")
@@ -646,14 +649,21 @@ def api_login():
     session["token"] = token
     return jsonify({"ok": True})
 
-@app.route("/api/captcha", methods=["GET"])
-def api_captcha():
-    a, b = random.randint(10, 50), random.randint(1, 20)
-    ops = [('+', a + b), ('-', a - b), ('×', a * b)]
-    op, ans = random.choice(ops)
-    session["captcha_answer"] = ans
-    session["captcha_time"] = int(time.time())
-    return jsonify({"question": f"{a} {op} {b} = ?"})
+def verify_recaptcha(token):
+    if not token:
+        return False
+    try:
+        data = urllib.parse.urlencode({"secret": RECAPTCHA_SECRET, "response": token}).encode()
+        req = urllib.request.Request("https://www.google.com/recaptcha/api/siteverify", data=data)
+        resp = urllib.request.urlopen(req, timeout=5)
+        result = json.loads(resp.read().decode())
+        return result.get("success", False)
+    except:
+        return False
+
+@app.route("/api/recaptcha-key")
+def api_recaptcha_key():
+    return jsonify({"key": RECAPTCHA_SITE_KEY})
 
 @app.route("/api/signup", methods=["POST"])
 def api_signup():
@@ -665,19 +675,9 @@ def api_signup():
     data = request.json or {}
     if data.get("website") or data.get("email2") or data.get("phone"):
         return jsonify({"ok": False, "error": "Invalid request"})
-    captcha_ans = session.get("captcha_answer")
-    captcha_time = session.get("captcha_time", 0)
-    now = int(time.time())
-    if not captcha_ans or now - captcha_time > 300:
-        return jsonify({"ok": False, "error": "CAPTCHA expired. Please refresh."})
-    try:
-        user_ans = int(data.get("captcha", ""))
-    except:
-        return jsonify({"ok": False, "error": "Invalid CAPTCHA answer"})
-    if user_ans != captcha_ans:
-        session.pop("captcha_answer", None)
-        return jsonify({"ok": False, "error": "Wrong CAPTCHA answer"})
-    session.pop("captcha_answer", None)
+    recaptcha_token = data.get("recaptcha", "")
+    if not verify_recaptcha(recaptcha_token):
+        return jsonify({"ok": False, "error": "Please complete the CAPTCHA"})
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
     d = db()

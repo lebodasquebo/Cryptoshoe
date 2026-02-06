@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/auth.css">
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
   <div class="bg-grid"></div>
@@ -32,10 +33,8 @@
           <input type="password" id="password" placeholder="Choose a password" autocomplete="new-password" required>
           <span class="form-hint">At least 4 characters</span>
         </div>
-        <div class="form-group">
-          <label id="captcha-q">Loading...</label>
-          <input type="text" id="captcha" placeholder="Enter the answer" autocomplete="off" required>
-          <span class="form-hint">Solve the math problem</span>
+        <div class="form-group" style="display:flex;justify-content:center;">
+          <div id="recaptcha-container"></div>
         </div>
         <div class="form-error" id="error"></div>
         <button type="submit" class="auth-btn">
@@ -50,36 +49,33 @@
     </div>
   </div>
   <script>
-    async function loadCaptcha() {
-      try {
-        const r = await fetch('/api/captcha');
-        const j = await r.json();
-        document.getElementById('captcha-q').textContent = j.question;
-      } catch(e) {
-        document.getElementById('captcha-q').textContent = 'Error loading captcha';
-      }
+    let recaptchaWidget;
+    async function loadRecaptcha() {
+      const r = await fetch('/api/recaptcha-key');
+      const j = await r.json();
+      recaptchaWidget = grecaptcha.render('recaptcha-container', {sitekey: j.key, theme: 'dark'});
     }
-    loadCaptcha();
+    window.onload = () => { if(typeof grecaptcha !== 'undefined') loadRecaptcha(); else setTimeout(loadRecaptcha, 500); };
     document.getElementById('signup-form').onsubmit = async (e) => {
       e.preventDefault();
       const err = document.getElementById('error');
       err.textContent = '';
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
-      const captcha = document.getElementById('captcha').value;
+      const recaptcha = grecaptcha.getResponse(recaptchaWidget);
+      if (!recaptcha) { err.textContent = 'Please complete the CAPTCHA'; return; }
       try {
         const r = await fetch('/api/signup', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({username, password, captcha})
+          body: JSON.stringify({username, password, recaptcha})
         });
         const j = await r.json();
         if (j.ok) {
           window.location.href = '/';
         } else {
           err.textContent = j.error || 'Signup failed';
-          loadCaptcha();
-          document.getElementById('captcha').value = '';
+          grecaptcha.reset(recaptchaWidget);
         }
       } catch (e) {
         err.textContent = 'Connection error';
