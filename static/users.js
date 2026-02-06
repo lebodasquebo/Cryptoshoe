@@ -189,14 +189,17 @@ const fetchUsers=async(q='',append=false)=>{
   currentQuery=q
   if(!append)currentOffset=0
   let url='/api/users?offset='+currentOffset+'&limit=50'+(q?'&q='+encodeURIComponent(q):'')
-  let r=await fetch(url)
-  if(r.ok){
-    let data=await r.json()
-    if(append){users=users.concat(data.users)}else{users=data.users}
-    totalUsers=data.total
-    hasMore=data.has_more
-    render()
-  }
+  try{
+    let r=await fetch(url)
+    if(r.ok){
+      let data=await r.json()
+      console.log('Users data:', data)
+      if(append){users=users.concat(data.users)}else{users=data.users}
+      totalUsers=data.total
+      hasMore=data.has_more
+      render()
+    }else{console.error('Users fetch failed:', r.status)}
+  }catch(e){console.error('Users fetch error:', e)}
 }
 
 window.loadMore=()=>{
