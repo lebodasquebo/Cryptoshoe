@@ -87,10 +87,18 @@ window.unbanUser=async()=>{
 }
 
 window.purgeBots=async()=>{
-    if(!confirm('Delete all bot accounts (Player123, Investor456, etc)?'))return
+    if(!confirm('Delete all bot accounts and inactive accounts ($10k, 0 shoes)?'))return
     let r=await fetch('/api/admin/purge-bots',{method:'POST',headers:{'Content-Type':'application/json'}})
     let j=await r.json()
     if(j.ok){toast('🤖 '+j.msg);loadUsers()}
+    else toast(j.error,'error')
+}
+
+window.clearChat=async()=>{
+    if(!confirm('Delete ALL chat messages?'))return
+    let r=await fetch('/api/admin/clear-chat',{method:'POST',headers:{'Content-Type':'application/json'}})
+    let j=await r.json()
+    if(j.ok)toast('💬 '+j.msg)
     else toast(j.error,'error')
 }
 

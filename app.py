@@ -1,9 +1,12 @@
-import os, sqlite3, time, random, json, uuid, hashlib
+import os, sqlite3, time, random, json, uuid, hashlib, re
 from flask import Flask, g, render_template, session, request, jsonify, Response, redirect, url_for
 from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "cryptoshoe-secret-key-change-me")
+
+BOT_USER_AGENTS = ['bot', 'crawler', 'spider', 'scraper', 'curl', 'wget', 'python-requests', 'httpx', 'aiohttp', 'go-http', 'java', 'perl', 'ruby']
+RATE_LIMITS = {}
 db_path = os.environ.get("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "data.db"))
 booted = False
 
@@ -34,6 +37,28 @@ def close(err):
     d = g.pop("db", None)
     if d:
         d.close()
+
+def get_client_ip():
+    return request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+
+def is_rate_limited(key, limit, window):
+    now = time.time()
+    if key not in RATE_LIMITS:
+        RATE_LIMITS[key] = []
+    RATE_LIMITS[key] = [t for t in RATE_LIMITS[key] if now - t < window]
+    if len(RATE_LIMITS[key]) >= limit:
+        return True
+    RATE_LIMITS[key].append(now)
+    return False
+
+def is_bot_request():
+    ua = request.headers.get('User-Agent', '').lower()
+    if not ua or len(ua) < 10:
+        return True
+    for bot in BOT_USER_AGENTS:
+        if bot in ua:
+            return True
+    return False
 
 @app.before_request
 def boot():
@@ -563,7 +588,14 @@ def api_login():
 
 @app.route("/api/signup", methods=["POST"])
 def api_signup():
-    data = request.json
+    if is_bot_request():
+        return jsonify({"ok": False, "error": "Access denied"}), 403
+    ip = get_client_ip()
+    if is_rate_limited(f"signup:{ip}", 3, 3600):
+        return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
+    data = request.json or {}
+    if data.get("website") or data.get("email2") or data.get("phone"):
+        return jsonify({"ok": False, "error": "Invalid request"})
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
     d = db()
@@ -586,10 +618,13 @@ def api_signup():
     for pat in bot_patterns:
         if username.lower().startswith(pat) and any(c.isdigit() for c in username):
             return jsonify({"ok": False, "error": "Username not allowed"})
-    if len(username) >= 8 and sum(c.isdigit() for c in username) >= 3 and sum(c.isalpha() for c in username) >= 3:
-        alpha_only = ''.join(c for c in username if c.isalpha())
-        if len(set(alpha_only)) > 5:
-            return jsonify({"ok": False, "error": "Username looks suspicious, try something else"})
+    digit_count = sum(c.isdigit() for c in username)
+    if digit_count >= 4:
+        return jsonify({"ok": False, "error": "Username has too many numbers"})
+    if len(username) >= 8:
+        vowels = sum(1 for c in username if c in 'aeiou')
+        if vowels < 2:
+            return jsonify({"ok": False, "error": "Username looks like random characters"})
     if not password or len(password) < 4:
         return jsonify({"ok": False, "error": "Password must be at least 4 characters"})
     existing = d.execute("select id from accounts where username=?", (username,)).fetchone()
@@ -1428,12 +1463,22 @@ def admin_purge_bots():
         if is_bot:
             d.execute("delete from users where id=?", (acc["id"],))
             d.execute("delete from hold where user_id=?", (acc["id"],))
-            d.execute("delete from trades where user_id=?", (acc["id"],))
+            d.execute("delete from trades where from_user=?", (acc["id"],))
             d.execute("delete from global_chat where user_id=?", (acc["id"],))
             d.execute("delete from accounts where id=?", (acc["id"],))
             count += 1
     d.commit()
     return jsonify({"ok": True, "msg": f"Purged {count} bot accounts"})
+
+@app.route("/api/admin/clear-chat", methods=["POST"])
+@login_required
+def admin_clear_chat():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    d.execute("delete from global_chat")
+    d.commit()
+    return jsonify({"ok": True, "msg": "Chat cleared"})
 
 @app.route("/api/admin/swap-balance", methods=["POST"])
 @login_required
