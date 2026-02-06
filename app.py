@@ -655,7 +655,7 @@ def api_login():
         d = db()
         d.execute("insert or replace into banned_ips(ip, banned_until, reason) values(?,?,?)", (ip, int(time.time()) + 86400*30, "Honeypot triggered"))
         d.commit()
-        return jsonify({"ok": False, "error": "Nice try script kiddie 🤡 Your IP has been logged and banned. Maybe learn to code instead of threatening people?"})
+        return jsonify({"ok": False, "error": "haha u thought"})
     if not username or not password:
         return jsonify({"ok": False, "error": "Username and password required"})
     d = db()
