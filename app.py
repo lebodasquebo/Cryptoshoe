@@ -605,8 +605,14 @@ def logout():
     return redirect(url_for("login_page"))
 
 @app.route("/")
-@login_required
 def home():
+    if "user_id" not in session:
+        return render_template("landing.html")
+    d = db()
+    acc = d.execute("select id from accounts where id=?", (session["user_id"],)).fetchone()
+    if not acc:
+        session.clear()
+        return render_template("landing.html")
     uid()
     return render_template("index.html", is_admin=is_admin())
 
