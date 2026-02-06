@@ -251,7 +251,7 @@ VOLATILITY = {
     "dexies": 3.8,
     "lebos": 4.25,
 }
-ADMIN_USERS = ["lebodapotato"]
+ADMIN_USERS = ["lebodapotato, feen"]
 ADMIN_IPS = []
 MAX_BALANCE = 100000000
 
