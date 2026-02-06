@@ -66,11 +66,28 @@
 }
 
 .online-user {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 8px 12px;
   background: var(--bg2);
   border-radius: 8px;
   font-size: 0.85rem;
   color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.online-user:hover {
+  background: var(--bg3);
+  transform: translateX(4px);
+}
+.trade-link {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.online-user:hover .trade-link {
+  opacity: 1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -126,6 +143,13 @@
   font-weight: 600;
   color: var(--cyan);
   font-size: 0.85rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.msg-user:hover {
+  text-decoration: underline;
+  filter: brightness(1.2);
 }
 
 .msg-user.admin {

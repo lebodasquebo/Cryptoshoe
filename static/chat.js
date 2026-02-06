@@ -25,9 +25,10 @@ const fetchMessages = async () => {
     let div = document.createElement('div')
     div.className = 'msg'
     let isAdmin = m.username.includes('👑')
+    let cleanName = m.username.replace('👑 ', '')
     div.innerHTML = `
       <div class="msg-header">
-        <span class="msg-user${isAdmin ? ' admin' : ''}">${m.username}</span>
+        <a href="/user/${cleanName}" class="msg-user${isAdmin ? ' admin' : ''}">${m.username}</a>
         <span class="msg-time">${formatTime(m.ts)}</span>
       </div>
       <div class="msg-text">${escapeHtml(m.message)}</div>
@@ -73,9 +74,10 @@ const fetchOnline = async () => {
   if (!r.ok) return
   let users = await r.json()
   $('#online-count').textContent = users.length
-  $('#online-users').innerHTML = users.map(u => 
-    `<div class="online-user${u.includes('👑') ? ' admin' : ''}">${u}</div>`
-  ).join('')
+  $('#online-users').innerHTML = users.map(u => {
+    let cleanName = u.replace('👑 ', '')
+    return `<a href="/user/${cleanName}" class="online-user${u.includes('👑') ? ' admin' : ''}">${u} <span class="trade-link">🤝</span></a>`
+  }).join('')
 }
 
 const fetchBalance = async () => {
