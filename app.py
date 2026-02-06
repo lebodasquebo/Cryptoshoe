@@ -2254,6 +2254,7 @@ def api_pot_current():
     d = db()
     u = uid()
     now = int(time.time())
+    finish_spinning_pot(d)
     gs = d.execute("select last_stock from global_state where id=1").fetchone()
     last_stock = gs["last_stock"] if gs else 0
     next_stock = last_stock + 300
@@ -2386,25 +2387,37 @@ def pick_pot_winner(pot_id, d):
         if roll <= cumulative:
             winner = e
             break
-    d.execute("update gambling_pots set status='spinning', spin_start=?, winner_id=?, winner_name=? where id=?", 
-              (now, winner["user_id"], winner["username"], pot_id))
+    d.execute("update gambling_pots set status='spinning', spin_start=?, winner_id=?, winner_name=?, total_value=? where id=?", 
+              (now, winner["user_id"], winner["username"], total, pot_id))
     d.commit()
+
+def finish_spinning_pot(d):
+    now = int(time.time())
+    spinning = d.execute("select * from gambling_pots where status='spinning' and spin_start < ?", (now - 5,)).fetchone()
+    if not spinning:
+        return
+    pot_id = spinning["id"]
+    winner_id = spinning["winner_id"]
+    winner_name = spinning["winner_name"]
+    total = spinning["total_value"] or 0
     all_shoes = d.execute("select shoe_id, appraisal_id, rating, multiplier from pot_entries where pot_id=?", (pot_id,)).fetchall()
     for shoe in all_shoes:
         if shoe["appraisal_id"] and shoe["rating"]:
             d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)",
-                      (winner["user_id"], shoe["shoe_id"], shoe["rating"], shoe["multiplier"], now))
+                      (winner_id, shoe["shoe_id"], shoe["rating"], shoe["multiplier"], now))
         else:
             d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1",
-                      (winner["user_id"], shoe["shoe_id"]))
+                      (winner_id, shoe["shoe_id"]))
     d.execute("update gambling_pots set status='closed', ended=? where id=?", (now, pot_id))
+    entries = d.execute("select user_id from pot_entries where pot_id=? group by user_id", (pot_id,)).fetchall()
     for e in entries:
-        if e["user_id"] == winner["user_id"]:
+        if e["user_id"] == winner_id:
             d.execute("insert into notifications(user_id, message, ts) values(?,?,?)",
                       (e["user_id"], f"🎰 YOU WON THE POT! ${total:,.0f} worth of shoes!", now))
         else:
             d.execute("insert into notifications(user_id, message, ts) values(?,?,?)",
-                      (e["user_id"], f"🎰 {winner['username']} won the pot. Better luck next time!", now))
+                      (e["user_id"], f"🎰 {winner_name} won the pot. Better luck next time!", now))
+    d.commit()
 
 @app.route("/api/pot/spin", methods=["POST"])
 @login_required
