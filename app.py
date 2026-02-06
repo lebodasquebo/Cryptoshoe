@@ -1560,37 +1560,40 @@ def admin_refresh():
 def admin_stock_add():
     if not is_admin():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
-    d = db()
-    data = request.json
-    shoe_id = data.get("shoe_id")
-    stock = int(data.get("stock", 5))
-    price = data.get("price")
-    shoe = d.execute("select base, rarity from shoes where id=?", (shoe_id,)).fetchone()
-    if not shoe:
-        return jsonify({"ok": False, "error": "Shoe not found"})
-    if not price:
-        price = shoe["base"] * random.uniform(0.8, 1.2)
-    d.execute("delete from market")
-    d.execute("update global_state set last_stock=? where id=1", (int(time.time()),))
-    d.execute("insert into market(shoe_id, stock, price, base) values(?,?,?,?)", (shoe_id, stock, price, shoe["base"]))
-    d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe_id, int(time.time()), price))
-    normal_rarities = ["common", "uncommon", "rare", "epic", "legendary", "mythic", "secret"]
-    normal_weights = [40,22,14,10,6,4,2]
-    picked = {shoe_id}
-    now = int(time.time())
-    while len(picked) < 15:
-        rr = normal_rarities[pick(normal_weights)]
-        s = d.execute("select id, base from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()
-        if not s or s["id"] in picked:
-            continue
-        picked.add(s["id"])
-        lo, hi = stock_amt(rr)
-        st = random.randint(lo, hi)
-        pr = s["base"] * random.uniform(0.85, 1.15)
-        d.execute("insert into market(shoe_id, stock, price, base) values(?,?,?,?)", (s["id"], st, pr, s["base"]))
-        d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (s["id"], now, pr))
-    d.commit()
-    return jsonify({"ok": True})
+    try:
+        d = db()
+        data = request.json
+        shoe_id = int(data.get("shoe_id"))
+        stock = int(data.get("stock") or 5)
+        price = float(data.get("price") or 0)
+        shoe = d.execute("select base, rarity from shoes where id=?", (shoe_id,)).fetchone()
+        if not shoe:
+            return jsonify({"ok": False, "error": "Shoe not found"})
+        if price <= 0:
+            price = shoe["base"] * random.uniform(0.8, 1.2)
+        d.execute("delete from market")
+        now = int(time.time())
+        d.execute("update global_state set last_stock=? where id=1", (now,))
+        d.execute("insert into market(shoe_id, stock, price, base) values(?,?,?,?)", (shoe_id, stock, price, shoe["base"]))
+        d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe_id, now, price))
+        picked = {shoe_id}
+        for _ in range(50):
+            if len(picked) >= 15:
+                break
+            rr = random.choice(["common"]*40 + ["uncommon"]*22 + ["rare"]*14 + ["epic"]*10 + ["legendary"]*6 + ["mythic"]*4 + ["secret"]*2)
+            s = d.execute("select id, base from shoes where rarity=? and id not in ({}) order by random() limit 1".format(','.join(str(x) for x in picked)), (rr,)).fetchone()
+            if not s:
+                continue
+            picked.add(s["id"])
+            lo, hi = stock_amt(rr)
+            st = random.randint(lo, hi)
+            pr = s["base"] * random.uniform(0.85, 1.15)
+            d.execute("insert into market(shoe_id, stock, price, base) values(?,?,?,?)", (s["id"], st, pr, s["base"]))
+            d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (s["id"], now, pr))
+        d.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 @app.route("/api/admin/stock/special", methods=["POST"])
 @login_required
