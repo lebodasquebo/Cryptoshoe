@@ -800,6 +800,24 @@ def api_state():
     income(u)
     return jsonify(state(u))
 
+@app.route("/api/public/stock")
+def api_public_stock():
+    d = db()
+    refresh()
+    market = d.execute("""
+        select s.id, s.name, s.rarity, m.price, m.stock 
+        from market m join shoes s on s.id=m.shoe_id
+        where m.stock > 0
+        order by s.rarity desc, s.name
+    """).fetchall()
+    gs = d.execute("select last_stock from global_state where id=1").fetchone()
+    next_refresh = (gs["last_stock"] + 300) if gs else 0
+    return jsonify({
+        "market": [dict(m) for m in market],
+        "next_refresh": next_refresh,
+        "server_time": int(time.time())
+    })
+
 @app.route("/api/shoe/<int:shoe_id>")
 @login_required
 def api_shoe(shoe_id):
