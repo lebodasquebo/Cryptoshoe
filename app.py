@@ -1082,26 +1082,40 @@ def api_users():
     d = db()
     now = int(time.time())
     q = request.args.get("q", "").strip().lower()
+    offset = int(request.args.get("offset", 0))
+    limit = int(request.args.get("limit", 50))
     if q:
         users = d.execute("""
             select a.username, u.balance, u.last_seen from accounts a 
             join users u on u.id=a.id 
             where lower(a.username) like ? 
-            order by (case when u.last_seen > ? then 0 else 1 end), u.balance desc limit 50
-        """, (f"%{q}%", now - 60)).fetchall()
+            order by (case when u.last_seen > ? then 0 else 1 end), u.balance desc limit ? offset ?
+        """, (f"%{q}%", now - 60, limit, offset)).fetchall()
+        total = d.execute("select count(*) as c from accounts a join users u on u.id=a.id where lower(a.username) like ?", (f"%{q}%",)).fetchone()["c"]
     else:
         users = d.execute("""
             select a.username, u.balance, u.last_seen from accounts a 
             join users u on u.id=a.id 
-            order by (case when u.last_seen > ? then 0 else 1 end), u.balance desc limit 50
-        """, (now - 60,)).fetchall()
+            order by (case when u.last_seen > ? then 0 else 1 end), u.balance desc limit ? offset ?
+        """, (now - 60, limit, offset)).fetchall()
+        total = d.execute("select count(*) as c from accounts a join users u on u.id=a.id").fetchone()["c"]
     result = []
     for row in users:
         udata = get_user_stats(row["username"])
         udata["is_me"] = (row["username"] == session.get("username"))
         udata["online"] = row["last_seen"] and row["last_seen"] > now - 60
         result.append(udata)
-    return jsonify(result)
+    return jsonify({"users": result, "total": total, "offset": offset, "has_more": offset + len(users) < total})
+
+@app.route("/api/users/suggest")
+@login_required
+def api_users_suggest():
+    q = request.args.get("q", "").strip().lower()
+    if len(q) < 2:
+        return jsonify([])
+    d = db()
+    users = d.execute("select username from accounts where lower(username) like ? limit 10", (f"%{q}%",)).fetchall()
+    return jsonify([u["username"] for u in users])
 
 def get_user_stats(username):
     d = db()

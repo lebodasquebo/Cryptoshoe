@@ -1,4 +1,4 @@
-let users=[],trades={incoming:[],outgoing:[]},currentTrade=null
+let users=[],trades={incoming:[],outgoing:[]},currentTrade=null,totalUsers=0,currentOffset=0,hasMore=false,currentQuery=''
 const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
 const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
 checkCourt();setInterval(checkCourt,5000)
@@ -67,7 +67,15 @@ const tradeItem=(t,type)=>{
 
 const render=()=>{
   let grid=$('#users-grid'),empty=$('#users-empty')
-  if(users.length){grid.innerHTML=users.map(u=>userCard(u)).join('');empty.classList.add('hidden')}
+  if(users.length){
+    grid.innerHTML=users.map(u=>userCard(u)).join('')
+    if(hasMore){
+      grid.innerHTML+=`<div class="load-more-wrap"><button class="load-more-btn" onclick="loadMore()">Load More (${users.length}/${totalUsers})</button></div>`
+    }else if(totalUsers>0){
+      grid.innerHTML+=`<div class="users-count">Showing all ${totalUsers} users</div>`
+    }
+    empty.classList.add('hidden')
+  }
   else{grid.innerHTML='';empty.classList.remove('hidden')}
   
   let inc=$('#incoming-trades'),incE=$('#incoming-empty')
@@ -177,9 +185,41 @@ $('#td-counter').onclick=()=>{
 
 $('#trade-detail-modal').onclick=(e)=>{if(e.target.id==='trade-detail-modal')closeTradeModal()}
 
-const fetchUsers=async(q='')=>{
-  let r=await fetch('/api/users'+(q?'?q='+encodeURIComponent(q):''))
-  if(r.ok){users=await r.json();render()}
+const fetchUsers=async(q='',append=false)=>{
+  currentQuery=q
+  if(!append)currentOffset=0
+  let url='/api/users?offset='+currentOffset+'&limit=50'+(q?'&q='+encodeURIComponent(q):'')
+  let r=await fetch(url)
+  if(r.ok){
+    let data=await r.json()
+    if(append){users=users.concat(data.users)}else{users=data.users}
+    totalUsers=data.total
+    hasMore=data.has_more
+    render()
+  }
+}
+
+window.loadMore=()=>{
+  currentOffset+=50
+  fetchUsers(currentQuery,true)
+}
+
+const fetchSuggestions=async(q)=>{
+  if(q.length<2){$('#suggestions').innerHTML='';return}
+  let r=await fetch('/api/users/suggest?q='+encodeURIComponent(q))
+  if(r.ok){
+    let s=await r.json()
+    let sg=$('#suggestions')
+    if(s.length){
+      sg.innerHTML=s.map(u=>`<div class="suggestion" onclick="selectSuggestion('${u}')">${u}</div>`).join('')
+    }else{sg.innerHTML=''}
+  }
+}
+
+window.selectSuggestion=(u)=>{
+  $('#search').value=u
+  $('#suggestions').innerHTML=''
+  fetchUsers(u)
 }
 
 const fetchTrades=async()=>{
@@ -213,8 +253,9 @@ window.declineTrade=async(id)=>{
 let searchTimeout
 $('#search').oninput=(e)=>{
   clearTimeout(searchTimeout)
-  searchTimeout=setTimeout(()=>fetchUsers(e.target.value),300)
+  searchTimeout=setTimeout(()=>{fetchUsers(e.target.value);fetchSuggestions(e.target.value)},300)
 }
+$('#search').onblur=()=>setTimeout(()=>$('#suggestions').innerHTML='',200)
 
 const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
 const fetchAnn=async()=>{let r=await fetch('/api/announcements');if(r.ok){let a=await r.json(),bar=document.getElementById('announcement-bar');if(bar){if(a.length){bar.innerHTML=a.map(x=>`<div class="announcement"><span class="ann-icon">📢</span><span class="ann-text">${x.message}</span></div>`).join('');bar.classList.add('show');document.body.classList.add('has-announcement')}else{bar.classList.remove('show');document.body.classList.remove('has-announcement')}}}}
