@@ -67,7 +67,7 @@ const fetchPot = async () => {
       currentAngle += segmentSize
     }
     let targetAngle = 360 - winnerAngle
-    let totalRotation = 1800 + targetAngle + (Math.random() * 20 - 10)
+    let totalRotation = 1800 + targetAngle
     wheel.style.transition = 'none'
     wheel.style.transform = 'rotate(0deg)'
     setTimeout(() => {
