@@ -647,7 +647,7 @@ def api_login():
     if is_ip_banned():
         return jsonify({"ok": False, "error": "Access denied from this location"})
     ip = get_client_ip()
-    if is_rate_limited(f"login:{ip}", 10, 300):
+    if is_rate_limited(f"login:{ip}", 20, 300):
         return jsonify({"ok": False, "error": "Too many login attempts. Try again later."})
     data = request.json
     username = data.get("username", "").strip().lower()
