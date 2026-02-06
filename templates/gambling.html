@@ -40,7 +40,7 @@
   <main class="gambling-main">
     <div class="gambling-tabs">
       <button class="tab-btn active" data-tab="pot">🎰 Shoe Pot</button>
-      <button class="tab-btn" data-tab="lootbox">🎁 Lootboxes</button>
+      <button class="tab-btn" data-tab="lootbox">👀 Lookboxes</button>
     </div>
 
     <!-- SHOE POT SECTION -->
@@ -116,33 +116,33 @@
     <!-- LOOTBOX SECTION -->
     <section id="lootbox-section" class="gambling-section hidden">
       <div class="lootbox-container">
-        <h2>🎁 LOOTBOXES</h2>
-        <p class="lootbox-desc">Pay $1k-$100k to receive a random pre-appraised shoe worth ±40% of your bet</p>
+        <h2>👀 LOOKBOXES</h2>
+        <p class="lootbox-desc">Pay $2.5k-$150k to receive a random pre-appraised shoe worth ±40% of your bet</p>
         
         <div class="lootbox-body">
           <div class="lootbox-controls">
             <div class="preset-grid">
-              <button class="preset-btn" data-amt="1000">$1K</button>
-              <button class="preset-btn" data-amt="5000">$5K</button>
+              <button class="preset-btn" data-amt="2500">$2.5K</button>
               <button class="preset-btn" data-amt="10000">$10K</button>
               <button class="preset-btn" data-amt="25000">$25K</button>
               <button class="preset-btn" data-amt="50000">$50K</button>
               <button class="preset-btn" data-amt="100000">$100K</button>
+              <button class="preset-btn" data-amt="150000">$150K</button>
             </div>
             <div class="custom-amount">
               <label>Custom Amount</label>
-              <input type="number" id="loot-amount" min="1000" max="100000" value="10000">
+              <input type="number" id="loot-amount" min="2500" max="150000" value="10000">
             </div>
-            <button id="open-loot-btn" class="open-btn">🎁 Open Lootbox</button>
+            <button id="open-loot-btn" class="open-btn">👀 Open Lookbox</button>
           </div>
           
           <div class="lootbox-result">
             <div id="loot-idle" class="loot-state">
-              <div class="loot-box">🎁</div>
-              <p>Select an amount and open a lootbox!</p>
+              <div class="loot-box">👀</div>
+              <p>Select an amount and open a lookbox!</p>
             </div>
             <div id="loot-opening" class="loot-state hidden">
-              <div class="loot-box spinning">🎁</div>
+              <div class="loot-box spinning">👀</div>
               <p>Opening...</p>
             </div>
             <div id="loot-result" class="loot-state hidden">

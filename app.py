@@ -1906,8 +1906,8 @@ def api_lootbox():
     u = uid()
     d = db()
     amount = int(request.json.get("amount", 0))
-    if amount < 1000 or amount > 100000:
-        return jsonify({"ok": False, "error": "Amount must be $1,000 - $100,000"})
+    if amount < 2500 or amount > 150000:
+        return jsonify({"ok": False, "error": "Amount must be $2,500 - $150,000"})
     bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
     if bal < amount:
         return jsonify({"ok": False, "error": f"Not enough balance (need ${amount:,}, have ${bal:,.0f})"})
