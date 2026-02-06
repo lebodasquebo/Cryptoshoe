@@ -111,6 +111,15 @@ def validate_session():
     return True
 
 @app.before_request
+def global_rate_limit():
+    ip = get_client_ip()
+    if is_rate_limited(f"global:{ip}", 120, 60):
+        return jsonify({"ok": False, "error": "Too many requests"}), 429
+    if request.endpoint and request.endpoint.startswith('api_'):
+        if is_rate_limited(f"api:{ip}", 60, 60):
+            return jsonify({"ok": False, "error": "Too many requests"}), 429
+
+@app.before_request
 def boot():
     global booted
     if booted:
