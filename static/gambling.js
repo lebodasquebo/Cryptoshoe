@@ -265,8 +265,8 @@ lootInput.oninput = () => presets.forEach(p => p.classList.remove('active'))
 
 $('#open-loot-btn').onclick = async () => {
   let amount = parseInt(lootInput.value) || 0
-  if (amount < 1000 || amount > 100000) {
-    toast('Amount must be $1,000-$100,000', 'error')
+  if (amount < 2500 || amount > 150000) {
+    toast('Amount must be $2,500-$150,000', 'error')
     return
   }
   
