@@ -280,7 +280,7 @@ const checkCourtStatus=async()=>{
 
 const fetchBalance=async()=>{
     let r=await fetch('/api/state')
-    if(r.ok){let s=await r.json();$('#bal').textContent=s.balance.toFixed(2)}
+    if(r.ok){let s=await r.json();$('#bal').textContent=s.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
 }
 
 loadUsers()

@@ -12,7 +12,7 @@ presets.forEach(b=>b.addEventListener('click',()=>{
 }))
 amtInput.addEventListener('input',()=>presets.forEach(p=>p.classList.remove('active')))
 
-const fetchBal=async()=>{let r=await fetch('/api/state');if(r.ok){let s=await r.json();$('#bal').textContent=s.balance.toFixed(2)}}
+const fetchBal=async()=>{let r=await fetch('/api/state');if(r.ok){let s=await r.json();$('#bal').textContent=s.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
 
 const openBox=async()=>{
     let amount=parseInt(amtInput.value)||0
