@@ -77,6 +77,16 @@
       <section class="admin-section">
         <h2>📦 Stock Control</h2>
         <button onclick="resetStock()" class="refresh-btn">Force Stock Refresh</button>
+        <div class="admin-form" style="margin-top:12px">
+          <select id="stock-shoe"></select>
+          <input type="number" id="stock-amount" placeholder="Stock #" value="5" min="1" style="width:80px">
+          <input type="number" id="stock-price" placeholder="Price $" style="width:100px">
+          <button onclick="addToStock()">Add to Stock</button>
+        </div>
+        <div class="admin-form" style="margin-top:8px">
+          <button onclick="addLebos()" style="background:gold;color:#000">+ Lebos</button>
+          <button onclick="addDexies()" style="background:cyan;color:#000">+ Dexies</button>
+        </div>
       </section>
       
       <section class="admin-section">

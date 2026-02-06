@@ -1555,6 +1555,51 @@ def admin_refresh():
     refresh()
     return jsonify({"ok": True})
 
+@app.route("/api/admin/stock/add", methods=["POST"])
+@login_required
+def admin_stock_add():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    data = request.json
+    shoe_id = data.get("shoe_id")
+    stock = int(data.get("stock", 5))
+    price = data.get("price")
+    shoe = d.execute("select base from shoes where id=?", (shoe_id,)).fetchone()
+    if not shoe:
+        return jsonify({"ok": False, "error": "Shoe not found"})
+    if not price:
+        price = shoe["base"] * random.uniform(0.8, 1.2)
+    existing = d.execute("select stock from market where shoe_id=?", (shoe_id,)).fetchone()
+    if existing:
+        d.execute("update market set stock=stock+?, price=? where shoe_id=?", (stock, price, shoe_id))
+    else:
+        d.execute("insert into market(shoe_id, stock, price, base) values(?,?,?,?)", (shoe_id, stock, price, shoe["base"]))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/stock/special", methods=["POST"])
+@login_required
+def admin_stock_special():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    rarity = request.json.get("rarity", "dexies")
+    if rarity not in ["lebos", "dexies"]:
+        return jsonify({"ok": False, "error": "Invalid rarity"})
+    shoe = d.execute("select id, base from shoes where rarity=? order by random() limit 1", (rarity,)).fetchone()
+    if not shoe:
+        return jsonify({"ok": False, "error": "No shoe found"})
+    stock = random.randint(1, 3)
+    price = shoe["base"] * random.uniform(0.9, 1.1)
+    existing = d.execute("select stock from market where shoe_id=?", (shoe["id"],)).fetchone()
+    if existing:
+        d.execute("update market set stock=stock+?, price=? where shoe_id=?", (stock, price, shoe["id"]))
+    else:
+        d.execute("insert into market(shoe_id, stock, price, base) values(?,?,?,?)", (shoe["id"], stock, price, shoe["base"]))
+    d.commit()
+    return jsonify({"ok": True, "shoe_id": shoe["id"]})
+
 @app.route("/api/admin/ban", methods=["POST"])
 @login_required
 def admin_ban():
@@ -2510,7 +2555,6 @@ def api_hanging():
 @login_required
 def chat_page():
     return render_template("chat.html", is_admin=is_admin())
-
 @app.route("/api/chat/messages")
 @login_required
 def api_chat_messages():
