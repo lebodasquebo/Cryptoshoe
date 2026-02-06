@@ -1565,16 +1565,30 @@ def admin_stock_add():
     shoe_id = data.get("shoe_id")
     stock = int(data.get("stock", 5))
     price = data.get("price")
-    shoe = d.execute("select base from shoes where id=?", (shoe_id,)).fetchone()
+    shoe = d.execute("select base, rarity from shoes where id=?", (shoe_id,)).fetchone()
     if not shoe:
         return jsonify({"ok": False, "error": "Shoe not found"})
     if not price:
         price = shoe["base"] * random.uniform(0.8, 1.2)
-    existing = d.execute("select stock from market where shoe_id=?", (shoe_id,)).fetchone()
-    if existing:
-        d.execute("update market set stock=stock+?, price=? where shoe_id=?", (stock, price, shoe_id))
-    else:
-        d.execute("insert into market(shoe_id, stock, price, base) values(?,?,?,?)", (shoe_id, stock, price, shoe["base"]))
+    d.execute("delete from market")
+    d.execute("update global_state set last_stock=? where id=1", (int(time.time()),))
+    d.execute("insert into market(shoe_id, stock, price, base) values(?,?,?,?)", (shoe_id, stock, price, shoe["base"]))
+    d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe_id, int(time.time()), price))
+    normal_rarities = ["common", "uncommon", "rare", "epic", "legendary", "mythic", "secret"]
+    normal_weights = [40,22,14,10,6,4,2]
+    picked = {shoe_id}
+    now = int(time.time())
+    while len(picked) < 15:
+        rr = normal_rarities[pick(normal_weights)]
+        s = d.execute("select id, base from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()
+        if not s or s["id"] in picked:
+            continue
+        picked.add(s["id"])
+        lo, hi = stock_amt(rr)
+        st = random.randint(lo, hi)
+        pr = s["base"] * random.uniform(0.85, 1.15)
+        d.execute("insert into market(shoe_id, stock, price, base) values(?,?,?,?)", (s["id"], st, pr, s["base"]))
+        d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (s["id"], now, pr))
     d.commit()
     return jsonify({"ok": True})
 
