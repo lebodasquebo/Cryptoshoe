@@ -131,12 +131,12 @@ def global_rate_limit():
     ip = get_client_ip()
     dev = request.cookies.get('device_id', ip)
     fp = hashlib.md5((request.headers.get('User-Agent','') + request.headers.get('Accept-Language','')).encode()).hexdigest()[:8]
-    if is_rate_limited(f"g:{ip}", 100, 60) or is_rate_limited(f"g:{dev}", 100, 60) or is_rate_limited(f"g:{fp}", 150, 60):
+    if is_rate_limited(f"g:{ip}", 300, 60) or is_rate_limited(f"g:{dev}", 300, 60):
         return jsonify({"ok": False, "error": "Too many requests"}), 429
     if request.endpoint and request.endpoint.startswith('api_'):
-        if is_rate_limited(f"a:{ip}", 40, 60) or is_rate_limited(f"a:{dev}", 40, 60):
+        if is_rate_limited(f"a:{ip}", 120, 60):
             return jsonify({"ok": False, "error": "Too many requests"}), 429
-    if is_rate_limited("site_global", 2000, 60):
+    if is_rate_limited("site_global", 5000, 60):
         return jsonify({"ok": False, "error": "Server busy"}), 503
 
 @app.before_request
