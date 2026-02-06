@@ -56,16 +56,26 @@ const fetchPot = async () => {
   if (pot.spinning && !isSpinning) {
     isSpinning = true
     spinStartTime = Date.now()
+    let winnerAngle = 0
+    let currentAngle = 0
+    for (let p of pot.participants) {
+      let segmentSize = (p.percent / 100) * 360
+      if (p.username === pot.winner) {
+        winnerAngle = currentAngle + segmentSize / 2
+        break
+      }
+      currentAngle += segmentSize
+    }
+    let targetAngle = 360 - winnerAngle
+    let totalRotation = 1800 + targetAngle + (Math.random() * 20 - 10)
     wheel.style.transition = 'none'
     wheel.style.transform = 'rotate(0deg)'
     setTimeout(() => {
-      wheel.style.transition = 'transform 5s cubic-bezier(0.2, 0.8, 0.3, 1)'
-      wheel.style.transform = 'rotate(' + (1800 + Math.random() * 360) + 'deg)'
+      wheel.style.transition = 'transform 5s cubic-bezier(0.15, 0.85, 0.25, 1)'
+      wheel.style.transform = 'rotate(' + totalRotation + 'deg)'
     }, 50)
     setTimeout(() => {
       isSpinning = false
-      wheel.style.transition = 'none'
-      wheel.style.transform = 'rotate(0deg)'
       if (pot.winner) {
         showWinner(pot.winner, pot.total)
         lastWinner = pot.winner
