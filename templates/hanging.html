@@ -335,18 +335,19 @@
   </div>
   
   <script>
-    // Play dramatic sound effects if available
+    const checkEnd = async () => {
+      let r = await fetch('/api/hanging')
+      if (r.ok) {
+        let h = await r.json()
+        if (!h.active) {
+          window.location.href = '/'
+        }
+      }
+    }
+    setInterval(checkEnd, 2000)
     setTimeout(() => {
-      // Crowd murmur
-    }, 2000);
-    
-    setTimeout(() => {
-      // Drumroll
-    }, 2500);
-    
-    setTimeout(() => {
-      // Trapdoor drop
-    }, 3500);
+      window.location.href = '/'
+    }, 35000)
   </script>
 </body>
 </html>
