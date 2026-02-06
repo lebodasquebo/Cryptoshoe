@@ -10,7 +10,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
   <link rel="stylesheet" href="/static/auth.css">
-  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
   <div class="bg-grid"></div>
@@ -33,9 +32,6 @@
           <input type="password" id="password" placeholder="Choose a password" autocomplete="new-password" required>
           <span class="form-hint">At least 4 characters</span>
         </div>
-        <div class="form-group" style="display:flex;justify-content:center;">
-          <div id="recaptcha-container"></div>
-        </div>
         <div class="form-error" id="error"></div>
         <button type="submit" class="auth-btn">
           <span>CREATE ACCOUNT</span>
@@ -49,22 +45,24 @@
     </div>
   </div>
   <script>
-    let recaptchaWidget;
-    async function loadRecaptcha() {
+    let siteKey = '';
+    async function init() {
       const r = await fetch('/api/recaptcha-key');
       const j = await r.json();
-      recaptchaWidget = grecaptcha.render('recaptcha-container', {sitekey: j.key, theme: 'dark'});
+      siteKey = j.key;
+      const s = document.createElement('script');
+      s.src = 'https://www.google.com/recaptcha/api.js?render=' + siteKey;
+      document.head.appendChild(s);
     }
-    window.onload = () => { if(typeof grecaptcha !== 'undefined') loadRecaptcha(); else setTimeout(loadRecaptcha, 500); };
+    init();
     document.getElementById('signup-form').onsubmit = async (e) => {
       e.preventDefault();
       const err = document.getElementById('error');
       err.textContent = '';
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
-      const recaptcha = grecaptcha.getResponse(recaptchaWidget);
-      if (!recaptcha) { err.textContent = 'Please complete the CAPTCHA'; return; }
       try {
+        const recaptcha = await grecaptcha.execute(siteKey, {action: 'signup'});
         const r = await fetch('/api/signup', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -75,7 +73,6 @@
           window.location.href = '/';
         } else {
           err.textContent = j.error || 'Signup failed';
-          grecaptcha.reset(recaptchaWidget);
         }
       } catch (e) {
         err.textContent = 'Connection error';

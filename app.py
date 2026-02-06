@@ -657,7 +657,10 @@ def verify_recaptcha(token):
         req = urllib.request.Request("https://www.google.com/recaptcha/api/siteverify", data=data)
         resp = urllib.request.urlopen(req, timeout=5)
         result = json.loads(resp.read().decode())
-        return result.get("success", False)
+        if result.get("success"):
+            score = result.get("score", 1.0)
+            return score >= 0.5
+        return False
     except:
         return False
 
