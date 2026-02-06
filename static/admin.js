@@ -86,6 +86,14 @@ window.unbanUser=async()=>{
     else toast(j.error,'error')
 }
 
+window.purgeBots=async()=>{
+    if(!confirm('Delete all bot accounts (Player123, Investor456, etc)?'))return
+    let r=await fetch('/api/admin/purge-bots',{method:'POST',headers:{'Content-Type':'application/json'}})
+    let j=await r.json()
+    if(j.ok){toast('🤖 '+j.msg);loadUsers()}
+    else toast(j.error,'error')
+}
+
 window.swapBalance=async()=>{
     let user1=$('#swap-bal-1').value.trim()
     let user2=$('#swap-bal-2').value.trim()

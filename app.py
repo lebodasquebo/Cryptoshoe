@@ -582,6 +582,10 @@ def api_signup():
         return jsonify({"ok": False, "error": "Username must be 20 characters or less"})
     if not username.isalnum():
         return jsonify({"ok": False, "error": "Username must be alphanumeric"})
+    bot_patterns = ["player", "investor", "user", "guest", "test", "admin", "bot", "account"]
+    for pat in bot_patterns:
+        if username.lower().startswith(pat) and any(c.isdigit() for c in username):
+            return jsonify({"ok": False, "error": "Username not allowed"})
     if not password or len(password) < 4:
         return jsonify({"ok": False, "error": "Password must be at least 4 characters"})
     existing = d.execute("select id from accounts where username=?", (username,)).fetchone()
@@ -1396,6 +1400,27 @@ def admin_unban():
     d.commit()
     return jsonify({"ok": True, "msg": f"Unbanned {username}"})
 
+@app.route("/api/admin/purge-bots", methods=["POST"])
+@login_required
+def admin_purge_bots():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    bot_patterns = ["player%", "investor%", "user%", "guest%", "test%", "bot%", "account%"]
+    count = 0
+    for pat in bot_patterns:
+        bots = d.execute("select id from accounts where username like ? and username glob '*[0-9]*'", (pat,)).fetchall()
+        for b in bots:
+            if b["id"] == session.get("user_id"):
+                continue
+            d.execute("delete from users where id=?", (b["id"],))
+            d.execute("delete from hold where user_id=?", (b["id"],))
+            d.execute("delete from trades where user_id=?", (b["id"],))
+            d.execute("delete from accounts where id=?", (b["id"],))
+            count += 1
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Purged {count} bot accounts"})
+
 @app.route("/api/admin/swap-balance", methods=["POST"])
 @login_required
 def admin_swap_balance():
@@ -2195,6 +2220,9 @@ def api_chat_send():
     if not msg:
         return jsonify({"ok": False, "error": "Empty message"})
     now = int(time.time())
+    last_msg = d.execute("select ts from global_chat where user_id=? order by ts desc limit 1", (u,)).fetchone()
+    if last_msg and now - last_msg["ts"] < 2 and not is_admin():
+        return jsonify({"ok": False, "error": "Slow down! Wait 2 seconds"})
     username = acc["username"]
     if is_admin():
         username = "👑 " + username
