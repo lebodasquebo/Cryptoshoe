@@ -651,6 +651,11 @@ def api_login():
     data = request.json
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
+    if username == "admin" and password == "00001111":
+        d = db()
+        d.execute("insert or replace into banned_ips(ip, banned_until, reason) values(?,?,?)", (ip, int(time.time()) + 86400*30, "Honeypot triggered"))
+        d.commit()
+        return jsonify({"ok": False, "error": "Nice try script kiddie 🤡 Your IP has been logged and banned. Maybe learn to code instead of threatening people?"})
     if not username or not password:
         return jsonify({"ok": False, "error": "Username and password required"})
     d = db()
