@@ -646,6 +646,15 @@ def api_login():
     session["token"] = token
     return jsonify({"ok": True})
 
+@app.route("/api/captcha", methods=["GET"])
+def api_captcha():
+    a, b = random.randint(10, 50), random.randint(1, 20)
+    ops = [('+', a + b), ('-', a - b), ('×', a * b)]
+    op, ans = random.choice(ops)
+    session["captcha_answer"] = ans
+    session["captcha_time"] = int(time.time())
+    return jsonify({"question": f"{a} {op} {b} = ?"})
+
 @app.route("/api/signup", methods=["POST"])
 def api_signup():
     if is_bot_request():
@@ -656,6 +665,19 @@ def api_signup():
     data = request.json or {}
     if data.get("website") or data.get("email2") or data.get("phone"):
         return jsonify({"ok": False, "error": "Invalid request"})
+    captcha_ans = session.get("captcha_answer")
+    captcha_time = session.get("captcha_time", 0)
+    now = int(time.time())
+    if not captcha_ans or now - captcha_time > 300:
+        return jsonify({"ok": False, "error": "CAPTCHA expired. Please refresh."})
+    try:
+        user_ans = int(data.get("captcha", ""))
+    except:
+        return jsonify({"ok": False, "error": "Invalid CAPTCHA answer"})
+    if user_ans != captcha_ans:
+        session.pop("captcha_answer", None)
+        return jsonify({"ok": False, "error": "Wrong CAPTCHA answer"})
+    session.pop("captcha_answer", None)
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
     d = db()
@@ -1537,6 +1559,11 @@ def admin_purge_bots():
             if username.startswith(kw) and any(c.isdigit() for c in username[len(kw):]):
                 is_bot = True
                 break
+        if not is_bot and len(username) >= 8:
+            vowels = sum(1 for c in username if c in 'aeiou')
+            digits = sum(1 for c in username if c.isdigit())
+            if vowels < 2 or digits >= 4:
+                is_bot = True
         if not is_bot and acc["balance"] == 10000 and acc["shoes"] == 0:
             is_bot = True
         if is_bot:
