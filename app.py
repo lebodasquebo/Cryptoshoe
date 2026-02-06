@@ -16,13 +16,24 @@ def hash_pw(pw):
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        if is_ip_banned():
+            session.clear()
+            return jsonify({"ok": False, "error": "Access denied"}), 403
         if "user_id" not in session:
             return redirect(url_for("notice_page"))
         d = db()
-        acc = d.execute("select id from accounts where id=?", (session["user_id"],)).fetchone()
+        acc = d.execute("select id, session_token, ban_until from accounts where id=?", (session["user_id"],)).fetchone()
         if not acc:
             session.clear()
             return redirect(url_for("notice_page"))
+        if acc["ban_until"] and acc["ban_until"] > int(time.time()):
+            session.clear()
+            return redirect(url_for("notice_page"))
+        if acc["session_token"] and session.get("token") != acc["session_token"]:
+            session.clear()
+            return redirect(url_for("notice_page"))
+        d.execute("update accounts set last_ip=? where id=?", (get_client_ip(), session["user_id"]))
+        d.commit()
         return f(*args, **kwargs)
     return decorated
 
@@ -60,6 +71,42 @@ def is_bot_request():
             return True
     return False
 
+def is_ip_banned():
+    ip = get_client_ip()
+    d = db()
+    ban = d.execute("select banned_until from banned_ips where ip=?", (ip,)).fetchone()
+    if ban and ban["banned_until"] > int(time.time()):
+        return True
+    return False
+
+def log_tx(user_id, action, amount, bal_before, bal_after):
+    d = db()
+    d.execute("insert into tx_log(user_id, action, amount, balance_before, balance_after, ts, ip) values(?,?,?,?,?,?,?)",
+              (user_id, action, amount, bal_before, bal_after, int(time.time()), get_client_ip()))
+    d.commit()
+
+def check_suspicious(user_id):
+    d = db()
+    now = int(time.time())
+    recent = d.execute("select sum(amount) as total from tx_log where user_id=? and amount>0 and ts>?", (user_id, now-3600)).fetchone()
+    if recent and recent["total"] and recent["total"] > 10000000:
+        d.execute("insert or replace into banned_ips(ip, banned_until, reason) values(?,?,?)", 
+                  (get_client_ip(), now + 86400, "Suspicious earnings"))
+        return True
+    return False
+
+def validate_session():
+    if "user_id" not in session:
+        return False
+    d = db()
+    acc = d.execute("select id, session_token from accounts where id=?", (session["user_id"],)).fetchone()
+    if not acc:
+        return False
+    if acc["session_token"] and session.get("token") != acc["session_token"]:
+        session.clear()
+        return False
+    return True
+
 @app.before_request
 def boot():
     global booted
@@ -88,8 +135,10 @@ def update_last_seen():
 def init():
     d = db()
     d.executescript("""
-    create table if not exists accounts(id text primary key, username text unique, password text, created integer);
+    create table if not exists accounts(id text primary key, username text unique, password text, created integer, last_ip text, session_token text);
     create table if not exists device_signups(device_id text primary key, last_signup integer);
+    create table if not exists banned_ips(ip text primary key, banned_until integer, reason text);
+    create table if not exists tx_log(id integer primary key autoincrement, user_id text, action text, amount real, balance_before real, balance_after real, ts integer, ip text);
     create table if not exists shoes(id integer primary key, name text unique, rarity text, base real);
     create table if not exists users(id text primary key, balance real);
     create table if not exists global_state(id integer primary key, last_stock integer, last_price integer);
@@ -560,6 +609,11 @@ def signup_page():
 
 @app.route("/api/login", methods=["POST"])
 def api_login():
+    if is_ip_banned():
+        return jsonify({"ok": False, "error": "Access denied from this location"})
+    ip = get_client_ip()
+    if is_rate_limited(f"login:{ip}", 10, 300):
+        return jsonify({"ok": False, "error": "Too many login attempts. Try again later."})
     data = request.json
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
@@ -582,8 +636,12 @@ def api_login():
         else:
             mins = remaining // 60
             return jsonify({"ok": False, "error": f"Account banned for {mins} more minute(s)"})
+    token = uuid.uuid4().hex
+    d.execute("update accounts set session_token=?, last_ip=? where id=?", (token, ip, acc["id"]))
+    d.commit()
     session["user_id"] = acc["id"]
     session["username"] = username
+    session["token"] = token
     return jsonify({"ok": True})
 
 @app.route("/api/signup", methods=["POST"])
@@ -751,8 +809,13 @@ def sell():
         if not price:
             return jsonify({"ok": False, "error": "Shoe not found"})
         gain = round(price * row["multiplier"], 2)
+        bal_before = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
         d.execute("delete from appraised where id=? and user_id=?", (appraisal_id, u))
         d.execute("update users set balance=balance+? where id=?", (gain, u))
+        log_tx(u, "sell_appraised", gain, bal_before, bal_before + gain)
+        if check_suspicious(u):
+            d.commit()
+            return jsonify({"ok": False, "error": "Suspicious activity detected"})
         d.commit()
         return jsonify({"ok": True, "price": price * row["multiplier"], "total": gain})
     row = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe)).fetchone()
@@ -790,7 +853,12 @@ def sell_all():
         price = get_sell_price(a["shoe_id"]) or 0
         total += price * a["multiplier"]
         d.execute("delete from appraised where id=?", (a["id"],))
+    bal_before = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
     d.execute("update users set balance=balance+? where id=?", (round(total, 2), u))
+    log_tx(u, "sell_all", round(total, 2), bal_before, bal_before + round(total, 2))
+    if check_suspicious(u):
+        d.commit()
+        return jsonify({"ok": False, "error": "Suspicious activity detected"})
     d.commit()
     return jsonify({"ok": True, "total": round(total, 2)})
 
@@ -1479,6 +1547,56 @@ def admin_clear_chat():
     d.execute("delete from global_chat")
     d.commit()
     return jsonify({"ok": True, "msg": "Chat cleared"})
+
+@app.route("/api/admin/ban-ip", methods=["POST"])
+@login_required
+def admin_ban_ip():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    username = request.json.get("username", "").lower().strip()
+    duration = request.json.get("duration", "1d")
+    acc = d.execute("select last_ip from accounts where username=?", (username,)).fetchone()
+    if not acc or not acc["last_ip"]:
+        return jsonify({"ok": False, "error": "User not found or no IP recorded"})
+    durations = {"1h": 3600, "6h": 21600, "1d": 86400, "7d": 604800, "30d": 2592000, "perm": 315360000}
+    secs = durations.get(duration, 86400)
+    d.execute("insert or replace into banned_ips(ip, banned_until, reason) values(?,?,?)", 
+              (acc["last_ip"], int(time.time()) + secs, f"Banned via {username}"))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Banned IP {acc['last_ip']} for {duration}"})
+
+@app.route("/api/admin/tx-log", methods=["GET"])
+@login_required
+def admin_tx_log():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    username = request.args.get("username", "").lower().strip()
+    if username:
+        acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+        if not acc:
+            return jsonify([])
+        logs = d.execute("select * from tx_log where user_id=? order by ts desc limit 100", (acc["id"],)).fetchall()
+    else:
+        logs = d.execute("select * from tx_log order by ts desc limit 100").fetchall()
+    return jsonify([dict(l) for l in logs])
+
+@app.route("/api/admin/suspicious", methods=["GET"])
+@login_required
+def admin_suspicious():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    now = int(time.time())
+    sus = d.execute("""
+        select a.username, u.balance, 
+        (select sum(amount) from tx_log where user_id=a.id and amount>0 and ts>?) as earned_1h
+        from accounts a join users u on u.id=a.id 
+        where u.balance > 1000000 
+        order by u.balance desc limit 50
+    """, (now - 3600,)).fetchall()
+    return jsonify([dict(s) for s in sus])
 
 @app.route("/api/admin/swap-balance", methods=["POST"])
 @login_required

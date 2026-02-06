@@ -102,6 +102,24 @@ window.clearChat=async()=>{
     else toast(j.error,'error')
 }
 
+window.banIP=async()=>{
+    let user=$('#ip-ban-user').value.trim()
+    let duration=$('#ip-ban-duration').value
+    if(!user){toast('Enter username','error');return}
+    if(!confirm(`Ban IP of ${user} for ${duration}?`))return
+    let r=await fetch('/api/admin/ban-ip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,duration})})
+    let j=await r.json()
+    if(j.ok){toast('🌐 '+j.msg);$('#ip-ban-user').value=''}
+    else toast(j.error,'error')
+}
+
+window.loadSuspicious=async()=>{
+    let r=await fetch('/api/admin/suspicious')
+    let j=await r.json()
+    if(j.length===0){$('#suspicious-list').innerHTML='<em>No suspicious users found</em>';return}
+    $('#suspicious-list').innerHTML=j.map(s=>`<div style="padding:4px 0;border-bottom:1px solid var(--border)"><strong>${s.username}</strong>: $${s.balance?.toLocaleString()||0} (earned $${s.earned_1h?.toLocaleString()||0} in 1h)</div>`).join('')
+}
+
 window.swapBalance=async()=>{
     let user1=$('#swap-bal-1').value.trim()
     let user2=$('#swap-bal-2').value.trim()
