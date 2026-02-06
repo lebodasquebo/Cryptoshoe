@@ -582,10 +582,14 @@ def api_signup():
         return jsonify({"ok": False, "error": "Username must be 20 characters or less"})
     if not username.isalnum():
         return jsonify({"ok": False, "error": "Username must be alphanumeric"})
-    bot_patterns = ["player", "investor", "user", "guest", "test", "admin", "bot", "account"]
+    bot_patterns = ["player", "investor", "user", "guest", "test", "admin", "bot", "account", "trader", "shoe"]
     for pat in bot_patterns:
         if username.lower().startswith(pat) and any(c.isdigit() for c in username):
             return jsonify({"ok": False, "error": "Username not allowed"})
+    if len(username) >= 8 and sum(c.isdigit() for c in username) >= 3 and sum(c.isalpha() for c in username) >= 3:
+        alpha_only = ''.join(c for c in username if c.isalpha())
+        if len(set(alpha_only)) > 5:
+            return jsonify({"ok": False, "error": "Username looks suspicious, try something else"})
     if not password or len(password) < 4:
         return jsonify({"ok": False, "error": "Password must be at least 4 characters"})
     existing = d.execute("select id from accounts where username=?", (username,)).fetchone()
@@ -1406,10 +1410,10 @@ def admin_purge_bots():
     if not is_admin():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
     d = db()
-    bot_patterns = ["player%", "investor%", "user%", "guest%", "test%", "bot%", "account%"]
     count = 0
+    bot_patterns = ["player", "investor", "user", "guest", "test", "bot", "account", "trader", "shoe"]
     for pat in bot_patterns:
-        bots = d.execute("select id from accounts where username like ? and username glob '*[0-9]*'", (pat,)).fetchall()
+        bots = d.execute("select id from accounts where lower(username) like ? and username glob '*[0-9][0-9][0-9][0-9]*'", (pat + "%",)).fetchall()
         for b in bots:
             if b["id"] == session.get("user_id"):
                 continue
@@ -1418,6 +1422,19 @@ def admin_purge_bots():
             d.execute("delete from trades where user_id=?", (b["id"],))
             d.execute("delete from accounts where id=?", (b["id"],))
             count += 1
+    inactive = d.execute("""
+        select a.id from accounts a 
+        join users u on u.id = a.id 
+        where u.balance = 10000 
+        and (select count(*) from hold where user_id = a.id) = 0
+        and a.id != ?
+    """, (session.get("user_id"),)).fetchall()
+    for b in inactive:
+        d.execute("delete from users where id=?", (b["id"],))
+        d.execute("delete from hold where user_id=?", (b["id"],))
+        d.execute("delete from trades where user_id=?", (b["id"],))
+        d.execute("delete from accounts where id=?", (b["id"],))
+        count += 1
     d.commit()
     return jsonify({"ok": True, "msg": f"Purged {count} bot accounts"})
 
