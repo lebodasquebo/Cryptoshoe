@@ -2,7 +2,7 @@ let data=null,span=86400,balance=0,nextPrice=0,serverOffset=0
 const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
 const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
 checkCourt();setInterval(checkCourt,5000)
-const money=v=>v.toFixed(2)
+const money=v=>v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
 const pct=(p,b)=>((p-b)/b*100)
 const rarClass=r=>({common:'rar-common',uncommon:'rar-uncommon',rare:'rar-rare',epic:'rar-epic',legendary:'rar-legendary',mythic:'rar-mythic',secret:'rar-secret',dexies:'rar-dexies',lebos:'rar-lebos'}[r]||'rar-common')
 
