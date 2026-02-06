@@ -2,8 +2,8 @@ import os, sqlite3, time, random, json, uuid, hashlib, re, urllib.request, urlli
 from flask import Flask, g, render_template, session, request, jsonify, Response, redirect, url_for
 from functools import wraps
 
-RECAPTCHA_SECRET = os.environ.get("RECAPTCHA_SECRET", "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe")
-RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI")
+RECAPTCHA_SECRET = os.environ.get("RECAPTCHA_SECRET", "6Ldd32IsAAAAAKrY5NSlh8D3Mzefb4sxqWL6G-Od")
+RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "6Ldd32IsAAAAAC0k5zVL2qCkOkvl2BmS4uD9vm45")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "cryptoshoe-secret-key-change-me")
