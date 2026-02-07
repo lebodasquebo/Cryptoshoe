@@ -1561,6 +1561,7 @@ def admin_add_to_stock():
     if not is_admin():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
     d = db()
+    now = int(time.time())
     shoe_id = request.json.get("shoe_id")
     stock = int(request.json.get("stock", 5))
     price = request.json.get("price")
@@ -1573,7 +1574,14 @@ def admin_add_to_stock():
     if existing:
         d.execute("update market set stock=stock+?, price=? where shoe_id=?", (stock, price, shoe_id))
     else:
+        count = d.execute("select count(*) c from market").fetchone()["c"]
+        if count >= 15:
+            oldest = d.execute("select shoe_id from market order by rowid asc limit 1").fetchone()
+            if oldest:
+                d.execute("delete from market where shoe_id=?", (oldest["shoe_id"],))
         d.execute("insert into market(shoe_id, stock, price, base) values(?,?,?,?)", (shoe_id, stock, price, shoe["base"]))
+        d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe_id, now, price))
+    d.execute("update global_state set last_stock=? where id=1", (now,))
     d.commit()
     return jsonify({"ok": True, "name": shoe["name"], "stock": stock, "price": price})
 
