@@ -77,15 +77,13 @@
       <section class="admin-section">
         <h2>📦 Stock Control</h2>
         <button onclick="resetStock()" class="refresh-btn">Force Stock Refresh</button>
-        <div class="admin-form" style="margin-top:12px">
-          <select id="stock-shoe"></select>
-          <input type="number" id="stock-amount" placeholder="Stock #" value="5" min="1" style="width:80px">
-          <input type="number" id="stock-price" placeholder="Price $" style="width:100px">
-          <button onclick="addToStock()">Add to Stock</button>
-        </div>
-        <div class="admin-form" style="margin-top:8px">
-          <button onclick="addLebos()" style="background:gold;color:#000">+ Lebos</button>
-          <button onclick="addDexies()" style="background:cyan;color:#000">+ Dexies</button>
+        <div class="admin-form" style="margin-top:12px;">
+          <select id="add-shoe-id" style="flex:2;">
+            <option value="">Select Shoe...</option>
+          </select>
+          <input type="number" id="add-shoe-stock" placeholder="Qty" value="5" style="width:70px;">
+          <input type="number" id="add-shoe-price" placeholder="Price (optional)" style="width:100px;">
+          <button onclick="addToStock()" class="give-btn">Add to Stock</button>
         </div>
       </section>
       
@@ -282,6 +280,6 @@
     </section>
   </main>
   <div id="toast" class="toast"></div>
-  <script src="/static/admin.js?v={{ range(10000) | random }}"></script>
+  <script src="/static/admin.js?v=2"></script>
 </body>
 </html>

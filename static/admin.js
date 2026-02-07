@@ -23,33 +23,22 @@ const loadShoes=async()=>{
     let r=await fetch('/api/admin/shoes')
     if(r.ok){
         let shoes=await r.json()
-        let opts=shoes.map(s=>`<option value="${s.id}" data-base="${s.base}">[${s.rarity}] ${s.name}</option>`).join('')
-        $('#shoe-select').innerHTML=opts
-        if($('#stock-shoe'))$('#stock-shoe').innerHTML=opts
+        $('#shoe-select').innerHTML=shoes.map(s=>`<option value="${s.id}">[${s.rarity}] ${s.name}</option>`).join('')
+        let addSelect=$('#add-shoe-id')
+        if(addSelect)addSelect.innerHTML='<option value="">Select Shoe...</option>'+shoes.map(s=>`<option value="${s.id}">[${s.rarity}] ${s.name} - $${s.base}</option>`).join('')
     }
 }
 
 window.addToStock=async()=>{
-    let shoe_id=parseInt($('#stock-shoe').value)
-    let stock=parseInt($('#stock-amount').value)||5
-    let price=parseFloat($('#stock-price').value)||null
-    let r=await fetch('/api/admin/stock/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({shoe_id,stock,price})})
+    let shoeId=$('#add-shoe-id').value
+    let stock=parseInt($('#add-shoe-stock').value)||5
+    let price=$('#add-shoe-price').value?parseFloat($('#add-shoe-price').value):null
+    if(!shoeId){toast('Select a shoe','error');return}
+    let body={shoe_id:parseInt(shoeId),stock}
+    if(price)body.price=price
+    let r=await fetch('/api/admin/add-to-stock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     let j=await r.json()
-    if(j.ok){toast('Added to stock!');$('#stock-price').value=''}
-    else toast(j.error,'error')
-}
-
-window.addLebos=async()=>{
-    let r=await fetch('/api/admin/stock/special',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rarity:'lebos'})})
-    let j=await r.json()
-    if(j.ok)toast('👑 Added Lebos to stock!')
-    else toast(j.error,'error')
-}
-
-window.addDexies=async()=>{
-    let r=await fetch('/api/admin/stock/special',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rarity:'dexies'})})
-    let j=await r.json()
-    if(j.ok)toast('💎 Added Dexies to stock!')
+    if(j.ok){toast(`Added ${j.name} x${stock} to stock at $${j.price.toLocaleString()}`);$('#add-shoe-id').value=''}
     else toast(j.error,'error')
 }
 
