@@ -28,18 +28,18 @@ def login_required(f):
             session.clear()
             return jsonify({"ok": False, "error": "Access denied"}), 403
         if "user_id" not in session:
-            return redirect(url_for("notice_page"))
+            return redirect(url_for("landing_page"))
         d = db()
         acc = d.execute("select id, session_token, ban_until from accounts where id=?", (session["user_id"],)).fetchone()
         if not acc:
             session.clear()
-            return redirect(url_for("notice_page"))
+            return redirect(url_for("landing_page"))
         if acc["ban_until"] and acc["ban_until"] > int(time.time()):
             session.clear()
-            return redirect(url_for("notice_page"))
+            return redirect(url_for("landing_page"))
         if acc["session_token"] and session.get("token") != acc["session_token"]:
             session.clear()
-            return redirect(url_for("notice_page"))
+            return redirect(url_for("landing_page"))
         d.execute("update accounts set last_ip=? where id=?", (get_client_ip(), session["user_id"]))
         d.commit()
         return f(*args, **kwargs)
@@ -631,10 +631,10 @@ def login_page():
     return render_template("login.html")
 
 @app.route("/notice")
-def notice_page():
+def landing_page():
     if "user_id" in session:
         return redirect(url_for("home"))
-    return render_template("notice.html")
+    return render_template("landing.html")
 
 @app.route("/signup", methods=["GET"])
 def signup_page():
