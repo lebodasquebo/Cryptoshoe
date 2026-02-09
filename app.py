@@ -2502,7 +2502,7 @@ def api_pot_enter():
         value = base_price * shoe["multiplier"]
         rating = shoe["rating"]
         multiplier = shoe["multiplier"]
-        d.execute("delete from appraised where id=?", (appraisal_id,))
+        d.execute        d.execute("delete from appraised where id=?", (appraisal_id,))
         shoe_id = shoe["shoe_id"]
     else:
         if not shoe_id:
