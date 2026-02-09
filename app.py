@@ -224,10 +224,27 @@ def init():
     d.execute("update shoes set rarity='godly' where rarity='secret'")
     d.execute("update shoes set rarity='divine' where rarity='dexies'")
     d.execute("update shoes set rarity='grails' where rarity='lebos'")
-    d.execute("update shoes set name=replace(name,'Dexies ','') where name like 'Dexies %'")
-    d.execute("update shoes set name=replace(name,'Divine ','') where name like 'Divine %' and rarity='divine'")
-    d.execute("update shoes set name=replace(name,'Lebos ','') where name like 'Lebos %'")
-    d.execute("update shoes set name=replace(name,'Grails ','') where name like 'Grails %' and rarity='grails'")
+    # Rename old divine shoe names to new ones
+    old_divine = ["Dexies Phantom Protocol","Dexies Neural Apex","Dexies Quantum Flux","Dexies Void Walker","Dexies Neon Genesis","Dexies Cyber Nexus","Dexies Hologram Prime","Dexies Infinity Core","Dexies Plasma Edge","Dexies Dark Matter","Dexies Stellar Drift","Dexies Zero Gravity",
+                  "Phantom Protocol","Neural Apex","Quantum Flux","Void Walker","Neon Genesis","Cyber Nexus","Hologram Prime","Infinity Core","Plasma Edge","Dark Matter","Stellar Drift","Zero Gravity",
+                  "Divine Phantom Protocol","Divine Neural Apex","Divine Quantum Flux","Divine Void Walker","Divine Neon Genesis","Divine Cyber Nexus","Divine Hologram Prime","Divine Infinity Core","Divine Plasma Edge","Divine Dark Matter","Divine Stellar Drift","Divine Zero Gravity"]
+    new_divine = ["Phantom Runner V","Nexus Stride Pro","Quantum Glider X","Void Step Eclipse","Genesis Boost NX","Cyber Kick Prime","Holo Glide Ultra","Infinity Runner Max","Plasma Stride Edge","Eclipse Walker GT","Stellar Dash Drift","Zero-G Sole XR"]
+    for i, old in enumerate(old_divine):
+        d.execute("update shoes set name=? where name=? and rarity='divine'", (new_divine[i % len(new_divine)], old))
+    # Rename old grails shoe names to new ones
+    old_grails = ["Lebos Divine Ascension","Lebos Eternal Crown","Lebos Celestial One","Lebos Golden Throne","Lebos Supreme Omega","Lebos Apex Deity","Lebos Immortal Reign","Lebos Cosmic Emperor","Lebos Ultimate Genesis",
+                  "Divine Ascension","Eternal Crown","Celestial One","Golden Throne","Supreme Omega","Apex Deity","Immortal Reign","Cosmic Emperor","Ultimate Genesis",
+                  "Grails Divine Ascension","Grails Eternal Crown","Grails Celestial One","Grails Golden Throne","Grails Supreme Omega","Grails Apex Deity","Grails Immortal Reign","Grails Cosmic Emperor","Grails Ultimate Genesis",
+                  "Eternal Ascension","Celestial Crown","Golden Throne","Supreme Omega","Apex Deity","Immortal Reign","Cosmic Emperor","Ultimate Genesis","Astral Monarch"]
+    new_grails = ["Eternal Air One","Crown Stride Supreme","Throne Runner Gold","Omega Kick Elite","Deity Glider Apex","Reign Step Immortal","Emperor Dash Cosmic","Genesis Runner Ultra","Monarch Stride Astral"]
+    for i, old in enumerate(old_grails):
+        d.execute("update shoes set name=? where name=? and rarity='grails'", (new_grails[i % len(new_grails)], old))
+    # Insert heavenly shoe if not exists
+    for name in HEAVENLY_SHOES:
+        existing = d.execute("select id from shoes where name=?", (name,)).fetchone()
+        if not existing:
+            lo, hi = BASE_PRICES["heavenly"]
+            d.execute("insert into shoes(name, rarity, base) values(?,?,?)", (name, "heavenly", round(random.uniform(lo, hi), 2)))
     d.commit()
 
 def pick(w):
