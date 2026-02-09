@@ -56,18 +56,22 @@ const fetchPot = async () => {
   if (pot.spinning && !isSpinning) {
     isSpinning = true
     spinStartTime = Date.now()
-    let winnerAngle = 0
+    let segStart = 0
+    let segEnd = 0
     let currentAngle = 0
     for (let p of pot.participants) {
       let segmentSize = (p.percent / 100) * 360
       if (p.username === pot.winner) {
-        winnerAngle = currentAngle + segmentSize / 2
+        segStart = currentAngle
+        segEnd = currentAngle + segmentSize
         break
       }
       currentAngle += segmentSize
     }
-    let targetAngle = 360 - winnerAngle
-    let totalRotation = 1800 + targetAngle
+    let pad = Math.min((segEnd - segStart) * 0.15, 10)
+    let landAngle = segStart + pad + Math.random() * (segEnd - segStart - pad * 2)
+    let targetAngle = 360 - landAngle
+    let totalRotation = 1440 + Math.floor(Math.random() * 720) + targetAngle
     wheel.style.transition = 'none'
     wheel.style.transform = 'rotate(0deg)'
     setTimeout(() => {
