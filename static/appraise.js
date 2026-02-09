@@ -49,6 +49,41 @@ $('#modal-close').onclick=()=>$('#appraise-modal').classList.add('hidden')
 $('#modal-btn').onclick=()=>$('#appraise-modal').classList.add('hidden')
 $('#appraise-modal').onclick=(e)=>{if(e.target.id==='appraise-modal')$('#appraise-modal').classList.add('hidden')}
 
+const appraiseAll=async()=>{
+  if(!state.hold.length)return toast('No shoes to appraise','error')
+  let totalCost=0
+  state.hold.forEach(h=>{let price=h.sell_price||h.base;totalCost+=price*0.05*h.qty})
+  if(!confirm(`Appraise ALL ${state.hold.length} shoe types (${state.hold.reduce((s,h)=>s+h.qty,0)} total)?\nEstimated cost: $${money(totalCost)}`))return
+  let btn=$('#appraise-all')
+  btn.disabled=true;btn.textContent='⏳ APPRAISING...'
+  let allResults=[],done=0,total=state.hold.length
+  let shoes=[...state.hold]
+  for(let h of shoes){
+    try{
+      let r=await fetch('/api/appraise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:h.id,qty:h.qty})})
+      if(r.ok){
+        let j=await r.json()
+        if(j.ok){allResults.push(...j.results);done++}
+        else{toast(j.error||'Failed for '+h.name,'error');break}
+      }else{toast('Request failed','error');break}
+    }catch(e){toast('Network error','error');break}
+    btn.textContent=`⏳ ${done}/${total}...`
+  }
+  btn.disabled=false;btn.textContent='🔍 APPRAISE ALL'
+  if(allResults.length){
+    let best=allResults.reduce((a,b)=>a.rating>b.rating?a:b)
+    let m=$('#appraise-modal'),content=$('#modal-results')
+    let html=`<div class="multi-results"><div class="results-grid">`
+    allResults.forEach((r,i)=>{let vt=r.variant?`<div class="variant-badge ${r.variant}">${r.variant==='rainbow'?'🌈':'✨'}</div>`:'';html+=`<div class="result-item ${r.rating_class}${r.variant?' variant-'+r.variant:''}">${vt}<div class="result-num">#${i+1}</div><div class="result-rating">${r.rating.toFixed(1)}</div><div class="result-mult ${r.multiplier>=1?'up':'down'}">${r.multiplier>=1?'+':''}${((r.multiplier-1)*100).toFixed(0)}%</div></div>`})
+    html+=`</div><div class="best-result"><div class="best-label">BEST RESULT (${allResults.length} TOTAL)</div><div class="best-rating ${best.rating_class}">${best.rating.toFixed(1)}</div><div class="best-comment">${best.comment}</div></div></div>`
+    content.innerHTML=html
+    m.classList.toggle('has-perfect',allResults.some(r=>r.perfect))
+    m.classList.remove('hidden')
+    fetchState()
+  }
+}
+$('#appraise-all').onclick=appraiseAll
+
 const upd=()=>{
   $('#bal').textContent=money(state.balance)
   let grid=$('#shoe-grid'),empty=$('#appraise-empty'),cnt=$('#shoe-count')

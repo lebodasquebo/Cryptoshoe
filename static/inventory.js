@@ -1,4 +1,6 @@
 let state={market:[],hold:[],appraised:[],hist:{},balance:0,next_stock:0,next_price:0,server_time:0},sel=null,selType=null,serverOffset=0
+let sortBy='rarity',sortDir='desc'
+const RARITY_ORDER={common:0,uncommon:1,rare:2,epic:3,legendary:4,mythic:5,godly:6,divine:7,grails:8,heavenly:9}
 const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
 const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
 checkCourt();setInterval(checkCourt,5000)
@@ -34,7 +36,7 @@ const invCard=(h,i)=>{
   d.dataset.id=h.id
   d.dataset.type='hold'
   d.style.animationDelay=i*0.05+'s'
-  d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="inv-card-qty"></div><button class="fav-btn" title="Favorite (protected from Sell All)">★</button></div><div class="inv-card-name"></div><div class="inv-card-status"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
+  d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="inv-card-qty"></div><button class="fav-btn" title="Favorite (protected from Sell All)">☆</button></div><div class="inv-card-name"></div><div class="inv-card-status"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
   d.onclick=(e)=>{if(!e.target.classList.contains('fav-btn'))select(h.id,'hold')}
   d.querySelector('.fav-btn').onclick=(e)=>{e.stopPropagation();toggleFav(h.id,0)}
   return d
@@ -45,7 +47,7 @@ const appraisedCard=(a,i)=>{
   d.dataset.id=a.appraisal_id
   d.dataset.type='appraised'
   d.style.animationDelay=i*0.05+'s'
-  d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="appraisal-badge"></div><button class="fav-btn" title="Favorite (protected from Sell All)">★</button></div><div class="inv-card-name"></div><div class="appraisal-rating"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
+  d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="appraisal-badge"></div><button class="fav-btn" title="Favorite (protected from Sell All)">☆</button></div><div class="inv-card-name"></div><div class="appraisal-rating"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
   d.onclick=(e)=>{if(!e.target.classList.contains('fav-btn'))select(a.appraisal_id,'appraised')}
   d.querySelector('.fav-btn').onclick=(e)=>{e.stopPropagation();toggleFav(a.id,a.appraisal_id)}
   return d
@@ -89,6 +91,35 @@ const sellAll=async()=>{
   if(r.ok){let j=await r.json();if(j.ok){toast('Sold all for $'+money(j.total)+'!');sel=null;selType=null;fetchState()}else toast(j.error||'Failed','error')}else toast('Request failed','error')
 }
 
+const sortItems=(appraised,hold)=>{
+  let all=[]
+  appraised.forEach(a=>{all.push({...a,_type:'appraised',_val:a.sell_price||a.base,_rar:RARITY_ORDER[a.rarity]||0,_rating:a.rating||0,_name:a.name.toLowerCase()})})
+  hold.forEach(h=>{let price=h.sell_price||h.base;all.push({...h,_type:'hold',_val:price*h.qty,_rar:RARITY_ORDER[h.rarity]||0,_rating:0,_name:h.name.toLowerCase()})})
+  let dir=sortDir==='desc'?-1:1
+  all.sort((a,b)=>{
+    if(sortBy==='rarity')return (b._rar-a._rar)*dir||(b._val-a._val)
+    if(sortBy==='value')return (b._val-a._val)*dir
+    if(sortBy==='name')return a._name<b._name?-1*dir:a._name>b._name?1*dir:0
+    if(sortBy==='rating'){
+      if(a._type==='appraised'&&b._type!=='appraised')return -1
+      if(a._type!=='appraised'&&b._type==='appraised')return 1
+      return (b._rating-a._rating)*dir||(b._val-a._val)
+    }
+    return 0
+  })
+  return all
+}
+
+$$('.sort-btn').forEach(btn=>{
+  btn.onclick=()=>{
+    let s=btn.dataset.sort
+    if(sortBy===s){sortDir=sortDir==='desc'?'asc':'desc'}else{sortBy=s;sortDir='desc'}
+    $$('.sort-btn').forEach(b=>{b.classList.remove('active','asc','desc')})
+    btn.classList.add('active',sortDir)
+    upd()
+  }
+})
+
 const upd=()=>{
   $('#bal').textContent=money(state.balance)
   let inv=$('#inventory'),empty=$('#inv-empty'),cnt=$('#inv-count')
@@ -99,23 +130,25 @@ const upd=()=>{
   $('#inv-value').textContent='$'+money(totalVal);$('#inv-pnl').textContent=(pnl>=0?'+':'')+money(pnl);$('#inv-pnl').className='inv-stat-val '+(pnl>=0?'up':'down');$('#inv-worth').textContent='$'+money(state.balance+totalVal)
   if(totalCount>0){
     empty.classList.add('hidden');inv.classList.remove('hidden');cnt.textContent=totalCount+' shoe'+(totalCount>1?'s':'')+' owned';inv.innerHTML=''
-    state.appraised.forEach((a,idx)=>{
-      let d=appraisedCard(a,idx),rb=d.querySelector('.inv-card-rarity');rb.textContent=a.rarity.toUpperCase();rb.className='inv-card-rarity '+rarClass(a.rarity)
-      let badge=d.querySelector('.appraisal-badge');badge.textContent=a.rating.toFixed(1);badge.className='appraisal-badge badge-'+a.rating_class
-      d.querySelector('.inv-card-name').textContent=a.name
-      if(a.variant){let vb=document.createElement('div');vb.className='variant-badge '+a.variant;vb.textContent=a.variant==='rainbow'?'🌈 RAINBOW':'✨ SHINY';d.querySelector('.inv-card-name').before(vb)}
-      let rat=d.querySelector('.appraisal-rating'),pctVal=((a.multiplier-1)*100).toFixed(0);rat.innerHTML='<span class="'+(a.multiplier>=1?'up':'down')+'">'+(a.multiplier>=1?'+':'')+pctVal+'% value</span>'
-      d.querySelector('.inv-card-price').textContent='$'+money(a.sell_price)+' ea';d.querySelector('.inv-card-value').textContent='Value: $'+money(a.sell_price)
-      d.classList.add('rating-'+a.rating_class);if(a.variant)d.classList.add('variant-'+a.variant);d.classList.toggle('active',selType==='appraised'&&sel===parseInt(a.appraisal_id))
-      d.classList.toggle('favorited',a.favorited);d.querySelector('.fav-btn').classList.toggle('active',a.favorited);inv.append(d)
-    })
-    state.hold.forEach((h,idx)=>{
-      let d=invCard(h,idx+state.appraised.length),price=h.sell_price||h.base,rb=d.querySelector('.inv-card-rarity');rb.textContent=h.rarity.toUpperCase();rb.className='inv-card-rarity '+rarClass(h.rarity)
-      d.querySelector('.inv-card-qty').textContent='x'+h.qty;d.querySelector('.inv-card-name').textContent=h.name
-      let st=d.querySelector('.inv-card-status');st.textContent=h.in_market?'In Market':'Off-Market (-5%)';st.className='inv-card-status'+(h.in_market?' in-market':' off-market')
-      d.querySelector('.inv-card-price').textContent='$'+money(price)+' ea';d.querySelector('.inv-card-value').textContent='Value: $'+money(price*h.qty)
-      d.classList.toggle('active',selType==='hold'&&sel===parseInt(h.id));d.classList.toggle('off-market',!h.in_market)
-      d.classList.toggle('favorited',h.favorited);d.querySelector('.fav-btn').classList.toggle('active',h.favorited);inv.append(d)
+    let sorted=sortItems(state.appraised,state.hold)
+    sorted.forEach((item,idx)=>{
+      if(item._type==='appraised'){
+        let a=item,d=appraisedCard(a,idx),rb=d.querySelector('.inv-card-rarity');rb.textContent=a.rarity.toUpperCase();rb.className='inv-card-rarity '+rarClass(a.rarity)
+        let badge=d.querySelector('.appraisal-badge');badge.textContent=a.rating.toFixed(1);badge.className='appraisal-badge badge-'+a.rating_class
+        d.querySelector('.inv-card-name').textContent=a.name
+        if(a.variant){let vb=document.createElement('div');vb.className='variant-badge '+a.variant;vb.textContent=a.variant==='rainbow'?'🌈 RAINBOW':'✨ SHINY';d.querySelector('.inv-card-name').before(vb)}
+        let rat=d.querySelector('.appraisal-rating'),pctVal=((a.multiplier-1)*100).toFixed(0);rat.innerHTML='<span class="'+(a.multiplier>=1?'up':'down')+'">'+(a.multiplier>=1?'+':'')+pctVal+'% value</span>'
+        d.querySelector('.inv-card-price').textContent='$'+money(a.sell_price)+' ea';d.querySelector('.inv-card-value').textContent='Value: $'+money(a.sell_price)
+        d.classList.add('rating-'+a.rating_class);if(a.variant)d.classList.add('variant-'+a.variant);d.classList.toggle('active',selType==='appraised'&&sel===parseInt(a.appraisal_id))
+        d.classList.toggle('favorited',a.favorited);let fb1=d.querySelector('.fav-btn');fb1.classList.toggle('active',a.favorited);fb1.textContent=a.favorited?'★':'☆';inv.append(d)
+      }else{
+        let h=item,d=invCard(h,idx),price=h.sell_price||h.base,rb=d.querySelector('.inv-card-rarity');rb.textContent=h.rarity.toUpperCase();rb.className='inv-card-rarity '+rarClass(h.rarity)
+        d.querySelector('.inv-card-qty').textContent='x'+h.qty;d.querySelector('.inv-card-name').textContent=h.name
+        let st=d.querySelector('.inv-card-status');st.textContent=h.in_market?'In Market':'Off-Market (-5%)';st.className='inv-card-status'+(h.in_market?' in-market':' off-market')
+        d.querySelector('.inv-card-price').textContent='$'+money(price)+' ea';d.querySelector('.inv-card-value').textContent='Value: $'+money(price*h.qty)
+        d.classList.toggle('active',selType==='hold'&&sel===parseInt(h.id));d.classList.toggle('off-market',!h.in_market)
+        d.classList.toggle('favorited',h.favorited);let fb2=d.querySelector('.fav-btn');fb2.classList.toggle('active',h.favorited);fb2.textContent=h.favorited?'★':'☆';inv.append(d)
+      }
     })
   }else{empty.classList.remove('hidden');inv.classList.add('hidden');inv.innerHTML='';cnt.textContent='0 shoes owned'}
   if(sel!==null)updSidebar()

@@ -35,8 +35,8 @@
           <span class="nav-text">Appraise</span>
         </a>
         <a href="/users" class="nav-link" id="nav-users">
-          <span class="nav-icon">👥</span>
-          <span class="nav-text">Users</span>
+          <span class="nav-icon">🤝</span>
+          <span class="nav-text">Trade</span>
           <span class="nav-badge hidden" id="trade-badge">0</span>
         </a>
         <a href="/chat" class="nav-link">
@@ -93,6 +93,13 @@
               <div class="inv-stat-val timer-val" id="stock-timer">--:--</div>
             </div>
             <button class="sell-all-btn" id="sell-all">💰 SELL ALL</button>
+          </div>
+          <div class="inv-sort-bar" id="sort-bar">
+            <span class="sort-label">Sort:</span>
+            <button class="sort-btn active" data-sort="rarity">Rarity</button>
+            <button class="sort-btn" data-sort="value">Value</button>
+            <button class="sort-btn" data-sort="name">Name</button>
+            <button class="sort-btn" data-sort="rating">Rating</button>
           </div>
           <div id="inv-empty" class="empty">
             <div class="empty-icon">📦</div>
