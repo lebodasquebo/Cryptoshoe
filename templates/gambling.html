@@ -100,7 +100,8 @@
       <div id="enter-modal" class="modal hidden">
         <div class="modal-content">
           <button class="modal-close" id="modal-close">&times;</button>
-          <h2>Enter Shoe into Pot</h2>
+          <h2>Enter Shoes into Pot</h2>
+          <p class="modal-hint">Click shoes to select/deselect. Use ±buttons for qty.</p>
           <div class="shoe-select">
             <h4>Your Shoes</h4>
             <div id="your-shoes" class="shoe-grid"></div>
@@ -110,7 +111,7 @@
             <span class="selected-value">Value: $<span id="selected-value">0</span></span>
           </div>
           <div class="modal-actions">
-            <button id="confirm-enter" class="confirm-btn" disabled>Enter into Pot</button>
+            <button id="confirm-enter" class="confirm-btn" disabled>Enter Selected into Pot</button>
             <button id="add-all-btn" class="add-all-btn">🚀 Add All Shoes</button>
           </div>
         </div>
@@ -121,7 +122,7 @@
     <section id="lootbox-section" class="gambling-section hidden">
       <div class="lootbox-container">
         <h2>👀 LOOKBOXES</h2>
-        <p class="lootbox-desc">Pay $2.5k-$150k to receive a random pre-appraised shoe worth ±40% of your bet</p>
+        <p class="lootbox-desc">Pay $2.5k-$150k for a pre-appraised shoe. Same odds as appraisals — value ranges from -50% to +45% of your bet. No busts!</p>
         
         <div class="lootbox-body">
           <div class="lootbox-controls">

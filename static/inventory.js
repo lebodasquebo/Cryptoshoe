@@ -121,7 +121,9 @@ const upd=()=>{
   if(sel!==null)updSidebar()
 }
 
-const fetchState=async()=>{let r=await fetch('/api/state');if(r.ok){state=await r.json();serverOffset=state.server_time-Math.floor(Date.now()/1000);upd();updTimer()}}
+let lastHash=''
+const stateHash=(s)=>JSON.stringify([s.balance,s.hold.map(h=>[h.id,h.qty,h.sell_price,h.favorited]),s.appraised.map(a=>[a.appraisal_id,a.rating,a.sell_price,a.favorited])])
+const fetchState=async()=>{let r=await fetch('/api/state');if(r.ok){let ns=await r.json();serverOffset=ns.server_time-Math.floor(Date.now()/1000);let h=stateHash(ns);let changed=h!==lastHash;state=ns;if(changed){lastHash=h;upd()}updTimer()}}
 setInterval(fetchState,3000)
 
 const updBadge=async()=>{let r=await fetch('/api/trade-count');if(r.ok){let j=await r.json(),b=$('#trade-badge');if(b){if(j.count>0){b.textContent=j.count;b.classList.remove('hidden')}else{b.classList.add('hidden')}}}}

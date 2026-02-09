@@ -123,7 +123,9 @@ const upd=()=>{
   if(sel!==null)updSidebar();updPriceTimers()
 }
 
-const fetchState=async()=>{let r=await fetch('/api/state');if(r.ok){state=await r.json();serverOffset=state.server_time-Math.floor(Date.now()/1000);upd();updTimer()}}
+let lastHash=''
+const stateHash=(s)=>JSON.stringify([s.balance,s.market.map(m=>[m.id,m.stock,m.price]),s.hold.map(h=>[h.id,h.qty])])
+const fetchState=async()=>{let r=await fetch('/api/state');if(r.ok){let ns=await r.json();serverOffset=ns.server_time-Math.floor(Date.now()/1000);let h=stateHash(ns);let changed=h!==lastHash;state=ns;if(changed){lastHash=h;upd()}updTimer()}}
 setInterval(fetchState,3000)
 
 $('#btn-buy').onclick=()=>{if(sel!==null)act('buy',sel,$('#s-qty').value)}

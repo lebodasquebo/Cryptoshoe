@@ -2327,34 +2327,17 @@ def api_lootbox():
     bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
     if bal < amount:
         return jsonify({"ok": False, "error": f"Not enough balance (need ${amount:,}, have ${bal:,.0f})"})
-    luck = random.random()
-    if luck < 0.12:
-        d.execute("update users set balance=balance-? where id=?", (amount, u))
-        d.commit()
-        return jsonify({
-            "ok": True, "bust": True,
-            "shoe": {"id": 0, "name": "NOTHING", "rarity": "common", "base": 0},
-            "rating": 0, "multiplier": 0, "price": 0, "value": 0, "paid": amount
-        })
-    if luck < 0.35:
-        target = amount * random.uniform(0.15, 0.6)
-    elif luck < 0.65:
-        target = amount * random.uniform(0.6, 1.0)
-    elif luck < 0.88:
-        target = amount * random.uniform(1.0, 1.5)
-    else:
-        target = amount * random.uniform(1.5, 2.5)
+    target = amount * random.uniform(0.50, 1.45)
     all_shoes = d.execute("select s.id, s.name, s.rarity, s.base, m.price from shoes s left join market m on m.shoe_id=s.id").fetchall()
     best, best_diff = None, float('inf')
     for s in all_shoes:
         price = s["price"] if s["price"] else s["base"]
-        needed_mult = target / price
-        if needed_mult < 0.52 or needed_mult > 2.0:
+        if price <= 0:
             continue
-        if needed_mult >= 2.0:
-            rating = 10.0
-            mult = 2.0
-        elif needed_mult >= 1.24:
+        needed_mult = target / price
+        if needed_mult < 0.50 or needed_mult > 1.50:
+            continue
+        if needed_mult >= 1.24:
             rating = round(5.0 + (needed_mult - 1.0) / 0.08, 1)
             rating = min(9.9, max(8.0, rating))
             mult = 1.0 + (rating - 5.0) * 0.08
@@ -2384,7 +2367,15 @@ def api_lootbox():
         return jsonify({"ok": False, "error": "No shoes available in this price range"})
     shoe, price, rating, mult, final_val = best
     now = int(time.time())
-    d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (u, shoe["id"], rating, mult, now))
+    vroll = random.random()
+    variant = "rainbow" if vroll < 0.01 else "shiny" if vroll < 0.06 else ""
+    if variant == "rainbow":
+        mult = round(mult * 2.5, 2)
+        final_val = round(price * mult, 2)
+    elif variant == "shiny":
+        mult = round(mult * 1.5, 2)
+        final_val = round(price * mult, 2)
+    d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts, variant) values(?,?,?,?,?,?)", (u, shoe["id"], rating, mult, now, variant))
     d.execute("update users set balance=balance-? where id=?", (amount, u))
     d.commit()
     return jsonify({
@@ -2394,7 +2385,8 @@ def api_lootbox():
         "multiplier": mult,
         "price": round(price, 2),
         "value": round(final_val, 2),
-        "paid": amount
+        "paid": amount,
+        "variant": variant
     })
 
 @app.route("/api/pot/current")
@@ -2489,44 +2481,58 @@ def api_pot_enter():
     pot = d.execute("select * from gambling_pots where status='open' order by id desc limit 1").fetchone()
     if not pot:
         return jsonify({"ok": False, "error": "No active pot"})
-    shoe_id = request.json.get("shoe_id")
-    appraisal_id = request.json.get("appraisal_id")
-    rating, multiplier, variant = None, None, ""
-    if appraisal_id:
-        shoe = d.execute("""
-            select a.*, s.name, s.rarity, s.base from appraised a 
-            join shoes s on s.id=a.shoe_id 
-            where a.id=? and a.user_id=?
-        """, (appraisal_id, u)).fetchone()
-        if not shoe:
-            return jsonify({"ok": False, "error": "Shoe not found"})
-        market = d.execute("select price from market where shoe_id=?", (shoe["shoe_id"],)).fetchone()
-        base_price = market["price"] if market else shoe["base"]
-        value = base_price * shoe["multiplier"]
-        rating = shoe["rating"]
-        multiplier = shoe["multiplier"]
-        variant = shoe["variant"] or ""
-        d.execute("delete from appraised where id=?", (appraisal_id,))
-        shoe_id = shoe["shoe_id"]
-    else:
-        if not shoe_id:
-            return jsonify({"ok": False, "error": "No shoe selected"})
-        hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
-        if not hold or hold["qty"] < 1:
-            return jsonify({"ok": False, "error": "You don't own this shoe"})
-        shoe = d.execute("select * from shoes where id=?", (shoe_id,)).fetchone()
-        market = d.execute("select price from market where shoe_id=?", (shoe_id,)).fetchone()
-        value = market["price"] if market else shoe["base"]
-        d.execute("update hold set qty=qty-1 where user_id=? and shoe_id=?", (u, shoe_id))
-        d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (u, shoe_id))
-    d.execute("insert into pot_entries(pot_id, user_id, username, shoe_id, appraisal_id, rating, multiplier, variant, value, ts) values(?,?,?,?,?,?,?,?,?,?)",
-              (pot["id"], u, acc["username"], shoe_id, appraisal_id, rating, multiplier, variant, value, now))
-    new_total = (pot["total_value"] or 0) + value
+    shoes = request.json.get("shoes")
+    if not shoes:
+        shoe_id = request.json.get("shoe_id")
+        appraisal_id = request.json.get("appraisal_id")
+        shoes = [{"shoe_id": shoe_id, "appraisal_id": appraisal_id, "qty": 1}]
+    total_value = 0
+    count = 0
+    for entry in shoes:
+        appraisal_id = entry.get("appraisal_id")
+        shoe_id = entry.get("shoe_id")
+        qty = max(1, int(entry.get("qty", 1)))
+        if appraisal_id:
+            shoe = d.execute("""
+                select a.*, s.name, s.rarity, s.base from appraised a 
+                join shoes s on s.id=a.shoe_id 
+                where a.id=? and a.user_id=?
+            """, (appraisal_id, u)).fetchone()
+            if not shoe:
+                continue
+            market = d.execute("select price from market where shoe_id=?", (shoe["shoe_id"],)).fetchone()
+            base_price = market["price"] if market else shoe["base"]
+            value = base_price * shoe["multiplier"]
+            d.execute("insert into pot_entries(pot_id, user_id, username, shoe_id, appraisal_id, rating, multiplier, variant, value, ts) values(?,?,?,?,?,?,?,?,?,?)",
+                      (pot["id"], u, acc["username"], shoe["shoe_id"], appraisal_id, shoe["rating"], shoe["multiplier"], shoe["variant"] or "", value, now))
+            d.execute("delete from appraised where id=?", (appraisal_id,))
+            total_value += value
+            count += 1
+        else:
+            if not shoe_id:
+                continue
+            hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
+            if not hold or hold["qty"] < 1:
+                continue
+            actual_qty = min(qty, hold["qty"])
+            shoe = d.execute("select * from shoes where id=?", (shoe_id,)).fetchone()
+            market = d.execute("select price from market where shoe_id=?", (shoe_id,)).fetchone()
+            value = market["price"] if market else shoe["base"]
+            for _ in range(actual_qty):
+                d.execute("insert into pot_entries(pot_id, user_id, username, shoe_id, appraisal_id, rating, multiplier, variant, value, ts) values(?,?,?,?,?,?,?,?,?,?)",
+                          (pot["id"], u, acc["username"], shoe_id, None, None, None, "", value, now))
+                total_value += value
+                count += 1
+            d.execute("update hold set qty=qty-? where user_id=? and shoe_id=?", (actual_qty, u, shoe_id))
+            d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (u, shoe_id))
+    if count == 0:
+        return jsonify({"ok": False, "error": "No valid shoes to enter"})
+    new_total = (pot["total_value"] or 0) + total_value
     d.execute("update gambling_pots set total_value=? where id=?", (new_total, pot["id"]))
     if pot["market_cap"] < 999999999 and new_total >= pot["market_cap"]:
         pick_pot_winner(pot["id"], d)
     d.commit()
-    return jsonify({"ok": True, "value": value})
+    return jsonify({"ok": True, "value": total_value, "count": count})
 
 def pick_pot_winner(pot_id, d):
     now = int(time.time())

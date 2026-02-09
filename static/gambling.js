@@ -4,11 +4,10 @@ const toast=(msg,type='success')=>{let t=$('#toast');t.textContent=msg;t.classNa
 const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
 checkCourt();setInterval(checkCourt,5000)
 
-let selectedShoe = null
+let selectedShoes = {}
 let myShoes = []
 let nextSpin = 0
 
-// Tab switching
 $$('.tab-btn').forEach(btn => {
   btn.onclick = () => {
     $$('.tab-btn').forEach(b => b.classList.remove('active'))
@@ -163,36 +162,82 @@ const renderShoeSelect = () => {
     const label = s.appraised ? `⭐${s.rating.toFixed(1)}` : `×${s.qty}`
     const vc = s.variant ? ' variant-'+s.variant : ''
     const vb = s.variant ? `<div class="variant-badge ${s.variant}">${s.variant==='rainbow'?'🌈':'✨'}</div>` : ''
+    const sel = selectedShoes[key]
+    const isSel = !!sel
+    let qtyHtml = ''
+    if (!s.appraised && s.qty > 1 && isSel) {
+      qtyHtml = `<div class="shoe-qty-ctrl"><button class="sq-btn sq-minus" data-key="${key}">−</button><span class="sq-val">${sel.qty}</span><button class="sq-btn sq-plus" data-key="${key}">+</button></div>`
+    }
     return `
-      <div class="shoe-option${vc}" data-key="${key}" data-id="${s.id}" data-appraisal="${s.appraisal_id || ''}" data-value="${s.price || s.base}">
+      <div class="shoe-option${vc}${isSel?' selected':''}" data-key="${key}" data-id="${s.id}" data-appraisal="${s.appraisal_id || ''}" data-value="${s.price || s.base}" data-appraised="${s.appraised}" data-maxqty="${s.qty}">
         ${vb}
         <div class="shoe-option-name">${s.name}</div>
         <div class="shoe-option-rarity rarity-${s.rarity}">${s.rarity}</div>
         <div class="shoe-option-value">$${Math.round(s.price || s.base).toLocaleString()}</div>
         <div>${label}</div>
+        ${qtyHtml}
       </div>
     `
   }).join('') || '<p style="text-align:center;color:var(--muted)">No shoes</p>'
-  
+
   $$('.shoe-option').forEach(opt => {
-    opt.onclick = () => {
-      $$('.shoe-option').forEach(o => o.classList.remove('selected'))
-      opt.classList.add('selected')
-      selectedShoe = {
-        id: parseInt(opt.dataset.id),
-        appraisal_id: opt.dataset.appraisal ? parseInt(opt.dataset.appraisal) : null,
-        value: parseFloat(opt.dataset.value)
+    opt.onclick = (e) => {
+      if (e.target.classList.contains('sq-btn')) return
+      const key = opt.dataset.key
+      if (selectedShoes[key]) {
+        delete selectedShoes[key]
+      } else {
+        selectedShoes[key] = {
+          id: parseInt(opt.dataset.id),
+          appraisal_id: opt.dataset.appraisal ? parseInt(opt.dataset.appraisal) : null,
+          value: parseFloat(opt.dataset.value),
+          appraised: opt.dataset.appraised === 'true',
+          qty: 1,
+          maxQty: parseInt(opt.dataset.maxqty)
+        }
       }
-      $('#selected-name').textContent = opt.querySelector('.shoe-option-name').textContent
-      $('#selected-value').textContent = Math.round(selectedShoe.value).toLocaleString()
-      $('#confirm-enter').disabled = false
+      renderShoeSelect()
+      updateSelection()
+    }
+  })
+
+  $$('.sq-minus').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation()
+      const key = btn.dataset.key
+      if (selectedShoes[key] && selectedShoes[key].qty > 1) {
+        selectedShoes[key].qty--
+        renderShoeSelect()
+        updateSelection()
+      }
+    }
+  })
+
+  $$('.sq-plus').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation()
+      const key = btn.dataset.key
+      if (selectedShoes[key] && selectedShoes[key].qty < selectedShoes[key].maxQty) {
+        selectedShoes[key].qty++
+        renderShoeSelect()
+        updateSelection()
+      }
     }
   })
 }
 
+const updateSelection = () => {
+  const entries = Object.values(selectedShoes)
+  const totalCount = entries.reduce((s, e) => s + (e.appraised ? 1 : e.qty), 0)
+  const totalValue = entries.reduce((s, e) => s + e.value * (e.appraised ? 1 : e.qty), 0)
+  $('#selected-name').textContent = totalCount > 0 ? `${totalCount} shoe${totalCount>1?'s':''}` : 'None'
+  $('#selected-value').textContent = Math.round(totalValue).toLocaleString()
+  $('#confirm-enter').disabled = totalCount === 0
+}
+
 $('#enter-pot-btn').onclick = () => {
   fetchMyShoes()
-  selectedShoe = null
+  selectedShoes = {}
   $('#selected-name').textContent = 'None'
   $('#selected-value').textContent = '0'
   $('#confirm-enter').disabled = true
@@ -203,18 +248,21 @@ $('#modal-close').onclick = () => $('#enter-modal').classList.add('hidden')
 $('#enter-modal').onclick = (e) => { if (e.target.id === 'enter-modal') $('#enter-modal').classList.add('hidden') }
 
 $('#confirm-enter').onclick = async () => {
-  if (!selectedShoe) return
+  const entries = Object.values(selectedShoes)
+  if (entries.length === 0) return
+  const shoes = entries.map(e => ({
+    shoe_id: e.appraised ? null : e.id,
+    appraisal_id: e.appraisal_id,
+    qty: e.appraised ? 1 : e.qty
+  }))
   let r = await fetch('/api/pot/enter', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      shoe_id: selectedShoe.appraisal_id ? null : selectedShoe.id,
-      appraisal_id: selectedShoe.appraisal_id
-    })
+    body: JSON.stringify({shoes})
   })
   let j = await r.json()
   if (j.ok) {
-    toast(`Entered shoe worth $${Math.round(j.value).toLocaleString()}!`)
+    toast(`Entered ${j.count} shoe${j.count>1?'s':''} worth $${Math.round(j.value).toLocaleString()}!`)
     $('#enter-modal').classList.add('hidden')
     fetchPot()
     fetchBalance()
@@ -229,26 +277,25 @@ $('#add-all-btn').onclick = async () => {
     return
   }
   if (!confirm(`Add all ${myShoes.length} shoes to the pot?`)) return
-  let total = 0, count = 0
-  for (const s of myShoes) {
-    const body = s.appraised 
-      ? { appraisal_id: s.appraisal_id }
-      : { shoe_id: s.id }
-    let r = await fetch('/api/pot/enter', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(body)
-    })
-    let j = await r.json()
-    if (j.ok) {
-      total += j.value
-      count++
-    }
+  const shoes = myShoes.map(s => ({
+    shoe_id: s.appraised ? null : s.id,
+    appraisal_id: s.appraised ? s.appraisal_id : null,
+    qty: s.appraised ? 1 : s.qty
+  }))
+  let r = await fetch('/api/pot/enter', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({shoes})
+  })
+  let j = await r.json()
+  if (j.ok) {
+    toast(`Added ${j.count} shoes worth $${Math.round(j.value).toLocaleString()}!`)
+    $('#enter-modal').classList.add('hidden')
+    fetchPot()
+    fetchBalance()
+  } else {
+    toast(j.error || 'Failed', 'error')
   }
-  toast(`Added ${count} shoes worth $${Math.round(total).toLocaleString()}!`)
-  $('#enter-modal').classList.add('hidden')
-  fetchPot()
-  fetchBalance()
 }
 
 if ($('#spin-btn')) {
@@ -311,24 +358,10 @@ $('#open-loot-btn').onclick = async () => {
 }
 
 const showLootResult = (data) => {
-  if (data.bust) {
-    $('#result-rarity').textContent = 'BUST'
-    $('#result-rarity').className = 'result-rarity rarity-common'
-    $('#result-name').textContent = '💀 You got nothing!'
-    $('#result-rating').textContent = '0/10'
-    $('#result-rating').className = 'result-rating rating-negative'
-    $('#result-paid').textContent = '$' + data.paid.toLocaleString()
-    $('#result-price').textContent = '$0'
-    $('#result-value').textContent = '$0'
-    let verdict = $('#result-verdict')
-    verdict.textContent = 'BUST -$' + data.paid.toLocaleString()
-    verdict.className = 'result-verdict verdict-loss'
-    $('#loot-result').classList.remove('hidden')
-    return
-  }
+  let variantTag = data.variant ? `<span class="loot-variant ${data.variant}">${data.variant==='rainbow'?'🌈 RAINBOW':'✨ SHINY'}</span>` : ''
   $('#result-rarity').textContent = data.shoe.rarity
   $('#result-rarity').className = 'result-rarity rarity-' + data.shoe.rarity
-  $('#result-name').textContent = data.shoe.name
+  $('#result-name').innerHTML = variantTag + data.shoe.name
   
   let ratingClass = data.rating >= 6 ? 'rating-positive' : data.rating >= 4 ? 'rating-neutral' : 'rating-negative'
   let sign = data.multiplier >= 1 ? '+' : ''
@@ -337,7 +370,7 @@ const showLootResult = (data) => {
   $('#result-rating').className = 'result-rating ' + ratingClass
   
   $('#result-paid').textContent = '$' + data.paid.toLocaleString()
-  $('#result-price').textContent = '$' + data.price.toLocaleString()
+  $('#result-price').textContent = '$' + Math.round(data.price).toLocaleString()
   $('#result-value').textContent = '$' + Math.round(data.value).toLocaleString()
   
   let diff = data.value - data.paid
@@ -350,7 +383,9 @@ const showLootResult = (data) => {
     verdict.className = 'result-verdict verdict-loss'
   }
   
-  $('#loot-result').classList.remove('hidden')
+  let resultDiv = $('#loot-result')
+  resultDiv.className = 'loot-state' + (data.variant ? ' variant-' + data.variant : '')
+  resultDiv.classList.remove('hidden')
 }
 
 // === COMMON ===
