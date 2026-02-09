@@ -48,6 +48,21 @@
       
       <section class="admin-section">
         <h2>👟 Give/Take Shoes</h2>
+        <div class="admin-form" style="margin-bottom:8px;">
+          <select id="rarity-filter" onchange="filterRarity()" style="width:120px;">
+            <option value="">All Rarities</option>
+            <option value="common">Common</option>
+            <option value="uncommon">Uncommon</option>
+            <option value="rare">Rare</option>
+            <option value="epic">Epic</option>
+            <option value="legendary">Legendary</option>
+            <option value="mythic">Mythic</option>
+            <option value="godly">Godly</option>
+            <option value="divine">Divine</option>
+            <option value="grails">Grails</option>
+            <option value="heavenly">Heavenly</option>
+          </select>
+        </div>
         <div class="admin-form">
           <input type="text" id="shoe-user" placeholder="Username">
           <select id="shoe-select"></select>
@@ -280,6 +295,6 @@
     </section>
   </main>
   <div id="toast" class="toast"></div>
-  <script src="/static/admin.js?v=2"></script>
+  <script src="/static/admin.js?v=3"></script>
 </body>
 </html>

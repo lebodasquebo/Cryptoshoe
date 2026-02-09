@@ -19,15 +19,21 @@ const loadUsers=async()=>{
     }
 }
 
+let allShoes=[]
 const loadShoes=async()=>{
     let r=await fetch('/api/admin/shoes')
     if(r.ok){
-        let shoes=await r.json()
-        $('#shoe-select').innerHTML=shoes.map(s=>`<option value="${s.id}">[${s.rarity}] ${s.name}</option>`).join('')
-        let addSelect=$('#add-shoe-id')
-        if(addSelect)addSelect.innerHTML='<option value="">Select Shoe...</option>'+shoes.map(s=>`<option value="${s.id}">[${s.rarity}] ${s.name} - $${s.base}</option>`).join('')
+        allShoes=await r.json()
+        renderShoeSelects()
     }
 }
+const renderShoeSelects=(filter='')=>{
+    let filtered=filter?allShoes.filter(s=>s.rarity===filter):allShoes
+    $('#shoe-select').innerHTML=filtered.map(s=>`<option value="${s.id}">[${s.rarity.toUpperCase()}] ${s.name}</option>`).join('')
+    let addSelect=$('#add-shoe-id')
+    if(addSelect)addSelect.innerHTML='<option value="">Select Shoe...</option>'+filtered.map(s=>`<option value="${s.id}">[${s.rarity.toUpperCase()}] ${s.name} - $${Math.round(s.base).toLocaleString()}</option>`).join('')
+}
+window.filterRarity=()=>{renderShoeSelects($('#rarity-filter').value)}
 
 window.addToStock=async()=>{
     let shoeId=$('#add-shoe-id').value

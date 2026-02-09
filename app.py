@@ -1541,7 +1541,9 @@ def admin_shoes():
     if not is_admin():
         return jsonify({"error": "Unauthorized"}), 403
     d = db()
-    shoes = d.execute("select id, name, rarity, base from shoes order by rarity, name").fetchall()
+    rarity_order = {r: i for i, r in enumerate(RARITIES)}
+    shoes = d.execute("select id, name, rarity, base from shoes order by name").fetchall()
+    shoes = sorted(shoes, key=lambda s: (rarity_order.get(s["rarity"], 99), s["name"]))
     return jsonify([dict(s) for s in shoes])
 
 @app.route("/api/admin/money", methods=["POST"])
