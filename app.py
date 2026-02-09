@@ -2328,10 +2328,10 @@ def api_lootbox():
     if bal < amount:
         return jsonify({"ok": False, "error": f"Not enough balance (need ${amount:,}, have ${bal:,.0f})"})
     target = amount * random.uniform(0.50, 1.45)
-    all_shoes = d.execute("select s.id, s.name, s.rarity, s.base, m.price from shoes s left join market m on m.shoe_id=s.id").fetchall()
+    all_shoes = d.execute("select id, name, rarity, base from shoes").fetchall()
     best, best_diff = None, float('inf')
     for s in all_shoes:
-        price = s["price"] if s["price"] else s["base"]
+        price = get_sell_price(s["id"]) or s["base"]
         if price <= 0:
             continue
         needed_mult = target / price
