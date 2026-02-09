@@ -276,11 +276,11 @@ VOLATILITY = {
     "rare": 1.6,
     "epic": 1.9,
     "legendary": 2.3,
-    "mythic": 2.8,
-    "godly": 3.4,
-    "divine": 3.8,
-    "grails": 4.25,
-    "heavenly": 4.25,
+    "mythic": 2.5,
+    "godly": 2.8,
+    "divine": 3.0,
+    "grails": 3.2,
+    "heavenly": 3.2,
 }
 ADMIN_USERS = ["lebodapotato"]
 ADMIN_IPS = []
@@ -900,28 +900,10 @@ def buy():
     if bal < cost:
         return jsonify({"ok": False, "error": "Not enough balance"})
     d.execute("insert into user_stock(user_id, shoe_id, stock_cycle, bought) values(?,?,?,?) on conflict(user_id, shoe_id, stock_cycle) do update set bought=bought+?", (u, shoe, stock_cycle, qty, qty))
-    now = int(time.time())
-    variants = []
-    normal_qty = qty
-    for _ in range(qty):
-        roll = random.random()
-        if roll < 0.01:
-            variants.append("rainbow")
-            normal_qty -= 1
-        elif roll < 0.06:
-            variants.append("shiny")
-            normal_qty -= 1
-    if normal_qty > 0:
-        d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+excluded.qty", (u, shoe, normal_qty))
-    for v in variants:
-        if v == "rainbow":
-            rating, mult = 9.5, 2.5
-        else:
-            rating, mult = 8.5, 1.5
-        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts, variant) values(?,?,?,?,?,?)", (u, shoe, rating, mult, now, v))
+    d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+excluded.qty", (u, shoe, qty))
     d.execute("update users set balance=balance-? where id=?", (cost, u))
     d.commit()
-    return jsonify({"ok": True, "variants": variants})
+    return jsonify({"ok": True})
 
 def get_sell_price(shoe_id):
     d = db()
@@ -1273,12 +1255,24 @@ def api_trades():
                 s["name"] = shoe["name"]
                 s["rarity"] = shoe["rarity"]
                 s["price"] = get_sell_price(s["id"]) or shoe["base"]
+            if s.get("appraised") and s.get("appraisal_id"):
+                ap = d.execute("select variant, rating, multiplier from appraised where id=?", (s["appraisal_id"],)).fetchone()
+                if ap:
+                    s["variant"] = ap["variant"] or ""
+                    s["rating"] = ap["rating"]
+                    s["multiplier"] = ap["multiplier"]
         for s in want:
             shoe = d.execute("select name, rarity, base from shoes where id=?", (s["id"],)).fetchone()
             if shoe:
                 s["name"] = shoe["name"]
                 s["rarity"] = shoe["rarity"]
                 s["price"] = get_sell_price(s["id"]) or shoe["base"]
+            if s.get("appraised") and s.get("appraisal_id"):
+                ap = d.execute("select variant, rating, multiplier from appraised where id=?", (s["appraisal_id"],)).fetchone()
+                if ap:
+                    s["variant"] = ap["variant"] or ""
+                    s["rating"] = ap["rating"]
+                    s["multiplier"] = ap["multiplier"]
         r["offer_shoes"] = offer
         r["want_shoes"] = want
         return r
@@ -2330,7 +2324,23 @@ def api_lootbox():
     bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
     if bal < amount:
         return jsonify({"ok": False, "error": f"Not enough balance (need ${amount:,}, have ${bal:,.0f})"})
-    target = amount * random.uniform(0.6, 1.4)
+    luck = random.random()
+    if luck < 0.12:
+        d.execute("update users set balance=balance-? where id=?", (amount, u))
+        d.commit()
+        return jsonify({
+            "ok": True, "bust": True,
+            "shoe": {"id": 0, "name": "NOTHING", "rarity": "common", "base": 0},
+            "rating": 0, "multiplier": 0, "price": 0, "value": 0, "paid": amount
+        })
+    if luck < 0.35:
+        target = amount * random.uniform(0.15, 0.6)
+    elif luck < 0.65:
+        target = amount * random.uniform(0.6, 1.0)
+    elif luck < 0.88:
+        target = amount * random.uniform(1.0, 1.5)
+    else:
+        target = amount * random.uniform(1.5, 2.5)
     all_shoes = d.execute("select s.id, s.name, s.rarity, s.base, m.price from shoes s left join market m on m.shoe_id=s.id").fetchall()
     best, best_diff = None, float('inf')
     for s in all_shoes:

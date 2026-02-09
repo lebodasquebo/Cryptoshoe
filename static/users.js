@@ -94,8 +94,10 @@ const renderShoeList=(shoes,container)=>{
   container.innerHTML=shoes.map(s=>{
     let val=(s.price||0)*(s.qty||1)
     total+=val
-    return `<div class="td-shoe">
-      <div><span class="td-shoe-name">${s.name}</span><div class="td-shoe-info">${s.rarity} ${s.qty>1?'×'+s.qty:''}</div></div>
+    let vc=s.variant?' variant-'+s.variant:''
+    let vb=s.variant?`<span style="font-size:10px;font-weight:700">${s.variant==='rainbow'?'🌈 RAINBOW':'✨ SHINY'}</span> `:''
+    return `<div class="td-shoe${vc}">
+      <div>${vb}<span class="td-shoe-name">${s.name}</span><div class="td-shoe-info">${s.rarity} ${s.qty>1?'×'+s.qty:''}</div></div>
       <span class="td-shoe-price">$${money(val)}</span>
     </div>`
   }).join('')

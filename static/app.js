@@ -83,7 +83,7 @@ const toast=(msg,type='success')=>{let t=$('#toast');t.textContent=msg;t.classNa
 
 const act=async(type,id,qty)=>{
   let r=await fetch('/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,qty:parseInt(qty)})})
-  if(r.ok){let j=await r.json();if(j.ok){let msg=type==='buy'?`Bought ${qty} shoe(s)!`:`Sold ${qty} shoe(s)!`;if(j.variants&&j.variants.length){let rc=j.variants.filter(v=>v==='rainbow').length,sc=j.variants.filter(v=>v==='shiny').length;if(rc)msg+=` 🌈 ${rc} RAINBOW!`;if(sc)msg+=` ✨ ${sc} SHINY!`}toast(msg);fetchState()}else toast(j.error||'Failed','error')}else toast('Request failed','error')
+  if(r.ok){let j=await r.json();if(j.ok){toast(type==='buy'?`Bought ${qty} shoe(s)!`:`Sold ${qty} shoe(s)!`);fetchState()}else toast(j.error||'Failed','error')}else toast('Request failed','error')
 }
 
 const select=id=>{sel=parseInt(id);updSidebar();$$('.card').forEach(c=>c.classList.toggle('active',parseInt(c.dataset.id)===sel))}

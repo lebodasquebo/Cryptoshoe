@@ -307,6 +307,21 @@ $('#open-loot-btn').onclick = async () => {
 }
 
 const showLootResult = (data) => {
+  if (data.bust) {
+    $('#result-rarity').textContent = 'BUST'
+    $('#result-rarity').className = 'result-rarity rarity-common'
+    $('#result-name').textContent = '💀 You got nothing!'
+    $('#result-rating').textContent = '0/10'
+    $('#result-rating').className = 'result-rating rating-negative'
+    $('#result-paid').textContent = '$' + data.paid.toLocaleString()
+    $('#result-price').textContent = '$0'
+    $('#result-value').textContent = '$0'
+    let verdict = $('#result-verdict')
+    verdict.textContent = 'BUST -$' + data.paid.toLocaleString()
+    verdict.className = 'result-verdict verdict-loss'
+    $('#loot-result').classList.remove('hidden')
+    return
+  }
   $('#result-rarity').textContent = data.shoe.rarity
   $('#result-rarity').className = 'result-rarity rarity-' + data.shoe.rarity
   $('#result-name').textContent = data.shoe.name
