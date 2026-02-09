@@ -32,7 +32,8 @@ const render=()=>{
   
   if(allShoes.length){
     grid.innerHTML=allShoes.map(s=>`
-      <div class="shoe-item">
+      <div class="shoe-item${s.variant?' variant-'+s.variant:''}">
+        ${s.variant?`<div class="variant-badge ${s.variant}">${s.variant==='rainbow'?'🌈 RAINBOW':'✨ SHINY'}</div>`:''}
         <div class="shoe-item-name">${s.name}</div>
         <div class="shoe-item-rarity ${rarClass(s.rarity)}">${s.rarity.toUpperCase()}</div>
         <div class="shoe-item-qty">${s.appraised?'⭐ '+s.rating.toFixed(1):'×'+s.qty}</div>

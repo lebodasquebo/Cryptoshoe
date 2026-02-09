@@ -217,6 +217,10 @@ def init():
         d.execute("alter table users add column last_seen integer default 0")
     except:
         pass
+    try:
+        d.execute("alter table appraised add column variant text default ''")
+    except:
+        pass
     d.commit()
 
 def pick(w):
@@ -548,7 +552,7 @@ def state(u):
     where h.user_id=? order by s.rarity, s.name
     """, (u,)).fetchall()
     appraised = d.execute("""
-    select a.id as appraisal_id, a.shoe_id id, s.name, s.rarity, s.base, a.rating, a.multiplier
+    select a.id as appraisal_id, a.shoe_id id, s.name, s.rarity, s.base, a.rating, a.multiplier, coalesce(a.variant,'') as variant
     from appraised a join shoes s on s.id=a.shoe_id
     where a.user_id=? order by a.rating desc, s.name
     """, (u,)).fetchall()
@@ -853,10 +857,28 @@ def buy():
     if bal < cost:
         return jsonify({"ok": False, "error": "Not enough balance"})
     d.execute("insert into user_stock(user_id, shoe_id, stock_cycle, bought) values(?,?,?,?) on conflict(user_id, shoe_id, stock_cycle) do update set bought=bought+?", (u, shoe, stock_cycle, qty, qty))
-    d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+excluded.qty", (u, shoe, qty))
+    now = int(time.time())
+    variants = []
+    normal_qty = qty
+    for _ in range(qty):
+        roll = random.random()
+        if roll < 0.01:
+            variants.append("rainbow")
+            normal_qty -= 1
+        elif roll < 0.06:
+            variants.append("shiny")
+            normal_qty -= 1
+    if normal_qty > 0:
+        d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+excluded.qty", (u, shoe, normal_qty))
+    for v in variants:
+        if v == "rainbow":
+            rating, mult = 9.5, 2.5
+        else:
+            rating, mult = 8.5, 1.5
+        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts, variant) values(?,?,?,?,?,?)", (u, shoe, rating, mult, now, v))
     d.execute("update users set balance=balance-? where id=?", (cost, u))
     d.commit()
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "variants": variants})
 
 def get_sell_price(shoe_id):
     d = db()
@@ -1068,8 +1090,14 @@ def do_appraise():
             multiplier = 1.0 - (5.0 - rating) * 0.12
             comment = bob_comment("terrible")
         multiplier = round(multiplier, 2)
-        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (u, shoe_id, rating, multiplier, now))
-        results.append({"rating": rating, "multiplier": multiplier, "comment": comment, "perfect": rating == 10.0, "rating_class": rating_class(rating)})
+        vroll = random.random()
+        variant = "rainbow" if vroll < 0.01 else "shiny" if vroll < 0.06 else ""
+        if variant == "rainbow":
+            multiplier = round(multiplier * 2.5, 2)
+        elif variant == "shiny":
+            multiplier = round(multiplier * 1.5, 2)
+        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts, variant) values(?,?,?,?,?,?)", (u, shoe_id, rating, multiplier, now, variant))
+        results.append({"rating": rating, "multiplier": multiplier, "comment": comment, "perfect": rating == 10.0, "rating_class": rating_class(rating), "variant": variant})
     d.execute("update hold set qty=qty-? where user_id=? and shoe_id=?", (qty, u, shoe_id))
     d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (u, shoe_id))
     d.execute("update users set balance=balance-? where id=?", (total_cost, u))
@@ -1385,7 +1413,7 @@ def api_my_shoes():
         r["favorited"] = s["id"] in fav_shoes
         result.append(r)
     appraised = d.execute("""
-        select a.id as appraisal_id, a.shoe_id as id, s.name, s.rarity, s.base, a.rating, a.multiplier
+        select a.id as appraisal_id, a.shoe_id as id, s.name, s.rarity, s.base, a.rating, a.multiplier, coalesce(a.variant,'') as variant
         from appraised a join shoes s on s.id=a.shoe_id
         where a.user_id=? order by a.rating desc
     """, (u,)).fetchall()
@@ -1417,7 +1445,7 @@ def api_user_shoes(username):
         r["appraised"] = False
         result.append(r)
     appraised = d.execute("""
-        select a.id as appraisal_id, a.shoe_id as id, s.name, s.rarity, s.base, a.rating, a.multiplier
+        select a.id as appraisal_id, a.shoe_id as id, s.name, s.rarity, s.base, a.rating, a.multiplier, coalesce(a.variant,'') as variant
         from appraised a join shoes s on s.id=a.shoe_id
         where a.user_id=? order by a.rating desc
     """, (acc["id"],)).fetchall()

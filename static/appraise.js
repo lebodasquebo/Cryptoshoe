@@ -33,11 +33,11 @@ const showResults=(res)=>{
   let m=$('#appraise-modal'),content=$('#modal-results')
   content.innerHTML=''
   if(res.qty===1){
-    let r=res.results[0]
-    content.innerHTML=`<div class="single-result"><div class="modal-rating ${r.rating_class}">${r.rating.toFixed(1)}</div><div class="modal-comment">${r.comment}</div><div class="modal-mult ${r.multiplier>=1?'up':'down'}">${r.multiplier>=1?'+':''}${((r.multiplier-1)*100).toFixed(0)}% value</div></div>`
+    let r=res.results[0],vt=r.variant?`<div class="variant-badge ${r.variant}">${r.variant==='rainbow'?'🌈 RAINBOW':'✨ SHINY'}</div>`:''
+    content.innerHTML=`<div class="single-result">${vt}<div class="modal-rating ${r.rating_class}">${r.rating.toFixed(1)}</div><div class="modal-comment">${r.comment}</div><div class="modal-mult ${r.multiplier>=1?'up':'down'}">${r.multiplier>=1?'+':''}${((r.multiplier-1)*100).toFixed(0)}% value</div></div>`
   }else{
     let html='<div class="multi-results"><div class="results-grid">'
-    res.results.forEach((r,i)=>{html+=`<div class="result-item ${r.rating_class}"><div class="result-num">#${i+1}</div><div class="result-rating">${r.rating.toFixed(1)}</div><div class="result-mult ${r.multiplier>=1?'up':'down'}">${r.multiplier>=1?'+':''}${((r.multiplier-1)*100).toFixed(0)}%</div></div>`})
+    res.results.forEach((r,i)=>{let vt=r.variant?`<div class="variant-badge ${r.variant}">${r.variant==='rainbow'?'🌈':'✨'}</div>`:'';html+=`<div class="result-item ${r.rating_class}${r.variant?' variant-'+r.variant:''}">${vt}<div class="result-num">#${i+1}</div><div class="result-rating">${r.rating.toFixed(1)}</div><div class="result-mult ${r.multiplier>=1?'up':'down'}">${r.multiplier>=1?'+':''}${((r.multiplier-1)*100).toFixed(0)}%</div></div>`})
     html+=`</div><div class="best-result"><div class="best-label">BEST RESULT</div><div class="best-rating ${res.best.rating_class}">${res.best.rating.toFixed(1)}</div><div class="best-comment">${res.best.comment}</div></div></div>`
     content.innerHTML=html
   }

@@ -69,7 +69,7 @@ const updSidebar=()=>{
   $('#s-price').textContent='$'+money(price)
   if(!item.in_market&&!item.appraised)$('#s-price').textContent+=' (off-market)'
   let p=base?pct(price,base):0;$('#s-pct-wrap').className='price-change '+(p>=0?'up':'down');$('#s-pct').textContent=(p>=0?'+':'')+p.toFixed(2)+'%'
-  if(item.appraised){$('#s-owned').textContent='1 (Appraised)';$('#s-total').textContent='$'+money(price);$('#s-qty').max=1;$('#s-qty').value=1;$('#s-qty').disabled=true}
+  if(item.appraised){$('#s-owned').textContent=item.variant?'1 ('+item.variant.toUpperCase()+')':'1 (Appraised)';$('#s-total').textContent='$'+money(price);$('#s-qty').max=1;$('#s-qty').value=1;$('#s-qty').disabled=true}
   else{$('#s-owned').textContent=item.qty;$('#s-total').textContent='$'+money(price*item.qty);$('#s-qty').max=item.qty;$('#s-qty').value=Math.min(parseInt($('#s-qty').value)||1,item.qty);$('#s-qty').disabled=false}
   updSellPreview()
 }
@@ -103,9 +103,10 @@ const upd=()=>{
       let d=appraisedCard(a,idx),rb=d.querySelector('.inv-card-rarity');rb.textContent=a.rarity.toUpperCase();rb.className='inv-card-rarity '+rarClass(a.rarity)
       let badge=d.querySelector('.appraisal-badge');badge.textContent=a.rating.toFixed(1);badge.className='appraisal-badge badge-'+a.rating_class
       d.querySelector('.inv-card-name').textContent=a.name
+      if(a.variant){let vb=document.createElement('div');vb.className='variant-badge '+a.variant;vb.textContent=a.variant==='rainbow'?'🌈 RAINBOW':'✨ SHINY';d.querySelector('.inv-card-name').before(vb)}
       let rat=d.querySelector('.appraisal-rating'),pctVal=((a.multiplier-1)*100).toFixed(0);rat.innerHTML='<span class="'+(a.multiplier>=1?'up':'down')+'">'+(a.multiplier>=1?'+':'')+pctVal+'% value</span>'
       d.querySelector('.inv-card-price').textContent='$'+money(a.sell_price)+' ea';d.querySelector('.inv-card-value').textContent='Value: $'+money(a.sell_price)
-      d.classList.add('rating-'+a.rating_class);d.classList.toggle('active',selType==='appraised'&&sel===parseInt(a.appraisal_id))
+      d.classList.add('rating-'+a.rating_class);if(a.variant)d.classList.add('variant-'+a.variant);d.classList.toggle('active',selType==='appraised'&&sel===parseInt(a.appraisal_id))
       d.classList.toggle('favorited',a.favorited);d.querySelector('.fav-btn').classList.toggle('active',a.favorited);inv.append(d)
     })
     state.hold.forEach((h,idx)=>{

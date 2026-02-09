@@ -157,8 +157,11 @@ const renderShoeSelect = () => {
   grid.innerHTML = myShoes.map(s => {
     const key = s.appraised ? `a_${s.appraisal_id}` : `h_${s.id}`
     const label = s.appraised ? `⭐${s.rating.toFixed(1)}` : `×${s.qty}`
+    const vc = s.variant ? ' variant-'+s.variant : ''
+    const vb = s.variant ? `<div class="variant-badge ${s.variant}">${s.variant==='rainbow'?'🌈':'✨'}</div>` : ''
     return `
-      <div class="shoe-option" data-key="${key}" data-id="${s.id}" data-appraisal="${s.appraisal_id || ''}" data-value="${s.price || s.base}">
+      <div class="shoe-option${vc}" data-key="${key}" data-id="${s.id}" data-appraisal="${s.appraisal_id || ''}" data-value="${s.price || s.base}">
+        ${vb}
         <div class="shoe-option-name">${s.name}</div>
         <div class="shoe-option-rarity rarity-${s.rarity}">${s.rarity}</div>
         <div class="shoe-option-value">$${Math.round(s.price || s.base).toLocaleString()}</div>
