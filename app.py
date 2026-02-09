@@ -239,8 +239,8 @@ def pick(w):
             return i
     return len(w) - 1
 
-RARITIES = ["common","uncommon","rare","epic","legendary","mythic","godly","divine","grails"]
-WEIGHTS = [40,22,14,10,6,4,2,1.5,0.5]
+RARITIES = ["common","uncommon","rare","epic","legendary","mythic","godly","divine","grails","heavenly"]
+WEIGHTS = [40,22,14,10,6,4,2,1.5,0.5,0.1]
 BASE_PRICES = {
     "common": (500, 1500),
     "uncommon": (1200, 3500),
@@ -251,6 +251,7 @@ BASE_PRICES = {
     "godly": (80000, 250000),
     "divine": (200000, 500000),
     "grails": (500000, 2000000),
+    "heavenly": (8000000, 12000000),
 }
 VOLATILITY = {
     "common": 1.2,
@@ -262,6 +263,7 @@ VOLATILITY = {
     "godly": 3.4,
     "divine": 3.8,
     "grails": 4.25,
+    "heavenly": 4.25,
 }
 ADMIN_USERS = ["lebodapotato"]
 ADMIN_IPS = []
@@ -277,6 +279,10 @@ GRAILS_SHOES = [
     "Eternal Air One", "Crown Stride Supreme", "Throne Runner Gold",
     "Omega Kick Elite", "Deity Glider Apex", "Reign Step Immortal",
     "Emperor Dash Cosmic", "Genesis Runner Ultra", "Monarch Stride Astral"
+]
+HEAVENLY_SHOES = [
+    "Seraph Glide Ascend", "Archangel Runner One", "Nimbus Stride Halo",
+    "Cherub Kick Divine", "Elysium Walker Prime", "Paradise Sole Zenith"
 ]
 
 def seed():
@@ -305,6 +311,9 @@ def seed():
     for name in GRAILS_SHOES:
         lo, hi = BASE_PRICES["grails"]
         rows.append((name, "grails", round(random.uniform(lo, hi), 2)))
+    for name in HEAVENLY_SHOES:
+        lo, hi = BASE_PRICES["heavenly"]
+        rows.append((name, "heavenly", round(random.uniform(lo, hi), 2)))
     d.executemany("insert or ignore into shoes(name, rarity, base) values(?,?,?)", rows)
     d.commit()
 
@@ -330,6 +339,7 @@ def stock_amt(r):
         "godly": (1, 3),
         "divine": (1, 2),
         "grails": (1, 1),
+        "heavenly": (1, 1),
     }[r]
 
 def refresh(force=False):
@@ -358,6 +368,16 @@ def refresh(force=False):
         price = round(base * (1 + random.uniform(-0.15, 0.15) * vol), 2)
         rows.append((shoe["id"], stock, price, base, "", 0.0, 0))
         d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe["id"], now, price))
+    if random.random() < 0.001:
+        rr = "heavenly"
+        shoe = d.execute("select * from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()
+        if shoe and shoe["id"] not in picked:
+            picked.add(shoe["id"])
+            stock = 1
+            vol = VOLATILITY[rr]
+            price = round(shoe["base"] * (1 + random.uniform(-0.15, 0.15) * vol), 2)
+            rows.append((shoe["id"], stock, price, shoe["base"], "", 0.0, 0))
+            d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe["id"], now, price))
     if random.random() < 0.01:
         rr = "grails" if random.random() < 0.25 else "divine"
         shoe = d.execute("select * from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()

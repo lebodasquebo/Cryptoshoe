@@ -623,6 +623,7 @@
 .rarity-godly { color: #ec4899; }
 .rarity-divine { color: #06b6d4; }
 .rarity-grails { color: #ffd700; }
+.rarity-heavenly { color: #e0c0ff; }
 
 .rating-positive { color: var(--green); }
 .rating-neutral { color: var(--yellow); }

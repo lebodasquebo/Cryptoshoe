@@ -33,8 +33,8 @@ async def check_stock():
                             last_refresh = next_refresh
                         for shoe in data.get('market', []):
                             key = f"{shoe['id']}_{next_refresh}"
-                            if shoe['rarity'] in ['grails', 'divine'] and key not in last_alerted:
-                                emoji = '👑' if shoe['rarity'] == 'grails' else '💎'
+                            if shoe['rarity'] in ['heavenly', 'grails', 'divine'] and key not in last_alerted:
+                                emoji = '👼' if shoe['rarity'] == 'heavenly' else ('👑' if shoe['rarity'] == 'grails' else '💎')
                                 await channel.send(f"{emoji} **{shoe['rarity'].upper()} IN STOCK!** {emoji}\n{shoe['name']} - ${shoe['price']:,.0f} ({shoe['stock']} available)")
                                 last_alerted.add(key)
                                 print(f"Alerted: {shoe['name']}")
