@@ -620,9 +620,9 @@
 .rarity-epic { color: #a855f7; }
 .rarity-legendary { color: #f59e0b; }
 .rarity-mythic { color: #ef4444; }
-.rarity-secret { color: #ec4899; }
-.rarity-dexies { color: #06b6d4; }
-.rarity-lebos { color: #ffd700; }
+.rarity-godly { color: #ec4899; }
+.rarity-divine { color: #06b6d4; }
+.rarity-grails { color: #ffd700; }
 
 .rating-positive { color: var(--green); }
 .rating-neutral { color: var(--yellow); }

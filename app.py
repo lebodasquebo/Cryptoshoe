@@ -221,6 +221,11 @@ def init():
         d.execute("alter table appraised add column variant text default ''")
     except:
         pass
+    d.execute("update shoes set rarity='godly' where rarity='secret'")
+    d.execute("update shoes set rarity='divine' where rarity='dexies'")
+    d.execute("update shoes set rarity='grails' where rarity='lebos'")
+    d.execute("update shoes set name=replace(name,'Dexies ','Divine ') where name like 'Dexies %'")
+    d.execute("update shoes set name=replace(name,'Lebos ','Grails ') where name like 'Lebos %'")
     d.commit()
 
 def pick(w):
@@ -232,7 +237,7 @@ def pick(w):
             return i
     return len(w) - 1
 
-RARITIES = ["common","uncommon","rare","epic","legendary","mythic","secret","dexies","lebos"]
+RARITIES = ["common","uncommon","rare","epic","legendary","mythic","godly","divine","grails"]
 WEIGHTS = [40,22,14,10,6,4,2,1.5,0.5]
 BASE_PRICES = {
     "common": (500, 1500),
@@ -241,9 +246,9 @@ BASE_PRICES = {
     "epic": (7000, 18000),
     "legendary": (15000, 40000),
     "mythic": (35000, 90000),
-    "secret": (80000, 250000),
-    "dexies": (200000, 500000),
-    "lebos": (500000, 2000000),
+    "godly": (80000, 250000),
+    "divine": (200000, 500000),
+    "grails": (500000, 2000000),
 }
 VOLATILITY = {
     "common": 1.2,
@@ -252,24 +257,24 @@ VOLATILITY = {
     "epic": 1.9,
     "legendary": 2.3,
     "mythic": 2.8,
-    "secret": 3.4,
-    "dexies": 3.8,
-    "lebos": 4.25,
+    "godly": 3.4,
+    "divine": 3.8,
+    "grails": 4.25,
 }
 ADMIN_USERS = ["lebodapotato"]
 ADMIN_IPS = []
 MAX_BALANCE = 100000000
 
-DEXIES_SHOES = [
-    "Dexies Phantom Protocol", "Dexies Neural Apex", "Dexies Quantum Flux",
-    "Dexies Void Walker", "Dexies Neon Genesis", "Dexies Cyber Nexus",
-    "Dexies Hologram Prime", "Dexies Infinity Core", "Dexies Plasma Edge",
-    "Dexies Dark Matter", "Dexies Stellar Drift", "Dexies Zero Gravity"
+DIVINE_SHOES = [
+    "Divine Phantom Protocol", "Divine Neural Apex", "Divine Quantum Flux",
+    "Divine Void Walker", "Divine Neon Genesis", "Divine Cyber Nexus",
+    "Divine Hologram Prime", "Divine Infinity Core", "Divine Plasma Edge",
+    "Divine Dark Matter", "Divine Stellar Drift", "Divine Zero Gravity"
 ]
-LEBOS_SHOES = [
-    "Lebos Divine Ascension", "Lebos Eternal Crown", "Lebos Celestial One",
-    "Lebos Golden Throne", "Lebos Supreme Omega", "Lebos Apex Deity",
-    "Lebos Immortal Reign", "Lebos Cosmic Emperor", "Lebos Ultimate Genesis"
+GRAILS_SHOES = [
+    "Grails Eternal Ascension", "Grails Eternal Crown", "Grails Celestial One",
+    "Grails Golden Throne", "Grails Supreme Omega", "Grails Apex Deity",
+    "Grails Immortal Reign", "Grails Cosmic Emperor", "Grails Ultimate Genesis"
 ]
 
 def seed():
@@ -282,7 +287,7 @@ def seed():
     c = ["One","II","III","IV","V","Prime","Edge","Core","Zero","Plus","Max","Ultra","Lite","Pro","XR","GT","NX","MK","FX","VX"]
     names = set()
     rows = []
-    normal_rarities = ["common","uncommon","rare","epic","legendary","mythic","secret"]
+    normal_rarities = ["common","uncommon","rare","epic","legendary","mythic","godly"]
     normal_weights = [40,22,14,10,6,4,2]
     while len(rows) < 120:
         name = f"{random.choice(a)} {random.choice(b)} {random.choice(c)}"
@@ -292,12 +297,12 @@ def seed():
         rr = normal_rarities[pick(normal_weights)]
         lo, hi = BASE_PRICES[rr]
         rows.append((name, rr, round(random.uniform(lo, hi), 2)))
-    for name in DEXIES_SHOES:
-        lo, hi = BASE_PRICES["dexies"]
-        rows.append((name, "dexies", round(random.uniform(lo, hi), 2)))
-    for name in LEBOS_SHOES:
-        lo, hi = BASE_PRICES["lebos"]
-        rows.append((name, "lebos", round(random.uniform(lo, hi), 2)))
+    for name in DIVINE_SHOES:
+        lo, hi = BASE_PRICES["divine"]
+        rows.append((name, "divine", round(random.uniform(lo, hi), 2)))
+    for name in GRAILS_SHOES:
+        lo, hi = BASE_PRICES["grails"]
+        rows.append((name, "grails", round(random.uniform(lo, hi), 2)))
     d.executemany("insert or ignore into shoes(name, rarity, base) values(?,?,?)", rows)
     d.commit()
 
@@ -320,9 +325,9 @@ def stock_amt(r):
         "epic": (4, 12),
         "legendary": (2, 8),
         "mythic": (1, 5),
-        "secret": (1, 3),
-        "dexies": (1, 2),
-        "lebos": (1, 1),
+        "godly": (1, 3),
+        "divine": (1, 2),
+        "grails": (1, 1),
     }[r]
 
 def refresh(force=False):
@@ -336,7 +341,7 @@ def refresh(force=False):
     d.execute("delete from market")
     picked = set()
     rows = []
-    normal_rarities = ["common","uncommon","rare","epic","legendary","mythic","secret"]
+    normal_rarities = ["common","uncommon","rare","epic","legendary","mythic","godly"]
     normal_weights = [40,22,14,10,6,4,2]
     while len(rows) < 14:
         rr = normal_rarities[pick(normal_weights)]
@@ -352,7 +357,7 @@ def refresh(force=False):
         rows.append((shoe["id"], stock, price, base, "", 0.0, 0))
         d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe["id"], now, price))
     if random.random() < 0.01:
-        rr = "lebos" if random.random() < 0.25 else "dexies"
+        rr = "grails" if random.random() < 0.25 else "divine"
         shoe = d.execute("select * from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()
         if shoe and shoe["id"] not in picked:
             picked.add(shoe["id"])

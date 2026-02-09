@@ -127,7 +127,7 @@
   color: var(--red);
 }
 .chat-msg.judge .chat-msg-user {
-  color: var(--lebos);
+  color: var(--grails);
 }
 .chat-input-wrap {
   display: flex;
@@ -238,11 +238,11 @@
   color: var(--red);
 }
 .judge-box {
-  border-color: var(--lebos);
+  border-color: var(--grails);
   background: linear-gradient(145deg, rgba(255, 215, 0, 0.05), var(--bg2));
 }
 .judge-header {
-  color: var(--lebos);
+  color: var(--grails);
 }
 .judge-controls {
   display: flex;
@@ -259,7 +259,7 @@
 }
 .judge-controls button {
   padding: 10px 16px;
-  background: var(--lebos);
+  background: var(--grails);
   border: none;
   border-radius: 6px;
   color: var(--bg);
@@ -306,7 +306,7 @@
   bottom: 20px;
   right: 20px;
   background: var(--bg2);
-  border: 1px solid var(--lebos);
+  border: 1px solid var(--grails);
   border-radius: var(--radius);
   padding: 16px;
   z-index: 100;
@@ -318,7 +318,7 @@
 .admin-start-panel h3 {
   font-family: 'Orbitron', sans-serif;
   font-size: 12px;
-  color: var(--lebos);
+  color: var(--grails);
   margin: 0;
 }
 .admin-start-panel input {
@@ -331,7 +331,7 @@
 }
 .admin-start-panel button {
   padding: 12px;
-  background: var(--lebos);
+  background: var(--grails);
   border: none;
   border-radius: 6px;
   color: var(--bg);
