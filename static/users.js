@@ -95,9 +95,10 @@ const renderShoeList=(shoes,container)=>{
     let val=(s.price||0)*(s.qty||1)
     total+=val
     let vc=s.variant?' variant-'+s.variant:''
-    let vb=s.variant?`<span style="font-size:10px;font-weight:700">${s.variant==='rainbow'?'🌈 RAINBOW':'✨ SHINY'}</span> `:''
+    let vb=s.variant?`<div class="variant-badge ${s.variant}">${s.variant==='rainbow'?'🌈 RAINBOW':'✨ SHINY'}</div>`:''
+    let ratingInfo=s.appraised&&s.rating?` ⭐${s.rating.toFixed(1)}`:''
     return `<div class="td-shoe${vc}">
-      <div>${vb}<span class="td-shoe-name">${s.name}</span><div class="td-shoe-info">${s.rarity} ${s.qty>1?'×'+s.qty:''}</div></div>
+      <div>${vb}<span class="td-shoe-name">${s.name}</span><div class="td-shoe-info">${s.rarity}${ratingInfo} ${s.qty>1?'×'+s.qty:''}</div></div>
       <span class="td-shoe-price">$${money(val)}</span>
     </div>`
   }).join('')

@@ -126,7 +126,7 @@
 .get-col h4{color:var(--green)}
 .trade-col-arrow{display:flex;align-items:center;font-size:24px;color:var(--text3)}
 .td-shoes{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-.td-shoe{display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--bg2);border-radius:6px;font-size:12px}
+.td-shoe{display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--bg2);border-radius:6px;font-size:12px;position:relative}
 .td-shoe-name{font-weight:600}
 .td-shoe-info{color:var(--text2);font-size:11px}
 .td-shoe-price{color:var(--accent);font-family:'Orbitron',sans-serif}

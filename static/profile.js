@@ -73,9 +73,10 @@ const renderTradeModal=()=>{
     let key=getKey(s)
     let sel=offerShoes.find(x=>x.key===key)
     let vc=s.variant?' variant-'+s.variant:''
-    let vb=s.variant?`${s.variant==='rainbow'?'🌈':'✨'} `:''
-    let label=s.appraised?`⭐${s.rating.toFixed(1)} ${vb}${s.name}`:s.name
+    let vb=s.variant?`<div class="variant-badge ${s.variant}">${s.variant==='rainbow'?'🌈':'✨'}</div>`:''
+    let label=s.appraised?`⭐${s.rating.toFixed(1)} ${s.name}`:s.name
     return `<div class="shoe-select-item${sel?' selected':''}${vc}" data-key="${key}">
+      ${vb}
       <div class="shoe-select-name">${label}</div>
       <span class="shoe-price">$${money(s.price||0)}</span>
       <small>${s.appraised?'Appraised':'Own: '+s.qty}</small>
@@ -91,9 +92,10 @@ const renderTradeModal=()=>{
     let key=getKey(s)
     let sel=wantShoes.find(x=>x.key===key)
     let vc=s.variant?' variant-'+s.variant:''
-    let vb=s.variant?`${s.variant==='rainbow'?'🌈':'✨'} `:''
-    let label=s.appraised?`⭐${s.rating.toFixed(1)} ${vb}${s.name}`:s.name
+    let vb=s.variant?`<div class="variant-badge ${s.variant}">${s.variant==='rainbow'?'🌈':'✨'}</div>`:''
+    let label=s.appraised?`⭐${s.rating.toFixed(1)} ${s.name}`:s.name
     return `<div class="shoe-select-item${sel?' selected':''}${vc}" data-key="${key}">
+      ${vb}
       <div class="shoe-select-name">${label}</div>
       <span class="shoe-price">$${money(s.price||0)}</span>
       <small>${s.appraised?'Appraised':'Has: '+s.qty}</small>
@@ -105,8 +107,8 @@ const renderTradeModal=()=>{
     </div>`
   }).join('')
   
-  $('#offer-selected').innerHTML=offerShoes.map(s=>`<span class="selected-shoe">${s.name}${s.qty>1?' ×'+s.qty:''}</span>`).join('')
-  $('#want-selected').innerHTML=wantShoes.map(s=>`<span class="selected-shoe">${s.name}${s.qty>1?' ×'+s.qty:''}</span>`).join('')
+  $('#offer-selected').innerHTML=offerShoes.map(s=>{let shoe=myShoes.find(x=>getKey(x)===s.key);let vi=shoe&&shoe.variant?`${shoe.variant==='rainbow'?'🌈':'✨'} `:'';return `<span class="selected-shoe">${vi}${s.name}${s.qty>1?' ×'+s.qty:''}</span>`}).join('')
+  $('#want-selected').innerHTML=wantShoes.map(s=>{let shoe=theirShoes.find(x=>getKey(x)===s.key);let vi=shoe&&shoe.variant?`${shoe.variant==='rainbow'?'🌈':'✨'} `:'';return `<span class="selected-shoe">${vi}${s.name}${s.qty>1?' ×'+s.qty:''}</span>`}).join('')
   calcTotals()
   
   yourGrid.querySelectorAll('.shoe-select-item').forEach(el=>{

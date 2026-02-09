@@ -35,7 +35,7 @@ const invCard=(h,i)=>{
   d.dataset.type='hold'
   d.style.animationDelay=i*0.05+'s'
   d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="inv-card-qty"></div><button class="fav-btn" title="Favorite (protected from Sell All)">★</button></div><div class="inv-card-name"></div><div class="inv-card-status"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
-  d.querySelector('.inv-card-head').onclick=(e)=>{if(!e.target.classList.contains('fav-btn'))select(h.id,'hold')}
+  d.onclick=(e)=>{if(!e.target.classList.contains('fav-btn'))select(h.id,'hold')}
   d.querySelector('.fav-btn').onclick=(e)=>{e.stopPropagation();toggleFav(h.id,0)}
   return d
 }
@@ -46,7 +46,7 @@ const appraisedCard=(a,i)=>{
   d.dataset.type='appraised'
   d.style.animationDelay=i*0.05+'s'
   d.innerHTML=`<div class="inv-card-head"><div class="inv-card-rarity"></div><div class="appraisal-badge"></div><button class="fav-btn" title="Favorite (protected from Sell All)">★</button></div><div class="inv-card-name"></div><div class="appraisal-rating"></div><div class="inv-card-price"></div><div class="inv-card-value"></div>`
-  d.querySelector('.inv-card-head').onclick=(e)=>{if(!e.target.classList.contains('fav-btn'))select(a.appraisal_id,'appraised')}
+  d.onclick=(e)=>{if(!e.target.classList.contains('fav-btn'))select(a.appraisal_id,'appraised')}
   d.querySelector('.fav-btn').onclick=(e)=>{e.stopPropagation();toggleFav(a.id,a.appraisal_id)}
   return d
 }

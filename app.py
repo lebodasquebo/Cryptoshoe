@@ -1219,7 +1219,7 @@ def api_user_profile(username):
         where h.user_id=? order by s.rarity desc, s.name
     """, (acc["id"],)).fetchall()
     appraised = d.execute("""
-        select s.name, s.rarity, a.rating from appraised a 
+        select s.name, s.rarity, a.rating, a.multiplier, coalesce(a.variant,'') as variant from appraised a 
         join shoes s on s.id=a.shoe_id 
         where a.user_id=? order by a.rating desc
     """, (acc["id"],)).fetchall()
