@@ -268,15 +268,15 @@ ADMIN_IPS = []
 MAX_BALANCE = 100000000
 
 DIVINE_SHOES = [
-    "Phantom Protocol", "Neural Apex", "Quantum Flux",
-    "Void Walker", "Neon Genesis", "Cyber Nexus",
-    "Hologram Prime", "Infinity Core", "Plasma Edge",
-    "Dark Matter", "Stellar Drift", "Zero Gravity"
+    "Phantom Runner V", "Nexus Stride Pro", "Quantum Glider X",
+    "Void Step Eclipse", "Genesis Boost NX", "Cyber Kick Prime",
+    "Holo Glide Ultra", "Infinity Runner Max", "Plasma Stride Edge",
+    "Eclipse Walker GT", "Stellar Dash Drift", "Zero-G Sole XR"
 ]
 GRAILS_SHOES = [
-    "Eternal Ascension", "Celestial Crown", "Golden Throne",
-    "Supreme Omega", "Apex Deity", "Immortal Reign",
-    "Cosmic Emperor", "Ultimate Genesis", "Astral Monarch"
+    "Eternal Air One", "Crown Stride Supreme", "Throne Runner Gold",
+    "Omega Kick Elite", "Deity Glider Apex", "Reign Step Immortal",
+    "Emperor Dash Cosmic", "Genesis Runner Ultra", "Monarch Stride Astral"
 ]
 
 def seed():
