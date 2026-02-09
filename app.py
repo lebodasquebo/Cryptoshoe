@@ -281,8 +281,7 @@ GRAILS_SHOES = [
     "Emperor Dash Cosmic", "Genesis Runner Ultra", "Monarch Stride Astral"
 ]
 HEAVENLY_SHOES = [
-    "Seraph Glide Ascend", "Archangel Runner One", "Nimbus Stride Halo",
-    "Cherub Kick Divine", "Elysium Walker Prime", "Paradise Sole Zenith"
+    "Aurora Stride Celestial"
 ]
 
 def seed():
