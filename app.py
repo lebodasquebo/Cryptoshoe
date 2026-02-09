@@ -224,8 +224,10 @@ def init():
     d.execute("update shoes set rarity='godly' where rarity='secret'")
     d.execute("update shoes set rarity='divine' where rarity='dexies'")
     d.execute("update shoes set rarity='grails' where rarity='lebos'")
-    d.execute("update shoes set name=replace(name,'Dexies ','Divine ') where name like 'Dexies %'")
-    d.execute("update shoes set name=replace(name,'Lebos ','Grails ') where name like 'Lebos %'")
+    d.execute("update shoes set name=replace(name,'Dexies ','') where name like 'Dexies %'")
+    d.execute("update shoes set name=replace(name,'Divine ','') where name like 'Divine %' and rarity='divine'")
+    d.execute("update shoes set name=replace(name,'Lebos ','') where name like 'Lebos %'")
+    d.execute("update shoes set name=replace(name,'Grails ','') where name like 'Grails %' and rarity='grails'")
     d.commit()
 
 def pick(w):
@@ -266,15 +268,15 @@ ADMIN_IPS = []
 MAX_BALANCE = 100000000
 
 DIVINE_SHOES = [
-    "Divine Phantom Protocol", "Divine Neural Apex", "Divine Quantum Flux",
-    "Divine Void Walker", "Divine Neon Genesis", "Divine Cyber Nexus",
-    "Divine Hologram Prime", "Divine Infinity Core", "Divine Plasma Edge",
-    "Divine Dark Matter", "Divine Stellar Drift", "Divine Zero Gravity"
+    "Phantom Protocol", "Neural Apex", "Quantum Flux",
+    "Void Walker", "Neon Genesis", "Cyber Nexus",
+    "Hologram Prime", "Infinity Core", "Plasma Edge",
+    "Dark Matter", "Stellar Drift", "Zero Gravity"
 ]
 GRAILS_SHOES = [
-    "Grails Eternal Ascension", "Grails Eternal Crown", "Grails Celestial One",
-    "Grails Golden Throne", "Grails Supreme Omega", "Grails Apex Deity",
-    "Grails Immortal Reign", "Grails Cosmic Emperor", "Grails Ultimate Genesis"
+    "Eternal Ascension", "Celestial Crown", "Golden Throne",
+    "Supreme Omega", "Apex Deity", "Immortal Reign",
+    "Cosmic Emperor", "Ultimate Genesis", "Astral Monarch"
 ]
 
 def seed():
