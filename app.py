@@ -40,8 +40,11 @@ def login_required(f):
         if acc["session_token"] and session.get("token") != acc["session_token"]:
             session.clear()
             return redirect(url_for("landing_page"))
-        d.execute("update accounts set last_ip=? where id=?", (get_client_ip(), session["user_id"]))
-        d.commit()
+        now = int(time.time())
+        if now - session.get("_last_ip_update", 0) > 60:
+            d.execute("update accounts set last_ip=? where id=?", (get_client_ip(), session["user_id"]))
+            d.commit()
+            session["_last_ip_update"] = now
         return f(*args, **kwargs)
     return decorated
 
@@ -201,7 +204,7 @@ def init():
     create table if not exists global_chat(id integer primary key autoincrement, user_id text, username text, message text, ts integer);
     create index if not exists idx_chat on global_chat(ts);
     create table if not exists gambling_pots(id integer primary key autoincrement, market_cap real, total_value real default 0, status text default 'open', winner_id text, winner_name text, created integer, ended integer, spin_start integer);
-    create table if not exists pot_entries(id integer primary key autoincrement, pot_id integer, user_id text, username text, shoe_id integer, appraisal_id integer, rating real, multiplier real, value real, ts integer);
+    create table if not exists pot_entries(id integer primary key autoincrement, pot_id integer, user_id text, username text, shoe_id integer, appraisal_id integer, rating real, multiplier real, variant text default '', value real, ts integer);
     insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
     insert or ignore into court_session(id, status) values(1, 'inactive');
     """)
@@ -219,6 +222,10 @@ def init():
         pass
     try:
         d.execute("alter table appraised add column variant text default ''")
+    except:
+        pass
+    try:
+        d.execute("alter table pot_entries add column variant text default ''")
     except:
         pass
     d.execute("update shoes set rarity='godly' where rarity='secret'")
@@ -1847,8 +1854,8 @@ def admin_swap_inventory():
         return jsonify({"ok": False, "error": "User not found"})
     hold1 = d.execute("select shoe_id, qty from hold where user_id=?", (acc1["id"],)).fetchall()
     hold2 = d.execute("select shoe_id, qty from hold where user_id=?", (acc2["id"],)).fetchall()
-    app1 = d.execute("select shoe_id, rating, multiplier, ts from appraised where user_id=?", (acc1["id"],)).fetchall()
-    app2 = d.execute("select shoe_id, rating, multiplier, ts from appraised where user_id=?", (acc2["id"],)).fetchall()
+    app1 = d.execute("select shoe_id, rating, multiplier, variant, ts from appraised where user_id=?", (acc1["id"],)).fetchall()
+    app2 = d.execute("select shoe_id, rating, multiplier, variant, ts from appraised where user_id=?", (acc2["id"],)).fetchall()
     d.execute("delete from hold where user_id=?", (acc1["id"],))
     d.execute("delete from hold where user_id=?", (acc2["id"],))
     d.execute("delete from appraised where user_id=?", (acc1["id"],))
@@ -1858,9 +1865,9 @@ def admin_swap_inventory():
     for h in hold1:
         d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?)", (acc2["id"], h["shoe_id"], h["qty"]))
     for a in app2:
-        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (acc1["id"], a["shoe_id"], a["rating"], a["multiplier"], a["ts"]))
+        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, variant, ts) values(?,?,?,?,?,?)", (acc1["id"], a["shoe_id"], a["rating"], a["multiplier"], a["variant"] or "", a["ts"]))
     for a in app1:
-        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (acc2["id"], a["shoe_id"], a["rating"], a["multiplier"], a["ts"]))
+        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, variant, ts) values(?,?,?,?,?,?)", (acc2["id"], a["shoe_id"], a["rating"], a["multiplier"], a["variant"] or "", a["ts"]))
     now = int(time.time())
     d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc1["id"], f"🔄 Your entire inventory was swapped with {user2}!", now))
     d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc2["id"], f"🔄 Your entire inventory was swapped with {user1}!", now))
@@ -2009,7 +2016,7 @@ def admin_shuffle_shoes():
     if not acc:
         return jsonify({"ok": False, "error": f"User '{username}' not found"})
     shoes = d.execute("select shoe_id, qty from hold where user_id=?", (acc["id"],)).fetchall()
-    appraised = d.execute("select id, shoe_id, rating, multiplier, ts from appraised where user_id=?", (acc["id"],)).fetchall()
+    appraised = d.execute("select id, shoe_id, rating, multiplier, variant, ts from appraised where user_id=?", (acc["id"],)).fetchall()
     if not shoes and not appraised:
         return jsonify({"ok": False, "error": f"{username} has no shoes to shuffle"})
     other_users = d.execute("select u.id from users u join accounts a on a.id=u.id where a.username != ?", (username,)).fetchall()
@@ -2022,15 +2029,11 @@ def admin_shuffle_shoes():
     for s in shoes:
         for _ in range(s["qty"]):
             target = random.choice(other_users)["id"]
-            existing = d.execute("select qty from hold where user_id=? and shoe_id=?", (target, s["shoe_id"])).fetchone()
-            if existing:
-                d.execute("update hold set qty=qty+1 where user_id=? and shoe_id=?", (target, s["shoe_id"]))
-            else:
-                d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?)", (target, s["shoe_id"], 1))
+            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1", (target, s["shoe_id"]))
             count += 1
     for a in appraised:
         target = random.choice(other_users)["id"]
-        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (target, a["shoe_id"], a["rating"], a["multiplier"], a["ts"]))
+        d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, variant, ts) values(?,?,?,?,?,?)", (target, a["shoe_id"], a["rating"], a["multiplier"], a["variant"] or "", a["ts"]))
         count += 1
     d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"🌀 YOUR SHOES WERE SHUFFLED! {count} shoes redistributed to random users!", now))
     d.commit()
@@ -2414,7 +2417,7 @@ def api_pot_current():
         elif len(entries) == 1:
             for e in d.execute("select * from pot_entries where pot_id=?", (pot["id"],)).fetchall():
                 if e["appraisal_id"] and e["rating"]:
-                    d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)", (e["user_id"], e["shoe_id"], e["rating"], e["multiplier"], now))
+                    d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, variant, ts) values(?,?,?,?,?,?)", (e["user_id"], e["shoe_id"], e["rating"], e["multiplier"], e["variant"] or "", now))
                 else:
                     d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1", (e["user_id"], e["shoe_id"]))
             d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (d.execute("select user_id from pot_entries where pot_id=? limit 1", (pot["id"],)).fetchone()["user_id"], "🎰 Pot ended - your shoes were returned (not enough players)", now))
@@ -2488,7 +2491,7 @@ def api_pot_enter():
         return jsonify({"ok": False, "error": "No active pot"})
     shoe_id = request.json.get("shoe_id")
     appraisal_id = request.json.get("appraisal_id")
-    rating, multiplier = None, None
+    rating, multiplier, variant = None, None, ""
     if appraisal_id:
         shoe = d.execute("""
             select a.*, s.name, s.rarity, s.base from appraised a 
@@ -2502,7 +2505,8 @@ def api_pot_enter():
         value = base_price * shoe["multiplier"]
         rating = shoe["rating"]
         multiplier = shoe["multiplier"]
-        d.execute        d.execute("delete from appraised where id=?", (appraisal_id,))
+        variant = shoe["variant"] or ""
+        d.execute("delete from appraised where id=?", (appraisal_id,))
         shoe_id = shoe["shoe_id"]
     else:
         if not shoe_id:
@@ -2515,8 +2519,8 @@ def api_pot_enter():
         value = market["price"] if market else shoe["base"]
         d.execute("update hold set qty=qty-1 where user_id=? and shoe_id=?", (u, shoe_id))
         d.execute("delete from hold where user_id=? and shoe_id=? and qty<=0", (u, shoe_id))
-    d.execute("insert into pot_entries(pot_id, user_id, username, shoe_id, appraisal_id, rating, multiplier, value, ts) values(?,?,?,?,?,?,?,?,?)",
-              (pot["id"], u, acc["username"], shoe_id, appraisal_id, rating, multiplier, value, now))
+    d.execute("insert into pot_entries(pot_id, user_id, username, shoe_id, appraisal_id, rating, multiplier, variant, value, ts) values(?,?,?,?,?,?,?,?,?,?)",
+              (pot["id"], u, acc["username"], shoe_id, appraisal_id, rating, multiplier, variant, value, now))
     new_total = (pot["total_value"] or 0) + value
     d.execute("update gambling_pots set total_value=? where id=?", (new_total, pot["id"]))
     if pot["market_cap"] < 999999999 and new_total >= pot["market_cap"]:
@@ -2551,11 +2555,11 @@ def finish_spinning_pot(d):
     winner_id = spinning["winner_id"]
     winner_name = spinning["winner_name"]
     total = spinning["total_value"] or 0
-    all_shoes = d.execute("select shoe_id, appraisal_id, rating, multiplier from pot_entries where pot_id=?", (pot_id,)).fetchall()
+    all_shoes = d.execute("select shoe_id, appraisal_id, rating, multiplier, variant from pot_entries where pot_id=?", (pot_id,)).fetchall()
     for shoe in all_shoes:
         if shoe["appraisal_id"] and shoe["rating"]:
-            d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, ts) values(?,?,?,?,?)",
-                      (winner_id, shoe["shoe_id"], shoe["rating"], shoe["multiplier"], now))
+            d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, variant, ts) values(?,?,?,?,?,?)",
+                      (winner_id, shoe["shoe_id"], shoe["rating"], shoe["multiplier"], shoe["variant"] or "", now))
         else:
             d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1",
                       (winner_id, shoe["shoe_id"]))
