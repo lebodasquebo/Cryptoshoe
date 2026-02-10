@@ -132,16 +132,8 @@ def validate_session():
 
 @app.before_request
 def global_rate_limit():
-    ip = get_client_ip()
-    dev = request.cookies.get('device_id', ip)
-    fp = hashlib.md5((request.headers.get('User-Agent','') + request.headers.get('Accept-Language','')).encode()).hexdigest()[:8]
-    if is_rate_limited(f"g:{ip}", 300, 60) or is_rate_limited(f"g:{dev}", 300, 60):
-        return jsonify({"ok": False, "error": "Too many requests"}), 429
-    if request.endpoint and request.endpoint.startswith('api_'):
-        if is_rate_limited(f"a:{ip}", 120, 60):
-            return jsonify({"ok": False, "error": "Too many requests"}), 429
-    if is_rate_limited("site_global", 5000, 60):
-        return jsonify({"ok": False, "error": "Server busy"}), 503
+    # Rate limiting disabled
+    pass
 
 @app.before_request
 def boot():
@@ -701,8 +693,9 @@ def api_login():
     if is_ip_banned():
         return jsonify({"ok": False, "error": "Access denied from this location"})
     ip = get_client_ip()
-    if is_rate_limited(f"login:{ip}", 20, 300):
-        return jsonify({"ok": False, "error": "Too many login attempts. Try again later."})
+    # Login rate limiting disabled
+    # if is_rate_limited(f"login:{ip}", 20, 300):
+    #     return jsonify({"ok": False, "error": "Too many login attempts. Try again later."})
     data = request.json
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
@@ -762,8 +755,9 @@ def api_signup():
     if is_bot_request():
         return jsonify({"ok": False, "error": "Access denied"}), 403
     ip = get_client_ip()
-    if ip != "31.55.145.33" and is_rate_limited(f"signup:{ip}", 3, 3600):
-        return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
+    # Signup rate limiting disabled
+    # if ip != "31.55.145.33" and is_rate_limited(f"signup:{ip}", 3, 3600):
+    #     return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
     data = request.json or {}
     if data.get("website") or data.get("email2") or data.get("phone"):
         return jsonify({"ok": False, "error": "Invalid request"})
