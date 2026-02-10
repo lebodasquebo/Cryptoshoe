@@ -94,11 +94,7 @@ def is_bot_request():
     return False
 
 def is_ip_banned():
-    ip = get_client_ip()
-    d = db()
-    ban = d.execute("select banned_until from banned_ips where ip=?", (ip,)).fetchone()
-    if ban and ban["banned_until"] > int(time.time()):
-        return True
+    # IP banning disabled
     return False
 
 def log_tx(user_id, action, amount, bal_before, bal_after):
@@ -700,10 +696,8 @@ def api_login():
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
     if username == "admin" and password == "00001111":
-        d = db()
-        d.execute("insert or replace into banned_ips(ip, banned_until, reason) values(?,?,?)", (ip, int(time.time()) + 86400*30, "Honeypot triggered"))
-        d.commit()
-        return jsonify({"ok": False, "error": "haha u thought"})
+        # Honeypot disabled
+        return jsonify({"ok": False, "error": "Invalid credentials"})
     if not username or not password:
         return jsonify({"ok": False, "error": "Username and password required"})
     d = db()
