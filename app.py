@@ -240,6 +240,11 @@ def init():
         if not existing:
             lo, hi = BASE_PRICES["heavenly"]
             d.execute("insert into shoes(name, rarity, base) values(?,?,?)", (name, "heavenly", round(random.uniform(lo, hi), 2)))
+    
+    special = d.execute("select id from shoes where name=?", ("leia luvs femboys",)).fetchone()
+    if not special:
+        d.execute("insert into shoes(name, rarity, base) values(?,?,?)", ("leia luvs femboys", "heavenly", 100000.0))
+    
     d.commit()
 
 def pick(w):
@@ -1384,6 +1389,31 @@ def accept_trade(trade_id):
             if not hold or hold["qty"] < shoe.get("qty", 1):
                 return jsonify({"ok": False, "error": "You no longer have those shoes"})
     
+    offer_val = offer_cash
+    for shoe in offer_shoes:
+        if shoe.get("appraised"):
+            ap = d.execute("select value from appraised where id=?", (shoe.get("appraisal_id"),)).fetchone()
+            if ap:
+                offer_val += ap["value"]
+        else:
+            price = get_sell_price(shoe["id"]) or d.execute("select base from shoes where id=?", (shoe["id"],)).fetchone()["base"]
+            offer_val += price * shoe.get("qty", 1)
+    
+    want_val = want_cash
+    for shoe in want_shoes:
+        if shoe.get("appraised"):
+            ap = d.execute("select value from appraised where id=?", (shoe.get("appraisal_id"),)).fetchone()
+            if ap:
+                want_val += ap["value"]
+        else:
+            price = get_sell_price(shoe["id"]) or d.execute("select base from shoes where id=?", (shoe["id"],)).fetchone()["base"]
+            want_val += price * shoe.get("qty", 1)
+    
+    if offer_val > 0 and want_val > 0:
+        ratio = max(offer_val, want_val) / min(offer_val, want_val)
+        if ratio > 2.0:
+            return jsonify({"ok": False, "error": "Trade value difference too large (max 100%)"})
+    
     if offer_cash > 0:
         d.execute("update users set balance=balance-? where id=?", (offer_cash, from_user))
         d.execute("update users set balance=balance+? where id=?", (offer_cash, u))
@@ -1581,19 +1611,41 @@ def admin_shoe():
     shoe_id = int(data.get("shoe_id", 0))
     qty = int(data.get("qty", 1))
     action = data.get("action", "give")
+    appraised = data.get("appraised", False)
+    variant = data.get("variant", "")
+    rating = data.get("rating")
+    multiplier = data.get("multiplier")
     acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
     if not acc:
         return jsonify({"ok": False, "error": "User not found"})
-    shoe = d.execute("select id, name from shoes where id=?", (shoe_id,)).fetchone()
+    shoe = d.execute("select id, name, base from shoes where id=?", (shoe_id,)).fetchone()
     if not shoe:
         return jsonify({"ok": False, "error": "Shoe not found"})
     if action == "give":
-        existing = d.execute("select qty from hold where user_id=? and shoe_id=?", (acc["id"], shoe_id)).fetchone()
-        if existing:
-            d.execute("update hold set qty=qty+? where user_id=? and shoe_id=?", (qty, acc["id"], shoe_id))
+        if appraised:
+            var = variant if variant in ["shiny", "rainbow"] else ""
+            if rating is None or multiplier is None:
+                mult = random.uniform(0.5, 1.45)
+                rat = int(mult * 100)
+                val = shoe["base"] * mult
+            else:
+                rat = int(rating)
+                mult = float(multiplier)
+                val = shoe["base"] * mult
+            d.execute("insert into appraised(user_id, shoe_id, rating, multiplier, variant, value) values(?,?,?,?,?,?)",
+                     (acc["id"], shoe_id, rat, mult, var, val))
+            msg = f"Admin gave you {shoe['name']}"
+            if var:
+                msg += f" ({var})"
+            msg += f" [{rat}%]"
+            d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], msg, int(time.time())))
         else:
-            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?)", (acc["id"], shoe_id, qty))
-        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"Admin gave you {qty}x {shoe['name']}", int(time.time())))
+            existing = d.execute("select qty from hold where user_id=? and shoe_id=?", (acc["id"], shoe_id)).fetchone()
+            if existing:
+                d.execute("update hold set qty=qty+? where user_id=? and shoe_id=?", (qty, acc["id"], shoe_id))
+            else:
+                d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?)", (acc["id"], shoe_id, qty))
+            d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"Admin gave you {qty}x {shoe['name']}", int(time.time())))
     else:
         existing = d.execute("select qty from hold where user_id=? and shoe_id=?", (acc["id"], shoe_id)).fetchone()
         if not existing or existing["qty"] < qty:
@@ -2072,6 +2124,50 @@ def admin_gift_bomb():
     d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"🎁 GIFT BOMB! You received {count} random shoes!", now))
     d.commit()
     return jsonify({"ok": True, "msg": f"Gift bombed {username} with {count} random shoes"})
+
+@app.route("/api/admin/wheel-of-fortune", methods=["POST"])
+@login_required
+def admin_wheel_of_fortune():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    username = request.json.get("username", "").lower().strip()
+    if not username:
+        users = d.execute("select a.username, u.id from accounts a join users u on u.id=a.id").fetchall()
+        if not users:
+            return jsonify({"ok": False, "error": "No users"})
+        target = random.choice(users)
+        username = target["username"]
+        target_id = target["id"]
+    else:
+        acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+        if not acc:
+            return jsonify({"ok": False, "error": f"User '{username}' not found"})
+        target_id = acc["id"]
+    
+    outcomes = [
+        ("💰 JACKPOT!", lambda: d.execute("update users set balance=balance+50000 where id=?", (target_id,))),
+        ("💸 TAX TIME!", lambda: d.execute("update users set balance=balance*0.5 where id=?", (target_id,))),
+        ("🎁 FREE SHOE!", lambda: (
+            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1", 
+                     (target_id, random.choice(d.execute("select id from shoes").fetchall())["id"]))
+        )),
+        ("💀 ROBBERY!", lambda: d.execute("update users set balance=balance-10000 where id=?", (target_id,))),
+        ("🎲 2X BALANCE!", lambda: d.execute("update users set balance=balance*2 where id=?", (target_id,))),
+        ("😈 NOTHING!", lambda: None),
+        ("🔥 BURN A SHOE!", lambda: (
+            d.execute("delete from hold where user_id=? and rowid = (select rowid from hold where user_id=? limit 1)", (target_id, target_id))
+        )),
+        ("✨ LUCKY!", lambda: d.execute("update users set balance=balance+25000 where id=?", (target_id,))),
+    ]
+    
+    outcome, action = random.choice(outcomes)
+    action()
+    now = int(time.time())
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", 
+             (target_id, f"🎰 WHEEL OF FORTUNE: {outcome}", now))
+    d.commit()
+    return jsonify({"ok": True, "msg": f"{username}: {outcome}", "username": username, "outcome": outcome})
 
 @app.route("/court")
 @login_required

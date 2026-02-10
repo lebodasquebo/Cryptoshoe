@@ -110,7 +110,7 @@ const fetchPot = async () => {
   }
   
   const list = $('#participants-list')
-  list.innerHTML = pot.participants.map((p, i) => `
+  if (list) list.innerHTML = pot.participants.map((p, i) => `
     <div class="participant${p.is_me ? ' me' : ''}">
       <div class="participant-color" style="background:${COLORS[i % COLORS.length]}"></div>
       <div class="participant-info">

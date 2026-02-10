@@ -70,6 +70,18 @@
           <button class="give-btn" onclick="giveShoe()">Give</button>
           <button class="take-btn" onclick="takeShoe()">Take</button>
         </div>
+        <div class="admin-form" style="margin-top:8px;">
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="shoe-appraised">
+            <span>Pre-Appraised</span>
+          </label>
+          <select id="shoe-variant" style="width:100px;">
+            <option value="">Normal</option>
+            <option value="shiny">Shiny</option>
+            <option value="rainbow">Rainbow</option>
+          </select>
+          <input type="number" id="shoe-rating" placeholder="Rating%" min="0" max="200" style="width:80px;">
+        </div>
       </section>
       
       <section class="admin-section">
@@ -246,6 +258,15 @@
           <button onclick="fakeWin()">Troll!</button>
         </div>
         <p class="hint">They didn't really win 😈</p>
+      </section>
+      
+      <section class="admin-section troll-section">
+        <h2>🎰 Wheel of Fortune</h2>
+        <div class="admin-form">
+          <input type="text" id="wheel-user" placeholder="Username (or random)">
+          <button class="give-btn" onclick="wheelOfFortune()">🎰 SPIN!</button>
+        </div>
+        <p class="hint">Random outcome for user!</p>
       </section>
     </div>
     

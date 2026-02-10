@@ -62,8 +62,18 @@ window.giveShoe=async()=>{
     let user=$('#shoe-user').value.trim()
     let shoe_id=parseInt($('#shoe-select').value)
     let qty=parseInt($('#shoe-qty').value)||1
+    let appraised=$('#shoe-appraised').checked
+    let variant=$('#shoe-variant').value
+    let rating=parseInt($('#shoe-rating').value)||null
     if(!user){toast('Enter username','error');return}
-    let r=await fetch('/api/admin/shoe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,shoe_id,qty,action:'give'})})
+    let body={username:user,shoe_id,qty,action:'give'}
+    if(appraised){
+        body.appraised=true
+        body.variant=variant
+        if(rating)body.rating=rating
+        if(rating)body.multiplier=rating/100
+    }
+    let r=await fetch('/api/admin/shoe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     let j=await r.json()
     if(j.ok){toast(`Gave ${qty}x shoe to ${user}`);loadUsers()}
     else toast(j.error,'error')
@@ -247,6 +257,14 @@ window.fakeWin=async()=>{
     let r=await fetch('/api/admin/fake-win',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,amount})})
     let j=await r.json()
     if(j.ok){toast('😈 '+j.msg);$('#fake-user').value=''}
+    else toast(j.error,'error')
+}
+
+window.wheelOfFortune=async()=>{
+    let username=$('#wheel-user').value.trim()
+    let r=await fetch('/api/admin/wheel-of-fortune',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})})
+    let j=await r.json()
+    if(j.ok){toast('🎰 '+j.msg);loadUsers();$('#wheel-user').value=''}
     else toast(j.error,'error')
 }
 
