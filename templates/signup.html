@@ -75,7 +75,8 @@
           err.textContent = j.error || 'Signup failed';
         }
       } catch (e) {
-        err.textContent = 'Connection error';
+        // Connection error silenced
+        console.log('Error:', e);
       }
     };
   </script>

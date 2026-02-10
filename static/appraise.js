@@ -66,7 +66,7 @@ const appraiseAll=async()=>{
         if(j.ok){allResults.push(...j.results);done++}
         else{toast(j.error||'Failed for '+h.name,'error');break}
       }else{toast('Request failed','error');break}
-    }catch(e){toast('Network error','error');break}
+    }catch(e){console.log('Error:',e);break}
     btn.textContent=`⏳ ${done}/${total}...`
   }
   btn.disabled=false;btn.textContent='🔍 APPRAISE ALL'
