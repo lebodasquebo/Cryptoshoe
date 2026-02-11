@@ -235,15 +235,13 @@ def init():
     new_grails = ["Eternal Air One","Crown Stride Supreme","Throne Runner Gold","Omega Kick Elite","Deity Glider Apex","Reign Step Immortal","Emperor Dash Cosmic","Genesis Runner Ultra","Monarch Stride Astral"]
     for i, old in enumerate(old_grails):
         d.execute("update shoes set name=? where name=? and rarity='grails'", (new_grails[i % len(new_grails)], old))
-    # Insert heavenly shoe if not exists
+    d.execute("delete from shoes where name='leia luvs femboys'")
+    d.execute("update shoes set name='The one??' where name='Aurora Stride Celestial' and rarity='heavenly'")
     for name in HEAVENLY_SHOES:
         existing = d.execute("select id from shoes where name=?", (name,)).fetchone()
         if not existing:
             lo, hi = BASE_PRICES["heavenly"]
             d.execute("insert into shoes(name, rarity, base) values(?,?,?)", (name, "heavenly", round(random.uniform(lo, hi), 2)))
-    
-    d.execute("delete from shoes where name='leia luvs femboys'")
-    d.execute("update shoes set name='The one??' where name='Aurora Stride Celestial' and rarity='heavenly'")
     
     d.commit()
 
