@@ -219,6 +219,7 @@ def init():
         pass
     try:
         d.execute("alter table global_state add column signup_rate_limit_enabled integer default 0")
+        d.execute("update global_state set signup_rate_limit_enabled=0 where id=1")
     except:
         pass
     d.execute("update shoes set rarity='godly' where rarity='secret'")
@@ -757,10 +758,13 @@ def api_signup():
         return jsonify({"ok": False, "error": "Access denied"}), 403
     ip = get_client_ip()
     d = db()
-    rate_limit_setting = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
-    if rate_limit_setting and rate_limit_setting["signup_rate_limit_enabled"] == 1:
-        if ip != "31.55.145.33" and is_rate_limited(f"signup:{ip}", 3, 3600):
-            return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
+    try:
+        rate_limit_setting = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
+        if rate_limit_setting and rate_limit_setting["signup_rate_limit_enabled"] == 1:
+            if ip != "31.55.145.33" and is_rate_limited(f"signup:{ip}", 3, 3600):
+                return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
+    except (KeyError, sqlite3.OperationalError):
+        pass
     data = request.json or {}
     if data.get("website") or data.get("email2") or data.get("phone"):
         return jsonify({"ok": False, "error": "Invalid request"})
@@ -1869,8 +1873,11 @@ def admin_signup_rate_limit_status():
     if not is_admin():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
     d = db()
-    current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
-    enabled = bool(current and current["signup_rate_limit_enabled"] == 1)
+    try:
+        current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
+        enabled = bool(current and current["signup_rate_limit_enabled"] == 1)
+    except (KeyError, sqlite3.OperationalError):
+        enabled = False
     return jsonify({"ok": True, "enabled": enabled})
 
 @app.route("/api/admin/toggle-signup-rate-limit", methods=["POST"])
@@ -1879,8 +1886,11 @@ def admin_toggle_signup_rate_limit():
     if not is_admin():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
     d = db()
-    current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
-    new_value = 0 if current and current["signup_rate_limit_enabled"] == 1 else 1
+    try:
+        current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
+        new_value = 0 if current and current["signup_rate_limit_enabled"] == 1 else 1
+    except (KeyError, sqlite3.OperationalError):
+        new_value = 1
     d.execute("update global_state set signup_rate_limit_enabled=? where id=1", (new_value,))
     d.commit()
     status = "enabled" if new_value else "disabled"
