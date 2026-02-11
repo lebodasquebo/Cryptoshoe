@@ -215,19 +215,23 @@ window.collectReward=async(shoeId)=>{
   }
 }
 
-$$('.tab-btn').forEach(btn=>{
-  btn.onclick=()=>{
-    $$('.tab-btn').forEach(b=>b.classList.remove('active'))
+document.querySelectorAll('.inventory-tabs .tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.inventory-tabs .tab-btn').forEach(b=>b.classList.remove('active'))
     btn.classList.add('active')
+    let invSec=document.getElementById('inventory-section')
+    let idxSec=document.getElementById('index-section')
     if(btn.dataset.tab==='inventory'){
-      $('#inventory-section').classList.remove('hidden')
-      $('#index-section').classList.add('hidden')
+      invSec.style.display=''
+      invSec.classList.remove('hidden')
+      idxSec.style.display='none'
     }else{
-      $('#inventory-section').classList.add('hidden')
-      $('#index-section').classList.remove('hidden')
+      invSec.style.display='none'
+      idxSec.style.display=''
+      idxSec.classList.remove('hidden')
       fetchIndex()
     }
-  }
+  })
 })
 
 fetchState()
