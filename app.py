@@ -1897,14 +1897,14 @@ def admin_toggle_signup_rate_limit():
         try:
             d.execute("update global_state set signup_rate_limit_enabled=? where id=1", (new_value,))
             d.commit()
-        except (KeyError, sqlite3.OperationalError):
+        except:
             try:
                 d.execute("alter table global_state add column signup_rate_limit_enabled integer default 0")
                 d.execute("update global_state set signup_rate_limit_enabled=? where id=1", (new_value,))
                 d.commit()
             except:
                 return jsonify({"ok": False, "error": "Database migration failed"})
-    except (KeyError, sqlite3.OperationalError):
+    except:
         try:
             d.execute("alter table global_state add column signup_rate_limit_enabled integer default 0")
             d.execute("update global_state set signup_rate_limit_enabled=1 where id=1")
