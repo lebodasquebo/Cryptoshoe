@@ -43,7 +43,7 @@ const fetchMessages = async () => {
         <a href="/user/${cleanName}" class="msg-user${isAdmin ? ' admin' : ''}">${m.username}</a>
         <span class="msg-time">${formatTime(m.ts)}</span>
       </div>
-      <div class="msg-text">${escapeHtml(m.message)}</div>
+      <div class="msg-text">${highlightMentions(m.message)}</div>
     `
     container.appendChild(div)
     lastMsgId = m.id
@@ -58,6 +58,11 @@ const escapeHtml = (text) => {
   let div = document.createElement('div')
   div.textContent = text
   return div.innerHTML
+}
+
+const highlightMentions = (text) => {
+  let escaped = escapeHtml(text)
+  return escaped.replace(/@([A-Za-z0-9_-]+)/g, '<span class="mention">@$1</span>')
 }
 
 const sendMessage = async () => {
