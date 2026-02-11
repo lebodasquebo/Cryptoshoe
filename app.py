@@ -244,6 +244,7 @@ def init():
     
     d.execute("delete from shoes where name='leia luvs femboys'")
     d.execute("update shoes set name='The one??' where name='Aurora Stride Celestial' and rarity='heavenly'")
+    
     d.commit()
 
 def pick(w):
