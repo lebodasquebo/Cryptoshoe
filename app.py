@@ -165,7 +165,7 @@ def init():
     create table if not exists tx_log(id integer primary key autoincrement, user_id text, action text, amount real, balance_before real, balance_after real, ts integer, ip text);
     create table if not exists shoes(id integer primary key, name text unique, rarity text, base real);
     create table if not exists users(id text primary key, balance real);
-    create table if not exists global_state(id integer primary key, last_stock integer, last_price integer, signup_rate_limit_enabled integer default 0);
+    create table if not exists global_state(id integer primary key, last_stock integer, last_price integer);
     create table if not exists market(shoe_id integer primary key, stock integer, price real, base real, news text, news_val real, news_until integer);
     create table if not exists user_stock(user_id text, shoe_id integer, stock_cycle integer, bought integer, primary key(user_id, shoe_id, stock_cycle));
     create table if not exists hold(user_id text, shoe_id integer, qty integer, primary key(user_id, shoe_id));
@@ -194,7 +194,7 @@ def init():
     create index if not exists idx_chat on global_chat(ts);
     create table if not exists gambling_pots(id integer primary key autoincrement, market_cap real, total_value real default 0, status text default 'open', winner_id text, winner_name text, created integer, ended integer, spin_start integer);
     create table if not exists pot_entries(id integer primary key autoincrement, pot_id integer, user_id text, username text, shoe_id integer, appraisal_id integer, rating real, multiplier real, variant text default '', value real, ts integer);
-    insert or ignore into global_state(id, last_stock, last_price, signup_rate_limit_enabled) values(1, 0, 0, 0);
+    insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
     insert or ignore into court_session(id, status) values(1, 'inactive');
     """)
     try:

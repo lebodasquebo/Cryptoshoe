@@ -141,17 +141,15 @@
       </section>
       
       <section class="admin-section">
-        <h2>⚙️ Rate Limiting</h2>
-        <div class="admin-form">
-          <button id="rate-limit-toggle" onclick="toggleSignupRateLimit()" class="refresh-btn">Toggle Signup Rate Limit</button>
-          <span id="rate-limit-status" style="margin-left:12px;font-size:14px;"></span>
-        </div>
-      </section>
-      
-      <section class="admin-section">
         <h2>🔍 Suspicious Users</h2>
         <button onclick="loadSuspicious()" class="refresh-btn">Check Suspicious</button>
         <div id="suspicious-list" style="margin-top:12px;font-size:14px;"></div>
+      </section>
+      
+      <section class="admin-section">
+        <h2>🚦 Signup Rate Limit</h2>
+        <div id="rate-limit-status" style="margin-bottom:12px;font-size:14px;">Loading...</div>
+        <button onclick="toggleSignupRateLimit()" class="refresh-btn" id="rate-limit-toggle">Toggle</button>
       </section>
     </div>
 

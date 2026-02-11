@@ -144,29 +144,6 @@ window.banIP=async()=>{
     else toast(j.error,'error')
 }
 
-window.toggleSignupRateLimit=async()=>{
-    let r=await fetch('/api/admin/toggle-signup-rate-limit',{method:'POST',headers:{'Content-Type':'application/json'}})
-    let j=await r.json()
-    if(j.ok){toast('⚙️ '+j.msg);updateRateLimitStatus(j.enabled)}
-    else toast(j.error,'error')
-}
-
-const updateRateLimitStatus=(enabled)=>{
-    let status=$('#rate-limit-status')
-    if(status){
-        status.textContent=enabled?'Enabled':'Disabled'
-        status.style.color=enabled?'#ff6b6b':'#51cf66'
-    }
-}
-
-const loadRateLimitStatus=async()=>{
-    let r=await fetch('/api/admin/signup-rate-limit-status')
-    if(r.ok){
-        let j=await r.json()
-        updateRateLimitStatus(j.enabled)
-    }
-}
-
 window.loadSuspicious=async()=>{
     let r=await fetch('/api/admin/suspicious')
     let j=await r.json()
@@ -345,9 +322,36 @@ const fetchBalance=async()=>{
     if(r.ok){let s=await r.json();$('#bal').textContent=s.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
 }
 
+const loadSignupRateLimitStatus=async()=>{
+    let r=await fetch('/api/admin/signup-rate-limit-status')
+    if(r.ok){
+        let j=await r.json()
+        if(j.ok){
+            let status=$('#rate-limit-status')
+            let toggle=$('#rate-limit-toggle')
+            if(j.enabled){
+                status.innerHTML='<span style="color:#4ade80;">✅ Enabled</span> - Signups are rate limited'
+                toggle.textContent='Disable Rate Limit'
+                toggle.className='ban-btn'
+            }else{
+                status.innerHTML='<span style="color:#f87171;">❌ Disabled</span> - Signups are not rate limited'
+                toggle.textContent='Enable Rate Limit'
+                toggle.className='give-btn'
+            }
+        }
+    }
+}
+
+window.toggleSignupRateLimit=async()=>{
+    let r=await fetch('/api/admin/toggle-signup-rate-limit',{method:'POST'})
+    let j=await r.json()
+    if(j.ok){toast(j.msg);loadSignupRateLimitStatus()}
+    else toast(j.error,'error')
+}
+
 loadUsers()
 loadShoes()
-loadRateLimitStatus()
 fetchBalance()
 checkCourtStatus()
+loadSignupRateLimitStatus()
 setInterval(checkCourtStatus,5000)
