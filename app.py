@@ -165,7 +165,7 @@ def init():
     create table if not exists tx_log(id integer primary key autoincrement, user_id text, action text, amount real, balance_before real, balance_after real, ts integer, ip text);
     create table if not exists shoes(id integer primary key, name text unique, rarity text, base real);
     create table if not exists users(id text primary key, balance real);
-    create table if not exists global_state(id integer primary key, last_stock integer, last_price integer);
+    create table if not exists global_state(id integer primary key, last_stock integer, last_price integer, signup_rate_limit_enabled integer default 0);
     create table if not exists market(shoe_id integer primary key, stock integer, price real, base real, news text, news_val real, news_until integer);
     create table if not exists user_stock(user_id text, shoe_id integer, stock_cycle integer, bought integer, primary key(user_id, shoe_id, stock_cycle));
     create table if not exists hold(user_id text, shoe_id integer, qty integer, primary key(user_id, shoe_id));
@@ -194,7 +194,7 @@ def init():
     create index if not exists idx_chat on global_chat(ts);
     create table if not exists gambling_pots(id integer primary key autoincrement, market_cap real, total_value real default 0, status text default 'open', winner_id text, winner_name text, created integer, ended integer, spin_start integer);
     create table if not exists pot_entries(id integer primary key autoincrement, pot_id integer, user_id text, username text, shoe_id integer, appraisal_id integer, rating real, multiplier real, variant text default '', value real, ts integer);
-    insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
+    insert or ignore into global_state(id, last_stock, last_price, signup_rate_limit_enabled) values(1, 0, 0, 0);
     insert or ignore into court_session(id, status) values(1, 'inactive');
     """)
     try:
@@ -215,6 +215,10 @@ def init():
         pass
     try:
         d.execute("alter table pot_entries add column variant text default ''")
+    except:
+        pass
+    try:
+        d.execute("alter table global_state add column signup_rate_limit_enabled integer default 0")
     except:
         pass
     d.execute("update shoes set rarity='godly' where rarity='secret'")
@@ -752,9 +756,11 @@ def api_signup():
     if is_bot_request():
         return jsonify({"ok": False, "error": "Access denied"}), 403
     ip = get_client_ip()
-    # Signup rate limiting disabled
-    # if ip != "31.55.145.33" and is_rate_limited(f"signup:{ip}", 3, 3600):
-    #     return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
+    d = db()
+    rate_limit_setting = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
+    if rate_limit_setting and rate_limit_setting.get("signup_rate_limit_enabled", 0) == 1:
+        if ip != "31.55.145.33" and is_rate_limited(f"signup:{ip}", 3, 3600):
+            return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
     data = request.json or {}
     if data.get("website") or data.get("email2") or data.get("phone"):
         return jsonify({"ok": False, "error": "Invalid request"})
@@ -763,7 +769,6 @@ def api_signup():
         return jsonify({"ok": False, "error": "Please complete the CAPTCHA"})
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
-    d = db()
     now = int(time.time())
     device_id = request.cookies.get('device_id')
     if device_id:
@@ -1857,6 +1862,29 @@ def admin_ban_ip():
               (acc["last_ip"], int(time.time()) + secs, f"Banned via {username}"))
     d.commit()
     return jsonify({"ok": True, "msg": f"Banned IP {acc['last_ip']} for {duration}"})
+
+@app.route("/api/admin/signup-rate-limit-status", methods=["GET"])
+@login_required
+def admin_signup_rate_limit_status():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
+    enabled = bool(current and current.get("signup_rate_limit_enabled"))
+    return jsonify({"ok": True, "enabled": enabled})
+
+@app.route("/api/admin/toggle-signup-rate-limit", methods=["POST"])
+@login_required
+def admin_toggle_signup_rate_limit():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
+    new_value = 0 if current and current.get("signup_rate_limit_enabled") else 1
+    d.execute("update global_state set signup_rate_limit_enabled=? where id=1", (new_value,))
+    d.commit()
+    status = "enabled" if new_value else "disabled"
+    return jsonify({"ok": True, "msg": f"Signup rate limiting {status}", "enabled": bool(new_value)})
 
 @app.route("/api/admin/tx-log", methods=["GET"])
 @login_required

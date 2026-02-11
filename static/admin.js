@@ -144,6 +144,29 @@ window.banIP=async()=>{
     else toast(j.error,'error')
 }
 
+window.toggleSignupRateLimit=async()=>{
+    let r=await fetch('/api/admin/toggle-signup-rate-limit',{method:'POST',headers:{'Content-Type':'application/json'}})
+    let j=await r.json()
+    if(j.ok){toast('⚙️ '+j.msg);updateRateLimitStatus(j.enabled)}
+    else toast(j.error,'error')
+}
+
+const updateRateLimitStatus=(enabled)=>{
+    let status=$('#rate-limit-status')
+    if(status){
+        status.textContent=enabled?'Enabled':'Disabled'
+        status.style.color=enabled?'#ff6b6b':'#51cf66'
+    }
+}
+
+const loadRateLimitStatus=async()=>{
+    let r=await fetch('/api/admin/signup-rate-limit-status')
+    if(r.ok){
+        let j=await r.json()
+        updateRateLimitStatus(j.enabled)
+    }
+}
+
 window.loadSuspicious=async()=>{
     let r=await fetch('/api/admin/suspicious')
     let j=await r.json()
@@ -324,6 +347,7 @@ const fetchBalance=async()=>{
 
 loadUsers()
 loadShoes()
+loadRateLimitStatus()
 fetchBalance()
 checkCourtStatus()
 setInterval(checkCourtStatus,5000)
