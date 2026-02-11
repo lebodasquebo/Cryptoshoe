@@ -114,14 +114,26 @@
         </div>
       </section>
       
-      <section class="admin-section">
-        <h2>🤖 Bot Cleanup</h2>
-        <button onclick="purgeBots()" class="ban-btn">Purge Bot Accounts</button>
+      <section class="admin-section admin-action-section">
+        <div class="admin-action-header">
+          <h2>🤖 Bot Cleanup</h2>
+          <div class="admin-action-desc">Remove automated bot accounts from the system</div>
+        </div>
+        <button onclick="purgeBots()" class="admin-action-btn danger-btn">
+          <span class="btn-icon">🗑️</span>
+          <span>Purge Bot Accounts</span>
+        </button>
       </section>
       
-      <section class="admin-section">
-        <h2>💬 Chat Control</h2>
-        <button onclick="clearChat()" class="ban-btn">Clear All Chat</button>
+      <section class="admin-section admin-action-section">
+        <div class="admin-action-header">
+          <h2>💬 Chat Control</h2>
+          <div class="admin-action-desc">Clear all messages from global chat</div>
+        </div>
+        <button onclick="clearChat()" class="admin-action-btn danger-btn">
+          <span class="btn-icon">🧹</span>
+          <span>Clear All Chat</span>
+        </button>
       </section>
       
       <section class="admin-section">
@@ -146,10 +158,23 @@
         <div id="suspicious-list" style="margin-top:12px;font-size:14px;"></div>
       </section>
       
-      <section class="admin-section">
-        <h2>🚦 Signup Rate Limit</h2>
-        <div id="rate-limit-status" style="margin-bottom:12px;font-size:14px;">Loading...</div>
-        <button onclick="toggleSignupRateLimit()" class="refresh-btn" id="rate-limit-toggle">Toggle</button>
+      <section class="admin-section admin-toggle-section">
+        <div class="admin-action-header">
+          <h2>🚦 Signup Rate Limit</h2>
+          <div class="admin-action-desc">Control IP-based rate limiting for new signups</div>
+        </div>
+        <div class="toggle-container">
+          <div class="toggle-status" id="rate-limit-status">
+            <div class="status-indicator">
+              <span class="status-dot"></span>
+              <span class="status-text">Loading...</span>
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="rate-limit-checkbox">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </section>
     </div>
 
