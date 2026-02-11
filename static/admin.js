@@ -328,22 +328,15 @@ const loadSignupRateLimitStatus=async()=>{
         let j=await r.json()
         if(j.ok){
             let status=$('#rate-limit-status')
-            let statusDot=status.querySelector('.status-dot')
-            let statusText=status.querySelector('.status-text')
             let toggle=$('#rate-limit-toggle')
-            let toggleText=toggle.querySelector('.toggle-text')
             if(j.enabled){
-                statusDot.className='status-dot active'
-                statusText.className='status-text active'
-                statusText.textContent='Enabled - Signups are rate limited'
-                toggleText.textContent='Disable Rate Limit'
-                toggle.className='admin-toggle-btn danger-state'
+                status.innerHTML='<span style="color:#4ade80;">✅ Enabled</span> - Signups are rate limited'
+                toggle.textContent='Disable Rate Limit'
+                toggle.className='ban-btn'
             }else{
-                statusDot.className='status-dot inactive'
-                statusText.className='status-text inactive'
-                statusText.textContent='Disabled - Signups are not rate limited'
-                toggleText.textContent='Enable Rate Limit'
-                toggle.className='admin-toggle-btn'
+                status.innerHTML='<span style="color:#f87171;">❌ Disabled</span> - Signups are not rate limited'
+                toggle.textContent='Enable Rate Limit'
+                toggle.className='give-btn'
             }
         }
     }
