@@ -243,6 +243,22 @@ def init():
             lo, hi = BASE_PRICES["heavenly"]
             d.execute("insert into shoes(name, rarity, base) values(?,?,?)", (name, "heavenly", round(random.uniform(lo, hi), 2)))
     
+    space_users = d.execute("select id from accounts where trim(username)=''").fetchall()
+    for user in space_users:
+        uid = user["id"]
+        d.execute("delete from hold where user_id=?", (uid,))
+        d.execute("delete from appraised where user_id=?", (uid,))
+        d.execute("delete from favorites where user_id=?", (uid,))
+        d.execute("delete from notifications where user_id=?", (uid,))
+        d.execute("delete from shoe_index where user_id=?", (uid,))
+        d.execute("delete from user_stock where user_id=?", (uid,))
+        d.execute("delete from tx_log where user_id=?", (uid,))
+        d.execute("delete from pot_entries where user_id=?", (uid,))
+        d.execute("delete from global_chat where user_id=?", (uid,))
+        d.execute("delete from trades where from_user=? or to_user=?", (uid, uid))
+        d.execute("delete from users where id=?", (uid,))
+        d.execute("delete from accounts where id=?", (uid,))
+    
     d.commit()
 
 def pick(w):
