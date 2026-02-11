@@ -328,30 +328,32 @@ const loadSignupRateLimitStatus=async()=>{
         let j=await r.json()
         if(j.ok){
             let status=$('#rate-limit-status')
-            let checkbox=$('#rate-limit-checkbox')
             let statusDot=status.querySelector('.status-dot')
             let statusText=status.querySelector('.status-text')
-            checkbox.checked=j.enabled
+            let toggle=$('#rate-limit-toggle')
+            let toggleText=toggle.querySelector('.toggle-text')
             if(j.enabled){
                 statusDot.className='status-dot active'
                 statusText.className='status-text active'
                 statusText.textContent='Enabled - Signups are rate limited'
+                toggleText.textContent='Disable Rate Limit'
+                toggle.className='admin-toggle-btn danger-state'
             }else{
                 statusDot.className='status-dot inactive'
                 statusText.className='status-text inactive'
                 statusText.textContent='Disabled - Signups are not rate limited'
+                toggleText.textContent='Enable Rate Limit'
+                toggle.className='admin-toggle-btn'
             }
         }
     }
 }
 
 window.toggleSignupRateLimit=async()=>{
-    let checkbox=$('#rate-limit-checkbox')
-    let wasChecked=checkbox.checked
     let r=await fetch('/api/admin/toggle-signup-rate-limit',{method:'POST'})
     let j=await r.json()
     if(j.ok){toast(j.msg);loadSignupRateLimitStatus()}
-    else{checkbox.checked=wasChecked;toast(j.error,'error')}
+    else toast(j.error,'error')
 }
 
 loadUsers()
@@ -360,7 +362,3 @@ fetchBalance()
 checkCourtStatus()
 loadSignupRateLimitStatus()
 setInterval(checkCourtStatus,5000)
-setTimeout(()=>{
-    let checkbox=$('#rate-limit-checkbox')
-    if(checkbox)checkbox.addEventListener('change',toggleSignupRateLimit)
-},100)

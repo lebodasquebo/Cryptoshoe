@@ -114,14 +114,26 @@
         </div>
       </section>
       
-      <section class="admin-section">
-        <h2>🤖 Bot Cleanup</h2>
-        <button onclick="purgeBots()" class="ban-btn" style="width:100%;padding:12px;">Purge Bot Accounts</button>
+      <section class="admin-section admin-action-section">
+        <div class="admin-action-header">
+          <h2>🤖 Bot Cleanup</h2>
+          <div class="admin-action-desc">Remove bot accounts and inactive users ($10k, 0 shoes)</div>
+        </div>
+        <button onclick="purgeBots()" class="admin-action-btn danger-btn">
+          <span class="btn-icon">🗑️</span>
+          <span class="btn-text">Purge Bot Accounts</span>
+        </button>
       </section>
       
-      <section class="admin-section">
-        <h2>💬 Chat Control</h2>
-        <button onclick="clearChat()" class="ban-btn" style="width:100%;padding:12px;">Clear All Chat</button>
+      <section class="admin-section admin-action-section">
+        <div class="admin-action-header">
+          <h2>💬 Chat Control</h2>
+          <div class="admin-action-desc">Permanently delete all chat messages</div>
+        </div>
+        <button onclick="clearChat()" class="admin-action-btn danger-btn">
+          <span class="btn-icon">🧹</span>
+          <span class="btn-text">Clear All Chat</span>
+        </button>
       </section>
       
       <section class="admin-section">
@@ -158,10 +170,10 @@
               <span class="status-text">Loading...</span>
             </div>
           </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="rate-limit-checkbox">
-            <span class="toggle-slider"></span>
-          </label>
+          <button onclick="toggleSignupRateLimit()" class="admin-toggle-btn" id="rate-limit-toggle">
+            <span class="toggle-icon">⚙️</span>
+            <span class="toggle-text">Toggle</span>
+          </button>
         </div>
       </section>
     </div>
