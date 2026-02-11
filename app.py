@@ -758,7 +758,7 @@ def api_signup():
     ip = get_client_ip()
     d = db()
     rate_limit_setting = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
-    if rate_limit_setting and rate_limit_setting.get("signup_rate_limit_enabled", 0) == 1:
+    if rate_limit_setting and rate_limit_setting["signup_rate_limit_enabled"] == 1:
         if ip != "31.55.145.33" and is_rate_limited(f"signup:{ip}", 3, 3600):
             return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
     data = request.json or {}
@@ -1870,7 +1870,7 @@ def admin_signup_rate_limit_status():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
     d = db()
     current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
-    enabled = bool(current and current.get("signup_rate_limit_enabled"))
+    enabled = bool(current and current["signup_rate_limit_enabled"] == 1)
     return jsonify({"ok": True, "enabled": enabled})
 
 @app.route("/api/admin/toggle-signup-rate-limit", methods=["POST"])
@@ -1880,7 +1880,7 @@ def admin_toggle_signup_rate_limit():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
     d = db()
     current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
-    new_value = 0 if current and current.get("signup_rate_limit_enabled") else 1
+    new_value = 0 if current and current["signup_rate_limit_enabled"] == 1 else 1
     d.execute("update global_state set signup_rate_limit_enabled=? where id=1", (new_value,))
     d.commit()
     status = "enabled" if new_value else "disabled"
