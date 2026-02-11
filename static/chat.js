@@ -55,9 +55,12 @@ const fetchMessages = async () => {
 }
 
 const escapeHtml = (text) => {
-  let div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
 }
 
 const highlightMentions = (text) => {
@@ -72,6 +75,8 @@ const sendMessage = async () => {
   
   input.value = ''
   input.focus()
+  $('#mention-dropdown').classList.remove('show')
+  mentionStart = -1
   
   let r = await fetch('/api/chat/send', {
     method: 'POST',
@@ -149,10 +154,14 @@ const showMentionDropdown = (query) => {
     return
   }
   
-  dropdown.innerHTML = filtered.map((u, i) => {
+  let maxShow = 8
+  let hasMore = filtered.length > maxShow
+  let toShow = filtered.slice(0, maxShow)
+  
+  dropdown.innerHTML = toShow.map((u, i) => {
     let clean = u.replace('👑 ', '')
     return `<div class="mention-option${i === selectedMentionIndex ? ' selected' : ''}${u.includes('👑') ? ' admin' : ''}" data-username="${clean}">${u}</div>`
-  }).join('')
+  }).join('') + (hasMore ? `<div class="mention-more">... ${filtered.length - maxShow} more</div>` : '')
   
   dropdown.classList.add('show')
   
@@ -213,6 +222,15 @@ $('#chat-input').addEventListener('keydown', e => {
     let selected = options[selectedMentionIndex]
     if (selected) insertMention(selected.dataset.username)
   } else if (e.key === 'Escape') {
+    dropdown.classList.remove('show')
+    mentionStart = -1
+  }
+})
+
+document.addEventListener('click', e => {
+  let dropdown = $('#mention-dropdown')
+  let input = $('#chat-input')
+  if (!dropdown.contains(e.target) && e.target !== input) {
     dropdown.classList.remove('show')
     mentionStart = -1
   }

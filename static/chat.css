@@ -244,6 +244,14 @@
   color: #ffd700;
 }
 
+.mention-more {
+  padding: 8px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
 #chat-input {
   flex: 1;
   padding: 12px 16px;
