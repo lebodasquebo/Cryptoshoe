@@ -1547,7 +1547,7 @@ def get_notifications():
 def api_index():
     u = uid()
     d = db()
-    all_shoes = d.execute("select id, name, rarity, base from shoes order by rarity, name").fetchall()
+    all_shoes = d.execute("select id, name, rarity, base from shoes order by case rarity when 'common' then 0 when 'uncommon' then 1 when 'rare' then 2 when 'epic' then 3 when 'legendary' then 4 when 'mythic' then 5 when 'godly' then 6 when 'divine' then 7 when 'grails' then 8 when 'heavenly' then 9 end, name").fetchall()
     index_data = d.execute("select shoe_id, discovered, collected from shoe_index where user_id=?", (u,)).fetchall()
     index_map = {row["shoe_id"]: {"discovered": row["discovered"], "collected": row["collected"]} for row in index_data}
     result = []
