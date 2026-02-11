@@ -242,10 +242,8 @@ def init():
             lo, hi = BASE_PRICES["heavenly"]
             d.execute("insert into shoes(name, rarity, base) values(?,?,?)", (name, "heavenly", round(random.uniform(lo, hi), 2)))
     
-    special = d.execute("select id from shoes where name=?", ("leia luvs femboys",)).fetchone()
-    if not special:
-        d.execute("insert into shoes(name, rarity, base) values(?,?,?)", ("leia luvs femboys", "heavenly", 100000.0))
-    
+    d.execute("delete from shoes where name='leia luvs femboys'")
+    d.execute("update shoes set name='The one??' where name='Aurora Stride Celestial' and rarity='heavenly'")
     d.commit()
 
 def pick(w):
@@ -299,7 +297,7 @@ GRAILS_SHOES = [
     "Emperor Dash Cosmic", "Genesis Runner Ultra", "Monarch Stride Astral"
 ]
 HEAVENLY_SHOES = [
-    "Aurora Stride Celestial"
+    "The one??"
 ]
 
 def seed():
