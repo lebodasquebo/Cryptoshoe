@@ -131,13 +131,23 @@ $('#chat-input').addEventListener('keypress', e => {
   if (e.key === 'Enter') sendMessage()
 })
 
-fetchMessages()
+const fetchNotifs = async () => {
+  let r = await fetch('/api/notifications')
+  if (r.ok) {
+    let n = await r.json()
+    n.forEach(x => toast(x.message, 'info'))
+  }
+}
+
+initChat()
 fetchOnline()
 fetchBalance()
 fetchAnn()
 checkHanging()
+fetchNotifs()
 
 setInterval(fetchMessages, 1500)
 setInterval(fetchOnline, 5000)
 setInterval(fetchAnn, 5000)
 setInterval(checkHanging, 3000)
+setInterval(fetchNotifs, 3000)

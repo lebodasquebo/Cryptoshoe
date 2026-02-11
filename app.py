@@ -2754,9 +2754,9 @@ def api_chat_send():
     d.execute("insert into global_chat(user_id, username, message, ts) values(?,?,?,?)", (u, username, msg, now))
     
     import re
-    mentions = re.findall(r'@(\w+)', msg)
+    mentions = re.findall(r'@([A-Za-z0-9_-]+)', msg)
     for mention in mentions:
-        target = d.execute("select id from accounts where username=? collate nocase", (mention.lower(),)).fetchone()
+        target = d.execute("select id, username from accounts where lower(username)=?", (mention.lower(),)).fetchone()
         if target and target["id"] != u:
             d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", 
                      (target["id"], f"💬 {acc['username']} mentioned you in chat: {msg[:50]}", now))
