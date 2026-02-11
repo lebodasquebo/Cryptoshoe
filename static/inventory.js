@@ -10,21 +10,6 @@ const money=v=>v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFraction
 const pct=(p,b)=>((p-b)/b*100)
 const rarClass=r=>({common:'rar-common',uncommon:'rar-uncommon',rare:'rar-rare',epic:'rar-epic',legendary:'rar-legendary',mythic:'rar-mythic',godly:'rar-godly',divine:'rar-divine',grails:'rar-grails',heavenly:'rar-heavenly'}[r]||'rar-common')
 
-$$('.tab-btn').forEach(btn=>{
-  btn.onclick=()=>{
-    $$('.tab-btn').forEach(b=>b.classList.remove('active'))
-    btn.classList.add('active')
-    if(btn.dataset.tab==='inventory'){
-      $('#inventory-section').classList.remove('hidden')
-      $('#index-section').classList.add('hidden')
-    }else{
-      $('#inventory-section').classList.add('hidden')
-      $('#index-section').classList.remove('hidden')
-      fetchIndex()
-    }
-  }
-})
-
 const updTimer=()=>{
   if(!state.next_stock)return
   let now=Math.floor(Date.now()/1000)+serverOffset
@@ -229,6 +214,21 @@ window.collectReward=async(shoeId)=>{
     toast(j.error||'Failed','error')
   }
 }
+
+$$('.tab-btn').forEach(btn=>{
+  btn.onclick=()=>{
+    $$('.tab-btn').forEach(b=>b.classList.remove('active'))
+    btn.classList.add('active')
+    if(btn.dataset.tab==='inventory'){
+      $('#inventory-section').classList.remove('hidden')
+      $('#index-section').classList.add('hidden')
+    }else{
+      $('#inventory-section').classList.add('hidden')
+      $('#index-section').classList.remove('hidden')
+      fetchIndex()
+    }
+  }
+})
 
 fetchState()
 updBadge()
