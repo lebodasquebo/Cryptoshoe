@@ -1,5 +1,6 @@
 let state={market:[],hold:[],appraised:[],hist:{},balance:0,next_stock:0,next_price:0,server_time:0},sel=null,selType=null,serverOffset=0
 let sortBy='rarity',sortDir='desc'
+let indexData=[]
 const RARITY_ORDER={common:0,uncommon:1,rare:2,epic:3,legendary:4,mythic:5,godly:6,divine:7,grails:8,heavenly:9}
 const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
 const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
@@ -8,6 +9,21 @@ const el=(t,c)=>{let e=document.createElement(t);if(c)e.className=c;return e}
 const money=v=>v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
 const pct=(p,b)=>((p-b)/b*100)
 const rarClass=r=>({common:'rar-common',uncommon:'rar-uncommon',rare:'rar-rare',epic:'rar-epic',legendary:'rar-legendary',mythic:'rar-mythic',godly:'rar-godly',divine:'rar-divine',grails:'rar-grails',heavenly:'rar-heavenly'}[r]||'rar-common')
+
+$$('.tab-btn').forEach(btn=>{
+  btn.onclick=()=>{
+    $$('.tab-btn').forEach(b=>b.classList.remove('active'))
+    btn.classList.add('active')
+    if(btn.dataset.tab==='inventory'){
+      $('#inventory-section').classList.remove('hidden')
+      $('#index-section').classList.add('hidden')
+    }else{
+      $('#inventory-section').classList.add('hidden')
+      $('#index-section').classList.remove('hidden')
+      fetchIndex()
+    }
+  }
+})
 
 const updTimer=()=>{
   if(!state.next_stock)return
@@ -172,6 +188,47 @@ $('#sell-all').onclick=sellAll
 const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
 const fetchAnn=async()=>{let r=await fetch('/api/announcements');if(r.ok){let a=await r.json(),bar=document.getElementById('announcement-bar');if(bar){if(a.length){bar.innerHTML=a.map(x=>`<div class="announcement"><span class="ann-icon">📢</span><span class="ann-text">${x.message}</span></div>`).join('');bar.classList.add('show');document.body.classList.add('has-announcement')}else{bar.classList.remove('show');document.body.classList.remove('has-announcement')}}}}
 const checkHanging=async()=>{let r=await fetch('/api/hanging');if(r.ok){let h=await r.json();if(h.active&&!location.pathname.includes('/hanging')){location.href='/hanging/'+h.victim}}}
+
+const fetchIndex=async()=>{
+  let r=await fetch('/api/index')
+  if(!r.ok)return
+  indexData=await r.json()
+  renderIndex()
+}
+
+const renderIndex=()=>{
+  let grid=$('#index-grid')
+  let discovered=indexData.filter(s=>s.discovered).length
+  let collected=indexData.filter(s=>s.collected).length
+  let totalRewards=indexData.filter(s=>s.collected).reduce((sum,s)=>sum+s.base*0.05,0)
+  $('#index-count').textContent=`${discovered} / ${indexData.length} discovered`
+  $('#index-discovered').textContent=discovered
+  $('#index-collected').textContent=collected
+  $('#index-rewards').textContent='$'+money(totalRewards)
+  grid.innerHTML=indexData.map((s,i)=>{
+    let isDiscovered=s.discovered
+    let isCollected=s.collected
+    return `<div class="index-card ${isDiscovered?'discovered':''} ${isCollected?'collected':''}" style="animation-delay:${i*0.02}s">
+      <div class="index-card-rarity ${rarClass(s.rarity)}">${s.rarity.toUpperCase()}</div>
+      <div class="index-card-name">${isDiscovered?s.name:'???'}</div>
+      <div class="index-card-reward">${isDiscovered?'Reward: $'+money(s.base*0.05):'???'}</div>
+      ${isDiscovered&&!isCollected?`<button class="index-collect-btn" onclick="collectReward(${s.id})">💰 Collect</button>`:''}
+      ${isCollected?'<div class="index-collected-badge">✓ Collected</div>':''}
+    </div>`
+  }).join('')
+}
+
+window.collectReward=async(shoeId)=>{
+  let r=await fetch(`/api/index/collect/${shoeId}`,{method:'POST'})
+  let j=await r.json()
+  if(j.ok){
+    toast(`Collected $${money(j.reward)} reward!`,'success')
+    fetchIndex()
+    fetchState()
+  }else{
+    toast(j.error||'Failed','error')
+  }
+}
 
 fetchState()
 updBadge()

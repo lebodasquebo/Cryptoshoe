@@ -186,6 +186,7 @@ def init():
     create table if not exists active_hanging(id integer primary key, victim text, started integer);
     create table if not exists notifications(id integer primary key autoincrement, user_id text, message text, ts integer);
     create table if not exists announcements(id integer primary key autoincrement, message text, ts integer, expires integer);
+    create table if not exists shoe_index(user_id text, shoe_id integer, discovered integer, collected integer, primary key(user_id, shoe_id));
     create table if not exists court_session(id integer primary key, defendant text, accusation text, status text, started integer, ended integer);
     create table if not exists court_messages(id integer primary key autoincrement, session_id integer, username text, message text, is_system integer, ts integer);
     create table if not exists court_votes(session_id integer, voter text, vote text, primary key(session_id, voter));
@@ -902,6 +903,8 @@ def buy():
     d.execute("insert into user_stock(user_id, shoe_id, stock_cycle, bought) values(?,?,?,?) on conflict(user_id, shoe_id, stock_cycle) do update set bought=bought+?", (u, shoe, stock_cycle, qty, qty))
     d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+excluded.qty", (u, shoe, qty))
     d.execute("update users set balance=balance-? where id=?", (cost, u))
+    now = int(time.time())
+    d.execute("insert or ignore into shoe_index(user_id, shoe_id, discovered, collected) values(?,?,?,0)", (u, shoe, now))
     d.commit()
     return jsonify({"ok": True})
 
@@ -1412,7 +1415,8 @@ def accept_trade(trade_id):
     if offer_val > 0 and want_val > 0:
         ratio = max(offer_val, want_val) / min(offer_val, want_val)
         if ratio > 2.0:
-            return jsonify({"ok": False, "error": "Trade value difference too large (max 100%)"})
+            diff_pct = int((ratio - 1) * 100)
+            return jsonify({"ok": False, "error": f"❌ UNFAIR TRADE! Value difference is {diff_pct}% (max allowed: 100%). Offer: ${offer_val:,.0f} vs Want: ${want_val:,.0f}"})
     
     if offer_cash > 0:
         d.execute("update users set balance=balance-? where id=?", (offer_cash, from_user))
@@ -1537,6 +1541,47 @@ def get_notifications():
     d.execute("delete from notifications where user_id=?", (u,))
     d.commit()
     return jsonify([dict(n) for n in notifs])
+
+@app.route("/api/index")
+@login_required
+def api_index():
+    u = uid()
+    d = db()
+    all_shoes = d.execute("select id, name, rarity, base from shoes order by rarity, name").fetchall()
+    index_data = d.execute("select shoe_id, discovered, collected from shoe_index where user_id=?", (u,)).fetchall()
+    index_map = {row["shoe_id"]: {"discovered": row["discovered"], "collected": row["collected"]} for row in index_data}
+    result = []
+    for shoe in all_shoes:
+        entry = {"id": shoe["id"], "name": shoe["name"], "rarity": shoe["rarity"], "base": shoe["base"]}
+        if shoe["id"] in index_map:
+            entry["discovered"] = index_map[shoe["id"]]["discovered"]
+            entry["collected"] = index_map[shoe["id"]]["collected"]
+        else:
+            entry["discovered"] = 0
+            entry["collected"] = 0
+        result.append(entry)
+    return jsonify(result)
+
+@app.route("/api/index/collect/<int:shoe_id>", methods=["POST"])
+@login_required
+def api_index_collect(shoe_id):
+    u = uid()
+    d = db()
+    shoe = d.execute("select id, name, base from shoes where id=?", (shoe_id,)).fetchone()
+    if not shoe:
+        return jsonify({"ok": False, "error": "Shoe not found"})
+    index_entry = d.execute("select discovered, collected from shoe_index where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
+    if not index_entry or not index_entry["discovered"]:
+        return jsonify({"ok": False, "error": "Shoe not discovered yet"})
+    if index_entry["collected"]:
+        return jsonify({"ok": False, "error": "Already collected"})
+    reward = int(shoe["base"] * 0.05)
+    d.execute("update shoe_index set collected=? where user_id=? and shoe_id=?", (int(time.time()), u, shoe_id))
+    d.execute("update users set balance=balance+? where id=?", (reward, u))
+    now = int(time.time())
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (u, f"📖 Collected {shoe['name']} index reward: ${reward:,}!", now))
+    d.commit()
+    return jsonify({"ok": True, "reward": reward})
 
 def is_admin():
     if session.get("username") not in ADMIN_USERS:
