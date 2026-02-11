@@ -200,6 +200,48 @@
   border-top: 1px solid var(--bg4);
   display: flex;
   gap: 12px;
+  position: relative;
+}
+
+.mention-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 16px;
+  right: 16px;
+  max-height: 200px;
+  background: var(--bg2);
+  border: 1px solid var(--cyan);
+  border-radius: 12px;
+  overflow-y: auto;
+  box-shadow: 0 -4px 20px rgba(0,212,255,0.3);
+  display: none;
+  z-index: 1000;
+}
+
+.mention-dropdown.show {
+  display: block;
+}
+
+.mention-option {
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text);
+  border-bottom: 1px solid var(--bg3);
+}
+
+.mention-option:last-child {
+  border-bottom: none;
+}
+
+.mention-option:hover,
+.mention-option.selected {
+  background: rgba(0,212,255,0.2);
+  color: var(--cyan);
+}
+
+.mention-option.admin {
+  color: #ffd700;
 }
 
 #chat-input {

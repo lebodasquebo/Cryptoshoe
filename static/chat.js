@@ -86,10 +86,13 @@ const sendMessage = async () => {
   }
 }
 
+let onlineUsers = []
+
 const fetchOnline = async () => {
   let r = await fetch('/api/chat/online')
   if (!r.ok) return
   let users = await r.json()
+  onlineUsers = users
   $('#online-count').textContent = users.length
   $('#online-users').innerHTML = users.map(u => {
     let cleanName = u.replace('👑 ', '')
@@ -131,9 +134,93 @@ const checkHanging = async () => {
   }
 }
 
+let mentionStart = -1
+let selectedMentionIndex = 0
+
+const showMentionDropdown = (query) => {
+  let dropdown = $('#mention-dropdown')
+  let filtered = onlineUsers.filter(u => {
+    let clean = u.replace('👑 ', '').toLowerCase()
+    return clean.includes(query.toLowerCase())
+  })
+  
+  if (filtered.length === 0) {
+    dropdown.classList.remove('show')
+    return
+  }
+  
+  dropdown.innerHTML = filtered.map((u, i) => {
+    let clean = u.replace('👑 ', '')
+    return `<div class="mention-option${i === selectedMentionIndex ? ' selected' : ''}${u.includes('👑') ? ' admin' : ''}" data-username="${clean}">${u}</div>`
+  }).join('')
+  
+  dropdown.classList.add('show')
+  
+  dropdown.querySelectorAll('.mention-option').forEach((opt, i) => {
+    opt.onclick = () => insertMention(opt.dataset.username)
+  })
+}
+
+const insertMention = (username) => {
+  let input = $('#chat-input')
+  let text = input.value
+  let before = text.substring(0, mentionStart)
+  let after = text.substring(input.selectionStart)
+  input.value = before + '@' + username + ' ' + after
+  input.focus()
+  let pos = before.length + username.length + 2
+  input.setSelectionRange(pos, pos)
+  $('#mention-dropdown').classList.remove('show')
+  mentionStart = -1
+}
+
+$('#chat-input').addEventListener('input', e => {
+  let input = e.target
+  let text = input.value
+  let pos = input.selectionStart
+  
+  let lastAt = text.lastIndexOf('@', pos - 1)
+  if (lastAt !== -1) {
+    let afterAt = text.substring(lastAt + 1, pos)
+    if (afterAt.indexOf(' ') === -1) {
+      mentionStart = lastAt
+      showMentionDropdown(afterAt)
+      return
+    }
+  }
+  
+  $('#mention-dropdown').classList.remove('show')
+  mentionStart = -1
+})
+
+$('#chat-input').addEventListener('keydown', e => {
+  let dropdown = $('#mention-dropdown')
+  if (!dropdown.classList.contains('show')) return
+  
+  let options = dropdown.querySelectorAll('.mention-option')
+  if (options.length === 0) return
+  
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    selectedMentionIndex = (selectedMentionIndex + 1) % options.length
+    showMentionDropdown($('#chat-input').value.substring(mentionStart + 1, $('#chat-input').selectionStart))
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    selectedMentionIndex = selectedMentionIndex === 0 ? options.length - 1 : selectedMentionIndex - 1
+    showMentionDropdown($('#chat-input').value.substring(mentionStart + 1, $('#chat-input').selectionStart))
+  } else if (e.key === 'Enter' || e.key === 'Tab') {
+    e.preventDefault()
+    let selected = options[selectedMentionIndex]
+    if (selected) insertMention(selected.dataset.username)
+  } else if (e.key === 'Escape') {
+    dropdown.classList.remove('show')
+    mentionStart = -1
+  }
+})
+
 $('#send-btn').addEventListener('click', sendMessage)
 $('#chat-input').addEventListener('keypress', e => {
-  if (e.key === 'Enter') sendMessage()
+  if (e.key === 'Enter' && !$('#mention-dropdown').classList.contains('show')) sendMessage()
 })
 
 const fetchNotifs = async () => {
