@@ -777,6 +777,8 @@ def api_signup():
         return jsonify({"ok": False, "error": "Username must be at least 3 characters"})
     if len(username) > 20:
         return jsonify({"ok": False, "error": "Username must be 20 characters or less"})
+    if not username.isalnum():
+        return jsonify({"ok": False, "error": "Username must be alphanumeric"})
     bot_patterns = ["player", "investor", "user", "guest", "test", "admin", "bot", "account", "trader", "shoe"]
     for pat in bot_patterns:
         if username.lower().startswith(pat) and any(c.isdigit() for c in username):
