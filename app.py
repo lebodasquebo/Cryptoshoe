@@ -2726,6 +2726,13 @@ def api_chat_messages():
     msgs = d.execute("select id, username, message, ts from global_chat where id > ? order by id asc limit 100", (since,)).fetchall()
     return jsonify([dict(m) for m in msgs])
 
+@app.route("/api/chat/latest-id")
+@login_required
+def api_chat_latest_id():
+    d = db()
+    latest = d.execute("select id from global_chat order by id desc limit 1").fetchone()
+    return jsonify({"id": latest["id"] if latest else 0})
+
 @app.route("/api/chat/send", methods=["POST"])
 @login_required
 def api_chat_send():
@@ -2745,6 +2752,15 @@ def api_chat_send():
     if is_admin():
         username = "👑 " + username
     d.execute("insert into global_chat(user_id, username, message, ts) values(?,?,?,?)", (u, username, msg, now))
+    
+    import re
+    mentions = re.findall(r'@(\w+)', msg)
+    for mention in mentions:
+        target = d.execute("select id from accounts where username=? collate nocase", (mention.lower(),)).fetchone()
+        if target and target["id"] != u:
+            d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", 
+                     (target["id"], f"💬 {acc['username']} mentioned you in chat: {msg[:50]}", now))
+    
     d.commit()
     return jsonify({"ok": True})
 

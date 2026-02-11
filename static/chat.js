@@ -5,10 +5,22 @@ checkCourt();setInterval(checkCourt,5000)
 
 let lastMsgId = 0
 let renderedIds = new Set()
+let initialized = false
 
 const formatTime = (ts) => {
   let d = new Date(ts * 1000)
   return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+}
+
+const initChat = async () => {
+  let r = await fetch('/api/chat/latest-id')
+  if (r.ok) {
+    let data = await r.json()
+    lastMsgId = Math.max(0, data.id - 50)
+    initialized = true
+    await fetchMessages()
+    $('#messages').scrollTop = $('#messages').scrollHeight
+  }
 }
 
 const fetchMessages = async () => {
