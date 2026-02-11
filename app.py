@@ -219,7 +219,12 @@ def init():
         pass
     try:
         d.execute("alter table global_state add column signup_rate_limit_enabled integer default 0")
-        d.execute("update global_state set signup_rate_limit_enabled=0 where id=1")
+        d.commit()
+    except:
+        pass
+    try:
+        d.execute("update global_state set signup_rate_limit_enabled=0 where id=1 and signup_rate_limit_enabled is null")
+        d.commit()
     except:
         pass
     d.execute("update shoes set rarity='godly' where rarity='secret'")
@@ -763,7 +768,7 @@ def api_signup():
         if rate_limit_setting and rate_limit_setting["signup_rate_limit_enabled"] == 1:
             if ip != "31.55.145.33" and is_rate_limited(f"signup:{ip}", 3, 3600):
                 return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
-    except (KeyError, sqlite3.OperationalError):
+    except:
         pass
     data = request.json or {}
     if data.get("website") or data.get("email2") or data.get("phone"):
@@ -1876,7 +1881,7 @@ def admin_signup_rate_limit_status():
     try:
         current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
         enabled = bool(current and current["signup_rate_limit_enabled"] == 1)
-    except (KeyError, sqlite3.OperationalError):
+    except:
         enabled = False
     return jsonify({"ok": True, "enabled": enabled})
 
@@ -1889,10 +1894,24 @@ def admin_toggle_signup_rate_limit():
     try:
         current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
         new_value = 0 if current and current["signup_rate_limit_enabled"] == 1 else 1
+        try:
+            d.execute("update global_state set signup_rate_limit_enabled=? where id=1", (new_value,))
+            d.commit()
+        except (KeyError, sqlite3.OperationalError):
+            try:
+                d.execute("alter table global_state add column signup_rate_limit_enabled integer default 0")
+                d.execute("update global_state set signup_rate_limit_enabled=? where id=1", (new_value,))
+                d.commit()
+            except:
+                return jsonify({"ok": False, "error": "Database migration failed"})
     except (KeyError, sqlite3.OperationalError):
-        new_value = 1
-    d.execute("update global_state set signup_rate_limit_enabled=? where id=1", (new_value,))
-    d.commit()
+        try:
+            d.execute("alter table global_state add column signup_rate_limit_enabled integer default 0")
+            d.execute("update global_state set signup_rate_limit_enabled=1 where id=1")
+            d.commit()
+            new_value = 1
+        except:
+            return jsonify({"ok": False, "error": "Database migration failed"})
     status = "enabled" if new_value else "disabled"
     return jsonify({"ok": True, "msg": f"Signup rate limiting {status}", "enabled": bool(new_value)})
 
