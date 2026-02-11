@@ -322,36 +322,8 @@ const fetchBalance=async()=>{
     if(r.ok){let s=await r.json();$('#bal').textContent=s.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
 }
 
-const loadSignupRateLimitStatus=async()=>{
-    let r=await fetch('/api/admin/signup-rate-limit-status')
-    if(r.ok){
-        let j=await r.json()
-        if(j.ok){
-            let status=$('#rate-limit-status')
-            let toggle=$('#rate-limit-toggle')
-            if(j.enabled){
-                status.innerHTML='<span style="color:#4ade80;">✅ Enabled</span> - Signups are rate limited'
-                toggle.textContent='Disable Rate Limit'
-                toggle.className='ban-btn'
-            }else{
-                status.innerHTML='<span style="color:#f87171;">❌ Disabled</span> - Signups are not rate limited'
-                toggle.textContent='Enable Rate Limit'
-                toggle.className='give-btn'
-            }
-        }
-    }
-}
-
-window.toggleSignupRateLimit=async()=>{
-    let r=await fetch('/api/admin/toggle-signup-rate-limit',{method:'POST'})
-    let j=await r.json()
-    if(j.ok){toast(j.msg);loadSignupRateLimitStatus()}
-    else toast(j.error,'error')
-}
-
 loadUsers()
 loadShoes()
 fetchBalance()
 checkCourtStatus()
-loadSignupRateLimitStatus()
 setInterval(checkCourtStatus,5000)

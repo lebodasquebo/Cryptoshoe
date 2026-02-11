@@ -217,16 +217,6 @@ def init():
         d.execute("alter table pot_entries add column variant text default ''")
     except:
         pass
-    try:
-        d.execute("alter table global_state add column signup_rate_limit_enabled integer default 0")
-        d.commit()
-    except:
-        pass
-    try:
-        d.execute("update global_state set signup_rate_limit_enabled=0 where id=1 and signup_rate_limit_enabled is null")
-        d.commit()
-    except:
-        pass
     d.execute("update shoes set rarity='godly' where rarity='secret'")
     d.execute("update shoes set rarity='divine' where rarity='dexies'")
     d.execute("update shoes set rarity='grails' where rarity='lebos'")
@@ -762,14 +752,9 @@ def api_signup():
     if is_bot_request():
         return jsonify({"ok": False, "error": "Access denied"}), 403
     ip = get_client_ip()
-    d = db()
-    try:
-        rate_limit_setting = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
-        if rate_limit_setting and rate_limit_setting["signup_rate_limit_enabled"] == 1:
-            if ip != "31.55.145.33" and is_rate_limited(f"signup:{ip}", 3, 3600):
-                return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
-    except:
-        pass
+    # Signup rate limiting disabled
+    # if ip != "31.55.145.33" and is_rate_limited(f"signup:{ip}", 3, 3600):
+    #     return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
     data = request.json or {}
     if data.get("website") or data.get("email2") or data.get("phone"):
         return jsonify({"ok": False, "error": "Invalid request"})
@@ -778,6 +763,7 @@ def api_signup():
         return jsonify({"ok": False, "error": "Please complete the CAPTCHA"})
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
+    d = db()
     now = int(time.time())
     device_id = request.cookies.get('device_id')
     if device_id:
@@ -1871,49 +1857,6 @@ def admin_ban_ip():
               (acc["last_ip"], int(time.time()) + secs, f"Banned via {username}"))
     d.commit()
     return jsonify({"ok": True, "msg": f"Banned IP {acc['last_ip']} for {duration}"})
-
-@app.route("/api/admin/signup-rate-limit-status", methods=["GET"])
-@login_required
-def admin_signup_rate_limit_status():
-    if not is_admin():
-        return jsonify({"ok": False, "error": "Unauthorized"}), 403
-    d = db()
-    try:
-        current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
-        enabled = bool(current and current["signup_rate_limit_enabled"] == 1)
-    except:
-        enabled = False
-    return jsonify({"ok": True, "enabled": enabled})
-
-@app.route("/api/admin/toggle-signup-rate-limit", methods=["POST"])
-@login_required
-def admin_toggle_signup_rate_limit():
-    if not is_admin():
-        return jsonify({"ok": False, "error": "Unauthorized"}), 403
-    d = db()
-    try:
-        current = d.execute("select signup_rate_limit_enabled from global_state where id=1").fetchone()
-        new_value = 0 if current and current["signup_rate_limit_enabled"] == 1 else 1
-        try:
-            d.execute("update global_state set signup_rate_limit_enabled=? where id=1", (new_value,))
-            d.commit()
-        except:
-            try:
-                d.execute("alter table global_state add column signup_rate_limit_enabled integer default 0")
-                d.execute("update global_state set signup_rate_limit_enabled=? where id=1", (new_value,))
-                d.commit()
-            except:
-                return jsonify({"ok": False, "error": "Database migration failed"})
-    except:
-        try:
-            d.execute("alter table global_state add column signup_rate_limit_enabled integer default 0")
-            d.execute("update global_state set signup_rate_limit_enabled=1 where id=1")
-            d.commit()
-            new_value = 1
-        except:
-            return jsonify({"ok": False, "error": "Database migration failed"})
-    status = "enabled" if new_value else "disabled"
-    return jsonify({"ok": True, "msg": f"Signup rate limiting {status}", "enabled": bool(new_value)})
 
 @app.route("/api/admin/tx-log", methods=["GET"])
 @login_required
