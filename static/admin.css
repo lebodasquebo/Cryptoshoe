@@ -31,17 +31,6 @@
 .court-active{background:rgba(255,50,50,0.15);border:1px solid rgba(255,50,50,0.3);color:#ff6666;line-height:1.6}
 .court-active strong{color:#fff}
 .court-inactive{background:var(--bg3);border:1px solid var(--bg4);color:var(--text3)}
-.admin-action-section{display:flex;flex-direction:column;gap:12px}
-.admin-action-header{display:flex;flex-direction:column;gap:4px}
-.admin-action-desc{font-size:11px;color:var(--text3);line-height:1.4}
-.admin-action-btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:14px 20px;border:none;border-radius:var(--radius-sm);font-weight:600;font-size:14px;cursor:pointer;transition:all 0.3s;position:relative;overflow:hidden;font-family:'Rajdhani',sans-serif;letter-spacing:0.5px}
-.admin-action-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,0.1));opacity:0;transition:opacity 0.3s}
-.admin-action-btn:hover::before{opacity:1}
-.admin-action-btn:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,0.3)}
-.admin-action-btn:active{transform:translateY(0)}
-.btn-icon{font-size:18px}
-.danger-btn{background:linear-gradient(135deg,#ff4466,#ff3355);color:#fff;border:1px solid rgba(255,68,102,0.3)}
-.danger-btn:hover{box-shadow:0 6px 24px rgba(255,68,102,0.4),0 0 20px rgba(255,68,102,0.2)}
 .admin-toggle-section{display:flex;flex-direction:column;gap:16px}
 .toggle-container{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--bg4)}
 .toggle-status{flex:1}
