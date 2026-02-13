@@ -1,4 +1,4 @@
-import os, sqlite3, time, random, json, uuid, hashlib, re, imghdr, urllib.request, urllib.parse
+import os, sqlite3, time, random, json, uuid, hashlib, re, urllib.request, urllib.parse
 from flask import Flask, g, render_template, session, request, jsonify, Response, redirect, url_for
 from functools import wraps
 try:
@@ -1236,6 +1236,17 @@ def account_by_username(username):
         return None
     return d.execute("select id, username from accounts where lower(username)=?", (uname,)).fetchone()
 
+def detect_image_ext(raw):
+    if raw.startswith(b"\xff\xd8\xff"):
+        return "jpg"
+    if raw.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if raw.startswith((b"GIF87a", b"GIF89a")):
+        return "gif"
+    if raw.startswith(b"RIFF") and raw[8:12] == b"WEBP":
+        return "webp"
+    return None
+
 @app.route("/avatar/<username>.svg")
 def avatar_svg(username):
     safe_name = re.sub(r"[^a-zA-Z0-9 _-]", "", (username or "").strip())[:32] or "User"
@@ -1270,7 +1281,8 @@ def api_user_profile(username):
     """, (acc["id"],)).fetchall()
     stats["hold"] = [dict(s) for s in shoes]
     stats["appraised"] = [dict(a) for a in appraised]
-    stats["is_me"] = (stats["username"].lower() == session.get("username", "").lower())
+    stats["is_me"] = (acc["id"] == u)
+    stats["can_edit"] = stats["is_me"]
     return jsonify(stats)
 
 @app.route("/api/profile/picture", methods=["POST"])
@@ -1286,11 +1298,9 @@ def api_profile_picture_upload():
         return jsonify({"ok": False, "error": "Empty file"}), 400
     if len(raw) > 5 * 1024 * 1024:
         return jsonify({"ok": False, "error": "Image too large (max 5MB)"}), 400
-    kind = imghdr.what(None, h=raw)
-    allowed = {"jpeg": "jpg", "png": "png", "gif": "gif", "webp": "webp"}
-    if kind not in allowed:
+    ext = detect_image_ext(raw)
+    if not ext:
         return jsonify({"ok": False, "error": "Unsupported image format"}), 400
-    ext = allowed[kind]
     avatar_dir = os.path.join(os.path.dirname(__file__), "static", "uploads", "avatars")
     os.makedirs(avatar_dir, exist_ok=True)
     filename = f"{u}_{int(time.time())}_{uuid.uuid4().hex[:8]}.{ext}"

@@ -31,7 +31,8 @@ const render=()=>{
     avatar.onerror=()=>{avatar.onerror=null;avatar.src=`/avatar/${encodeURIComponent(profile.username)}.svg`}
   }
   
-  if(profile.is_me){
+  const canEdit=!!(profile.can_edit||profile.is_me)
+  if(canEdit){
     $('#btn-trade').classList.add('hidden')
     let editor=$('#profile-editor')
     if(editor)editor.classList.remove('hidden')
