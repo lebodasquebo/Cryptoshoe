@@ -1,4 +1,5 @@
 let profile=null,myShoes=[],theirShoes=[],offerShoes=[],wantShoes=[]
+let editorOpen=false
 const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
 const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
 checkCourt();setInterval(checkCourt,5000)
@@ -34,10 +35,18 @@ const render=()=>{
   const canEdit=!!(profile.can_edit||profile.is_me)
   if(canEdit){
     $('#btn-trade').classList.add('hidden')
+    let editBtn=$('#btn-edit-profile')
+    if(editBtn){
+      editBtn.classList.remove('hidden')
+      editBtn.textContent=editorOpen?'✖ CLOSE EDITOR':'✏️ EDIT PROFILE'
+    }
     let editor=$('#profile-editor')
-    if(editor)editor.classList.remove('hidden')
+    if(editor)editor.classList.toggle('hidden',!editorOpen)
   }else{
     $('#btn-trade').classList.remove('hidden')
+    let editBtn=$('#btn-edit-profile')
+    if(editBtn)editBtn.classList.add('hidden')
+    editorOpen=false
     let editor=$('#profile-editor')
     if(editor)editor.classList.add('hidden')
   }
@@ -256,6 +265,11 @@ const resetAvatar=async()=>{
   }else toast('Failed','error')
 }
 
+const toggleProfileEditor=()=>{
+  editorOpen=!editorOpen
+  render()
+}
+
 const fetchBalance=async()=>{
   let r=await fetch('/api/state')
   if(r.ok){let s=await r.json();$('#bal').textContent=money(s.balance)}
@@ -274,6 +288,8 @@ const updBadge=async()=>{
 }
 
 $('#btn-trade').onclick=openTradeModal
+let editProfileBtn=$('#btn-edit-profile')
+if(editProfileBtn)editProfileBtn.onclick=toggleProfileEditor
 $('#modal-close').onclick=()=>$('#trade-modal').classList.add('hidden')
 $('#trade-modal').onclick=(e)=>{if(e.target.id==='trade-modal')$('#trade-modal').classList.add('hidden')}
 $('#submit-trade').onclick=submitTrade

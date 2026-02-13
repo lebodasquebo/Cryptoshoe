@@ -60,6 +60,7 @@
 .profile-stat{text-align:center}
 .profile-stat .stat-val{display:block;font-family:'Orbitron',sans-serif;font-size:20px;font-weight:600;color:var(--accent)}
 .profile-stat .stat-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
+.profile-header-actions{display:flex;flex-direction:column;gap:10px;min-width:220px}
 .trade-btn-big{padding:14px 28px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--radius-sm);color:var(--bg);font-family:'Orbitron',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap;position:relative;overflow:hidden}
 .trade-btn-big::before{content:'';position:absolute;inset:0;background:linear-gradient(45deg,transparent,rgba(255,255,255,0.1),transparent);transform:translateX(-100%);transition:transform 0.6s}
 .trade-btn-big:hover{transform:translateY(-2px);box-shadow:0 6px 24px var(--accent-glow)}
@@ -121,6 +122,7 @@
   .trades-empty{padding:12px;font-size:12px}
   .profile-header{flex-direction:column;text-align:center}
   .profile-stats{justify-content:center}
+  .profile-header-actions{width:100%;min-width:0}
   .trade-btn-big{width:100%}
   .trade-builder{grid-template-columns:1fr;gap:12px}
   .trade-arrow{justify-content:center;transform:rotate(90deg)}
