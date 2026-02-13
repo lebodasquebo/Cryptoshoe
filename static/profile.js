@@ -4,6 +4,7 @@ const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=
 checkCourt();setInterval(checkCourt,5000)
 const money=v=>v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
 const rarClass=r=>({common:'rar-common',uncommon:'rar-uncommon',rare:'rar-rare',epic:'rar-epic',legendary:'rar-legendary',mythic:'rar-mythic',godly:'rar-godly',divine:'rar-divine',grails:'rar-grails',heavenly:'rar-heavenly'}[r]||'rar-common')
+const avatarForProfile=()=>profile&&profile.profile_picture&&profile.profile_picture.trim()?profile.profile_picture:`/avatar/${encodeURIComponent(profile?.username||window.PROFILE_USER)}.svg`
 
 const toast=(msg,type='success')=>{
   let t=$('#toast')
@@ -24,8 +25,21 @@ const render=()=>{
   $('#p-balance').textContent='$'+money(profile.balance)
   $('#p-shoes').textContent=profile.shoes
   $('#p-joined').textContent=formatDate(profile.joined)
+  let avatar=$('#profile-avatar')
+  if(avatar){
+    avatar.src=avatarForProfile()
+    avatar.onerror=()=>{avatar.onerror=null;avatar.src=`/avatar/${encodeURIComponent(profile.username)}.svg`}
+  }
   
-  if(profile.is_me)$('#btn-trade').classList.add('hidden')
+  if(profile.is_me){
+    $('#btn-trade').classList.add('hidden')
+    let editor=$('#profile-editor')
+    if(editor)editor.classList.remove('hidden')
+  }else{
+    $('#btn-trade').classList.remove('hidden')
+    let editor=$('#profile-editor')
+    if(editor)editor.classList.add('hidden')
+  }
   
   let grid=$('#shoes-grid'),empty=$('#shoes-empty')
   let allShoes=[...profile.hold,...profile.appraised.map(a=>({...a,qty:1,appraised:true}))]
@@ -164,7 +178,7 @@ const renderTradeModal=()=>{
 const openTradeModal=async()=>{
   let[r1,r2]=await Promise.all([
     fetch('/api/my-shoes'),
-    fetch('/api/user-shoes/'+window.PROFILE_USER)
+    fetch('/api/user-shoes/'+encodeURIComponent(window.PROFILE_USER))
   ])
   if(r1.ok)myShoes=await r1.json()
   if(r2.ok)theirShoes=await r2.json()
@@ -207,9 +221,38 @@ const submitTrade=async()=>{
 }
 
 const fetchProfile=async()=>{
-  let r=await fetch('/api/user/'+window.PROFILE_USER)
+  let r=await fetch('/api/user/'+encodeURIComponent(window.PROFILE_USER))
   if(r.ok){profile=await r.json();render()}
   else{$('#p-name').textContent='User not found'}
+}
+
+const uploadAvatar=async(file)=>{
+  if(!file)return
+  if(!file.type.startsWith('image/')){toast('Please choose an image file','error');return}
+  let fd=new FormData()
+  fd.append('image',file)
+  let r=await fetch('/api/profile/picture',{method:'POST',body:fd})
+  if(r.ok){
+    let j=await r.json()
+    if(j.ok){
+      if(!profile)profile={}
+      profile.profile_picture=j.profile_picture
+      render()
+      toast('Profile picture updated')
+    }else toast(j.error||'Upload failed','error')
+  }else toast('Upload failed','error')
+}
+
+const resetAvatar=async()=>{
+  let r=await fetch('/api/profile/picture',{method:'DELETE'})
+  if(r.ok){
+    let j=await r.json()
+    if(j.ok){
+      profile.profile_picture=''
+      render()
+      toast('Profile picture reset')
+    }else toast(j.error||'Failed','error')
+  }else toast('Failed','error')
 }
 
 const fetchBalance=async()=>{
@@ -235,6 +278,12 @@ $('#trade-modal').onclick=(e)=>{if(e.target.id==='trade-modal')$('#trade-modal')
 $('#submit-trade').onclick=submitTrade
 $('#offer-cash').oninput=calcTotals
 $('#want-cash').oninput=calcTotals
+let avatarFile=$('#avatar-file')
+if(avatarFile)avatarFile.onchange=(e)=>{let f=e.target.files&&e.target.files[0];uploadAvatar(f);e.target.value=''}
+let avatarCamera=$('#avatar-camera')
+if(avatarCamera)avatarCamera.onchange=(e)=>{let f=e.target.files&&e.target.files[0];uploadAvatar(f);e.target.value=''}
+let avatarRemove=$('#avatar-remove')
+if(avatarRemove)avatarRemove.onclick=resetAvatar
 
 const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
 const fetchAnn=async()=>{let r=await fetch('/api/announcements');if(r.ok){let a=await r.json(),bar=document.getElementById('announcement-bar');if(bar){if(a.length){bar.innerHTML=a.map(x=>`<div class="announcement"><span class="ann-icon">📢</span><span class="ann-text">${x.message}</span></div>`).join('');bar.classList.add('show');document.body.classList.add('has-announcement')}else{bar.classList.remove('show');document.body.classList.remove('has-announcement')}}}}

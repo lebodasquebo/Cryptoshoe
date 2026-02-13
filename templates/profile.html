@@ -68,7 +68,9 @@
     <div class="profile-layout">
       <div class="profile-main">
         <div class="profile-header">
-          <div class="profile-avatar">👤</div>
+          <div class="profile-avatar-wrap">
+            <img id="profile-avatar" class="profile-avatar" src="" alt="Profile avatar">
+          </div>
           <div class="profile-info">
             <h1 class="profile-name" id="p-name">Loading...</h1>
             <div class="profile-stats">
@@ -89,6 +91,16 @@
           <button class="trade-btn-big" id="btn-trade">
             🤝 PROPOSE TRADE
           </button>
+        </div>
+        <div class="profile-editor hidden" id="profile-editor">
+          <h3 class="shoes-title">EDIT PROFILE</h3>
+          <div class="profile-editor-actions">
+            <label class="user-btn profile-btn file-label" for="avatar-file">🖼 Choose File / Photos</label>
+            <input id="avatar-file" type="file" accept="image/*" class="hidden-file-input">
+            <label class="user-btn profile-btn file-label" for="avatar-camera">📷 Take Photo</label>
+            <input id="avatar-camera" type="file" accept="image/*" capture="environment" class="hidden-file-input">
+            <button class="user-btn trade-btn" id="avatar-remove" type="button">♻ Reset Avatar</button>
+          </div>
         </div>
         <div class="profile-shoes">
           <h3 class="shoes-title">SHOE COLLECTION</h3>

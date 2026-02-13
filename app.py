@@ -1,4 +1,4 @@
-import os, sqlite3, time, random, json, uuid, hashlib, re, urllib.request, urllib.parse
+import os, sqlite3, time, random, json, uuid, hashlib, re, imghdr, urllib.request, urllib.parse
 from flask import Flask, g, render_template, session, request, jsonify, Response, redirect, url_for
 from functools import wraps
 try:
@@ -1164,7 +1164,10 @@ def users_page():
 @app.route("/user/<username>")
 @login_required
 def user_profile(username):
-    return render_template("profile.html", profile_username=username, is_admin=is_admin())
+    acc = account_by_username(username)
+    if not acc:
+        return render_template("profile.html", profile_username=username, is_admin=is_admin())
+    return render_template("profile.html", profile_username=acc["username"], is_admin=is_admin())
 
 @app.route("/api/users")
 @login_required
@@ -1210,7 +1213,8 @@ def api_users_suggest():
 
 def get_user_stats(username):
     d = db()
-    acc = d.execute("select id, username, created, coalesce(profile_picture, '') as profile_picture from accounts where username=?", (username,)).fetchone()
+    uname = (username or "").strip().lower()
+    acc = d.execute("select id, username, created, coalesce(profile_picture, '') as profile_picture from accounts where lower(username)=?", (uname,)).fetchone()
     if not acc:
         return None
     user = d.execute("select balance from users where id=?", (acc["id"],)).fetchone()
@@ -1224,6 +1228,13 @@ def get_user_stats(username):
         "joined": acc["created"],
         "profile_picture": acc["profile_picture"]
     }
+
+def account_by_username(username):
+    d = db()
+    uname = (username or "").strip().lower()
+    if not uname:
+        return None
+    return d.execute("select id, username from accounts where lower(username)=?", (uname,)).fetchone()
 
 @app.route("/avatar/<username>.svg")
 def avatar_svg(username):
@@ -1246,7 +1257,7 @@ def api_user_profile(username):
     stats = get_user_stats(username)
     if not stats:
         return jsonify({"error": "User not found"}), 404
-    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    acc = account_by_username(username)
     shoes = d.execute("""
         select s.name, s.rarity, h.qty from hold h 
         join shoes s on s.id=h.shoe_id 
@@ -1259,8 +1270,64 @@ def api_user_profile(username):
     """, (acc["id"],)).fetchall()
     stats["hold"] = [dict(s) for s in shoes]
     stats["appraised"] = [dict(a) for a in appraised]
-    stats["is_me"] = (username == session.get("username"))
+    stats["is_me"] = (stats["username"].lower() == session.get("username", "").lower())
     return jsonify(stats)
+
+@app.route("/api/profile/picture", methods=["POST"])
+@login_required
+def api_profile_picture_upload():
+    u = uid()
+    d = db()
+    image = request.files.get("image")
+    if not image:
+        return jsonify({"ok": False, "error": "No image uploaded"}), 400
+    raw = image.read()
+    if not raw:
+        return jsonify({"ok": False, "error": "Empty file"}), 400
+    if len(raw) > 5 * 1024 * 1024:
+        return jsonify({"ok": False, "error": "Image too large (max 5MB)"}), 400
+    kind = imghdr.what(None, h=raw)
+    allowed = {"jpeg": "jpg", "png": "png", "gif": "gif", "webp": "webp"}
+    if kind not in allowed:
+        return jsonify({"ok": False, "error": "Unsupported image format"}), 400
+    ext = allowed[kind]
+    avatar_dir = os.path.join(os.path.dirname(__file__), "static", "uploads", "avatars")
+    os.makedirs(avatar_dir, exist_ok=True)
+    filename = f"{u}_{int(time.time())}_{uuid.uuid4().hex[:8]}.{ext}"
+    file_path = os.path.join(avatar_dir, filename)
+    with open(file_path, "wb") as out:
+        out.write(raw)
+    new_path = f"/static/uploads/avatars/{filename}"
+    old = d.execute("select coalesce(profile_picture,'') as profile_picture from accounts where id=?", (u,)).fetchone()
+    old_path = old["profile_picture"] if old else ""
+    d.execute("update accounts set profile_picture=? where id=?", (new_path, u))
+    d.commit()
+    if old_path.startswith("/static/uploads/avatars/"):
+        old_file = os.path.join(os.path.dirname(__file__), old_path.lstrip("/\\"))
+        try:
+            if os.path.isfile(old_file):
+                os.remove(old_file)
+        except:
+            pass
+    return jsonify({"ok": True, "profile_picture": new_path})
+
+@app.route("/api/profile/picture", methods=["DELETE"])
+@login_required
+def api_profile_picture_delete():
+    u = uid()
+    d = db()
+    old = d.execute("select coalesce(profile_picture,'') as profile_picture from accounts where id=?", (u,)).fetchone()
+    old_path = old["profile_picture"] if old else ""
+    d.execute("update accounts set profile_picture='' where id=?", (u,))
+    d.commit()
+    if old_path.startswith("/static/uploads/avatars/"):
+        old_file = os.path.join(os.path.dirname(__file__), old_path.lstrip("/\\"))
+        try:
+            if os.path.isfile(old_file):
+                os.remove(old_file)
+        except:
+            pass
+    return jsonify({"ok": True})
 
 @app.route("/api/trades")
 @login_required
@@ -1527,7 +1594,7 @@ def api_my_shoes():
 @login_required
 def api_user_shoes(username):
     d = db()
-    acc = d.execute("select id from accounts where username=?", (username,)).fetchone()
+    acc = account_by_username(username)
     if not acc:
         return jsonify([])
     shoes = d.execute("""
