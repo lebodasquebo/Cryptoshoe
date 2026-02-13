@@ -1166,8 +1166,9 @@ def users_page():
 def user_profile(username):
     acc = account_by_username(username)
     if not acc:
-        return render_template("profile.html", profile_username=username, is_admin=is_admin())
-    return render_template("profile.html", profile_username=acc["username"], is_admin=is_admin())
+        return render_template("profile.html", profile_username=username, is_admin=is_admin(), is_own_profile=False)
+    own = (acc["id"] == session.get("user_id"))
+    return render_template("profile.html", profile_username=acc["username"], is_admin=is_admin(), is_own_profile=own)
 
 @app.route("/api/users")
 @login_required

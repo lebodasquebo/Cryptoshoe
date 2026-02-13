@@ -89,15 +89,15 @@
             </div>
           </div>
           <div class="profile-header-actions">
-            <button class="trade-btn-big" id="btn-trade">
+            <button class="trade-btn-big{% if is_own_profile %} hidden{% endif %}" id="btn-trade">
               🤝 PROPOSE TRADE
             </button>
-            <button class="trade-btn-big hidden" id="btn-edit-profile" type="button">
+            <button class="trade-btn-big{% if not is_own_profile %} hidden{% endif %}" id="btn-edit-profile" type="button">
               ✏️ EDIT PROFILE
             </button>
           </div>
         </div>
-        <div class="profile-editor hidden" id="profile-editor">
+        <div class="profile-editor hidden" id="profile-editor" style="display:none">
           <h3 class="shoes-title">EDIT PROFILE</h3>
           <div class="profile-editor-actions">
             <label class="user-btn profile-btn file-label" for="avatar-file">🖼 Choose File / Photos</label>
@@ -154,7 +154,7 @@
     </div>
   </div>
   <div class="toast" id="toast"></div>
-  <script>window.PROFILE_USER = "{{ profile_username }}";window.IS_ADMIN={{ 'true' if is_admin else 'false' }};</script>
-  <script src="/static/profile.js"></script>
+  <script>window.PROFILE_USER = "{{ profile_username }}";window.IS_ADMIN={{ 'true' if is_admin else 'false' }};window.IS_OWN_PROFILE={{ 'true' if is_own_profile else 'false' }};</script>
+  <script src="/static/profile.js?v={{ range(10000) | random }}"></script>
 </body>
 </html>

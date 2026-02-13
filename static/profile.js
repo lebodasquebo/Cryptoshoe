@@ -32,23 +32,27 @@ const render=()=>{
     avatar.onerror=()=>{avatar.onerror=null;avatar.src=`/avatar/${encodeURIComponent(profile.username)}.svg`}
   }
   
-  const canEdit=!!(profile.can_edit||profile.is_me)
+  const canEdit=!!(profile.can_edit||profile.is_me||window.IS_OWN_PROFILE)
+  let editBtn=$('#btn-edit-profile')
+  let editor=$('#profile-editor')
   if(canEdit){
     $('#btn-trade').classList.add('hidden')
-    let editBtn=$('#btn-edit-profile')
+    $('#btn-trade').style.display='none'
     if(editBtn){
       editBtn.classList.remove('hidden')
+      editBtn.style.display=''
       editBtn.textContent=editorOpen?'✖ CLOSE EDITOR':'✏️ EDIT PROFILE'
     }
-    let editor=$('#profile-editor')
-    if(editor)editor.classList.toggle('hidden',!editorOpen)
+    if(editor){
+      editor.classList.toggle('hidden',!editorOpen)
+      editor.style.display=editorOpen?'block':'none'
+    }
   }else{
     $('#btn-trade').classList.remove('hidden')
-    let editBtn=$('#btn-edit-profile')
-    if(editBtn)editBtn.classList.add('hidden')
+    $('#btn-trade').style.display=''
+    if(editBtn){editBtn.classList.add('hidden');editBtn.style.display='none'}
     editorOpen=false
-    let editor=$('#profile-editor')
-    if(editor)editor.classList.add('hidden')
+    if(editor){editor.classList.add('hidden');editor.style.display='none'}
   }
   
   let grid=$('#shoes-grid'),empty=$('#shoes-empty')
@@ -301,6 +305,14 @@ let avatarCamera=$('#avatar-camera')
 if(avatarCamera)avatarCamera.onchange=(e)=>{let f=e.target.files&&e.target.files[0];uploadAvatar(f);e.target.value=''}
 let avatarRemove=$('#avatar-remove')
 if(avatarRemove)avatarRemove.onclick=resetAvatar
+
+// If own profile, ensure edit button visible immediately (don't wait for API)
+if(window.IS_OWN_PROFILE){
+  let eb=$('#btn-edit-profile')
+  if(eb){eb.classList.remove('hidden');eb.style.display=''}
+  let tb=$('#btn-trade')
+  if(tb){tb.classList.add('hidden');tb.style.display='none'}
+}
 
 const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
 const fetchAnn=async()=>{let r=await fetch('/api/announcements');if(r.ok){let a=await r.json(),bar=document.getElementById('announcement-bar');if(bar){if(a.length){bar.innerHTML=a.map(x=>`<div class="announcement"><span class="ann-icon">📢</span><span class="ann-text">${x.message}</span></div>`).join('');bar.classList.add('show');document.body.classList.add('has-announcement')}else{bar.classList.remove('show');document.body.classList.remove('has-announcement')}}}}
