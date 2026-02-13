@@ -151,6 +151,7 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
 .details-btn:hover{color:var(--bg)}
 .details-btn:hover::before{transform:scaleX(1)}
 .details-btn span{position:relative;z-index:1}
+.details-btn .details-arrow{color:inherit}
 .details-arrow{transition:transform 0.2s;position:relative;z-index:1}
 .details-btn:hover .details-arrow{transform:translateX(4px)}
 .trade-btn.full{grid-column:1/-1}

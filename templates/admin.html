@@ -96,8 +96,24 @@
             <option value="30d">30 Days</option>
             <option value="perm">Permanent</option>
           </select>
+          <input type="number" id="ban-custom-value" placeholder="Custom" min="1" style="width:90px">
+          <select id="ban-custom-unit" style="width:90px">
+            <option value="m">Minutes</option>
+            <option value="h" selected>Hours</option>
+            <option value="d">Days</option>
+          </select>
+          <input type="text" id="ban-reason" placeholder="Reason shown to user" style="flex:2">
           <button class="ban-btn" onclick="banUser()">Ban</button>
           <button class="give-btn" onclick="unbanUser()">Unban</button>
+        </div>
+      </section>
+
+      <section class="admin-section">
+        <h2>🖼 Remove User PFP</h2>
+        <div class="admin-form">
+          <input type="text" id="pfp-user" placeholder="Username">
+          <input type="text" id="pfp-reason" placeholder="Reason shown to user" style="flex:2">
+          <button class="ban-btn" onclick="removePfp()">Remove PFP</button>
         </div>
       </section>
       
@@ -180,7 +196,13 @@
             <option value="300">5min</option>
             <option value="600">10min</option>
             <option value="1800">30min</option>
+            <option value="3600">1h</option>
+            <option value="21600">6h</option>
+            <option value="43200">12h</option>
+            <option value="86400">24h</option>
+            <option value="604800">7d</option>
           </select>
+          <input type="number" id="broadcast-custom-mins" placeholder="Custom mins" min="1" style="width:110px">
           <button onclick="broadcast()">📢 Broadcast</button>
         </div>
         <p class="hint">Shows banner on all screens</p>
@@ -316,6 +338,6 @@
     </section>
   </main>
   <div id="toast" class="toast"></div>
-  <script src="/static/admin.js?v=3"></script>
+  <script src="/static/admin.js?v=4"></script>
 </body>
 </html>

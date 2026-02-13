@@ -100,11 +100,20 @@ window.resetStock=async()=>{
 window.banUser=async()=>{
     let user=$('#ban-user').value.trim()
     let duration=$('#ban-duration').value
+    let customValue=parseInt($('#ban-custom-value')?.value)||0
+    let customUnit=$('#ban-custom-unit')?.value||'h'
+    let reason=$('#ban-reason')?.value.trim()||''
     if(!user){toast('Enter a username','error');return}
     if(duration==='perm'&&!confirm(`PERMANENTLY ban and DELETE ${user}?`))return
-    let r=await fetch('/api/admin/ban',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,duration})})
+    let payload={username:user,duration,reason}
+    if(customValue>0){
+        payload.duration='custom'
+        payload.custom_value=customValue
+        payload.custom_unit=customUnit
+    }
+    let r=await fetch('/api/admin/ban',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     let j=await r.json()
-    if(j.ok){toast(j.msg);loadUsers();$('#ban-user').value=''}
+    if(j.ok){toast(j.msg);loadUsers();$('#ban-user').value='';$('#ban-custom-value').value='';$('#ban-reason').value=''}
     else toast(j.error,'error')
 }
 
@@ -175,10 +184,23 @@ window.swapInventory=async()=>{
 window.broadcast=async()=>{
     let message=$('#broadcast-msg').value.trim()
     let duration=parseInt($('#broadcast-duration')?.value)||60
+    let customMins=parseInt($('#broadcast-custom-mins')?.value)||0
+    if(customMins>0)duration=customMins*60
     if(!message){toast('Enter a message','error');return}
     let r=await fetch('/api/admin/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,duration})})
     let j=await r.json()
-    if(j.ok){toast('📢 '+j.msg);$('#broadcast-msg').value=''}
+    if(j.ok){toast('📢 '+j.msg);$('#broadcast-msg').value='';if($('#broadcast-custom-mins'))$('#broadcast-custom-mins').value=''}
+    else toast(j.error,'error')
+}
+
+window.removePfp=async()=>{
+    let username=$('#pfp-user')?.value.trim()
+    let reason=$('#pfp-reason')?.value.trim()
+    if(!username){toast('Enter username','error');return}
+    if(!reason){toast('Enter reason','error');return}
+    let r=await fetch('/api/admin/remove-pfp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,reason})})
+    let j=await r.json()
+    if(j.ok){toast(j.msg);$('#pfp-user').value='';$('#pfp-reason').value=''}
     else toast(j.error,'error')
 }
 

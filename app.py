@@ -206,6 +206,10 @@ def init():
     except:
         pass
     try:
+        d.execute("alter table accounts add column ban_reason text default ''")
+    except:
+        pass
+    try:
         d.execute("alter table users add column last_seen integer default 0")
     except:
         pass
@@ -724,22 +728,24 @@ def api_login():
     if not username or not password:
         return jsonify({"ok": False, "error": "Username and password required"})
     d = db()
-    acc = d.execute("select id, password, ban_until from accounts where username=?", (username,)).fetchone()
+    acc = d.execute("select id, password, ban_until, coalesce(ban_reason,'') as ban_reason from accounts where username=?", (username,)).fetchone()
     if not acc or acc["password"] != hash_pw(password):
         return jsonify({"ok": False, "error": "Invalid username or password"})
     now = int(time.time())
     ban_until = acc["ban_until"] or 0
     if ban_until > now:
+        reason = (acc["ban_reason"] or "").strip()
+        reason_msg = f" Reason: {reason}" if reason else ""
         remaining = ban_until - now
         if remaining > 86400:
             days = remaining // 86400
-            return jsonify({"ok": False, "error": f"Account banned for {days} more day(s)"})
+            return jsonify({"ok": False, "error": f"Account banned for {days} more day(s).{reason_msg}"})
         elif remaining > 3600:
             hours = remaining // 3600
-            return jsonify({"ok": False, "error": f"Account banned for {hours} more hour(s)"})
+            return jsonify({"ok": False, "error": f"Account banned for {hours} more hour(s).{reason_msg}"})
         else:
             mins = remaining // 60
-            return jsonify({"ok": False, "error": f"Account banned for {mins} more minute(s)"})
+            return jsonify({"ok": False, "error": f"Account banned for {mins} more minute(s).{reason_msg}"})
     token = uuid.uuid4().hex
     d.execute("update accounts set session_token=?, last_ip=? where id=?", (token, ip, acc["id"]))
     d.commit()
@@ -1862,6 +1868,9 @@ def admin_ban():
     data = request.json
     username = data.get("username", "").lower().strip()
     duration = data.get("duration", "perm")
+    reason = data.get("reason", "").strip()[:180]
+    custom_value = int(data.get("custom_value", 0) or 0)
+    custom_unit = data.get("custom_unit", "h")
     if not username:
         return jsonify({"ok": False, "error": "Enter a username"})
     if username in ADMIN_USERS:
@@ -1882,12 +1891,28 @@ def admin_ban():
         return jsonify({"ok": True, "msg": f"Permanently banned {username}"})
     else:
         durations = {"1h": 3600, "6h": 21600, "1d": 86400, "7d": 604800, "30d": 2592000}
-        secs = durations.get(duration, 3600)
+        if duration == "custom":
+            if custom_value < 1:
+                return jsonify({"ok": False, "error": "Custom value must be at least 1"})
+            unit_secs = {"m": 60, "h": 3600, "d": 86400}
+            if custom_unit not in unit_secs:
+                return jsonify({"ok": False, "error": "Invalid custom unit"})
+            secs = custom_value * unit_secs[custom_unit]
+        else:
+            secs = durations.get(duration, 3600)
         ban_until = now + secs
-        d.execute("update accounts set ban_until=? where id=?", (ban_until, uid))
-        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, f"You have been banned for {duration}", now))
+        d.execute("update accounts set ban_until=?, ban_reason=? where id=?", (ban_until, reason, uid))
+        if duration == "custom":
+            unit_label = {"m": "minute(s)", "h": "hour(s)", "d": "day(s)"}[custom_unit]
+            human_duration = f"{custom_value} {unit_label}"
+        else:
+            human_duration = duration
+        notif = f"⛔ You have been banned for {human_duration}."
+        if reason:
+            notif += f" Reason: {reason}"
+        d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (uid, notif, now))
         d.commit()
-        return jsonify({"ok": True, "msg": f"Banned {username} for {duration}"})
+        return jsonify({"ok": True, "msg": f"Banned {username} for {human_duration}"})
 
 @app.route("/api/admin/unban", methods=["POST"])
 @login_required
@@ -1903,7 +1928,7 @@ def admin_unban():
         return jsonify({"ok": False, "error": f"User '{username}' not found"})
     if not acc["ban_until"] or acc["ban_until"] < int(time.time()):
         return jsonify({"ok": False, "error": f"{username} is not banned"})
-    d.execute("update accounts set ban_until=0 where id=?", (acc["id"],))
+    d.execute("update accounts set ban_until=0, ban_reason='' where id=?", (acc["id"],))
     d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], "🔓 You have been unbanned!", int(time.time())))
     d.commit()
     return jsonify({"ok": True, "msg": f"Unbanned {username}"})
@@ -2076,12 +2101,42 @@ def admin_broadcast():
     d = db()
     msg = request.json.get("message", "").strip()
     duration = int(request.json.get("duration", 60))
+    duration = max(10, min(duration, 2592000))
     if not msg:
         return jsonify({"ok": False, "error": "Enter a message"})
     now = int(time.time())
     d.execute("insert into announcements(message, ts, expires) values(?,?,?)", (msg, now, now + duration))
     d.commit()
     return jsonify({"ok": True, "msg": f"Announcement live for {duration}s"})
+
+@app.route("/api/admin/remove-pfp", methods=["POST"])
+@login_required
+def admin_remove_pfp():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    username = request.json.get("username", "").lower().strip()
+    reason = request.json.get("reason", "").strip()[:180]
+    if not username:
+        return jsonify({"ok": False, "error": "Enter a username"})
+    if not reason:
+        return jsonify({"ok": False, "error": "Enter a reason"})
+    acc = d.execute("select id, coalesce(profile_picture,'') as profile_picture from accounts where username=?", (username,)).fetchone()
+    if not acc:
+        return jsonify({"ok": False, "error": f"User '{username}' not found"})
+    old_path = acc["profile_picture"] or ""
+    d.execute("update accounts set profile_picture='' where id=?", (acc["id"],))
+    now = int(time.time())
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", (acc["id"], f"🖼️ Your profile picture was removed by admin. Reason: {reason}", now))
+    d.commit()
+    if old_path.startswith("/static/uploads/avatars/"):
+        old_file = os.path.join(os.path.dirname(__file__), old_path.lstrip("/\\"))
+        try:
+            if os.path.isfile(old_file):
+                os.remove(old_file)
+        except:
+            pass
+    return jsonify({"ok": True, "msg": f"Removed profile picture for {username}"})
 
 @app.route("/api/announcements")
 @login_required
