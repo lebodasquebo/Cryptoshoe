@@ -4,6 +4,8 @@ const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=
 checkCourt();setInterval(checkCourt,5000)
 const money=v=>v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
 const rarClass=r=>({common:'rar-common',uncommon:'rar-uncommon',rare:'rar-rare',epic:'rar-epic',legendary:'rar-legendary',mythic:'rar-mythic',godly:'rar-godly',divine:'rar-divine',grails:'rar-grails',heavenly:'rar-heavenly'}[r]||'rar-common')
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))
+const avatarFor=u=>u.profile_picture&&u.profile_picture.trim()?u.profile_picture:`/avatar/${encodeURIComponent(u.username)}.svg`
 
 const toast=(msg,type='success')=>{
   let t=$('#toast')
@@ -13,16 +15,16 @@ const toast=(msg,type='success')=>{
 }
 
 const userCard=(u)=>`<div class="user-card${u.is_me?' is-me':''}${u.online?' online':''}">
-  <div class="user-avatar">👤</div>
+  <div class="user-avatar-wrap"><img class="user-avatar" src="${esc(avatarFor(u))}" alt="${esc(u.username)} avatar" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/avatar/${encodeURIComponent(u.username)}.svg'" /></div>
   <div class="user-status ${u.online?'online':'offline'}">${u.online?'🟢 Online':'⚫ Offline'}</div>
-  <div class="user-name">${u.username}${u.is_me?' (you)':''}</div>
+  <div class="user-name">${esc(u.username)}${u.is_me?' (you)':''}</div>
   <div class="user-stats">
     <div class="user-stat"><span class="user-stat-val">$${money(u.balance)}</span><span>Balance</span></div>
     <div class="user-stat"><span class="user-stat-val">${u.shoes}</span><span>Shoes</span></div>
   </div>
   <div class="user-actions">
-    <a href="/user/${u.username}" class="user-btn profile-btn">👤 Profile</a>
-    ${!u.is_me?`<a href="/user/${u.username}" class="user-btn trade-btn">🤝 Trade</a>`:''}
+    <a href="/user/${encodeURIComponent(u.username)}" class="user-btn profile-btn">👤 Profile</a>
+    ${!u.is_me?`<a href="/user/${encodeURIComponent(u.username)}" class="user-btn trade-btn">🤝 Trade</a>`:''}
   </div>
 </div>`
 

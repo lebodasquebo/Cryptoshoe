@@ -210,6 +210,10 @@ def init():
     except:
         pass
     try:
+        d.execute("alter table accounts add column profile_picture text default ''")
+    except:
+        pass
+    try:
         d.execute("alter table appraised add column variant text default ''")
     except:
         pass
@@ -1206,7 +1210,7 @@ def api_users_suggest():
 
 def get_user_stats(username):
     d = db()
-    acc = d.execute("select id, username, created from accounts where username=?", (username,)).fetchone()
+    acc = d.execute("select id, username, created, coalesce(profile_picture, '') as profile_picture from accounts where username=?", (username,)).fetchone()
     if not acc:
         return None
     user = d.execute("select balance from users where id=?", (acc["id"],)).fetchone()
@@ -1217,8 +1221,22 @@ def get_user_stats(username):
         "username": acc["username"],
         "balance": round(user["balance"], 2) if user else 0,
         "shoes": total_shoes,
-        "joined": acc["created"]
+        "joined": acc["created"],
+        "profile_picture": acc["profile_picture"]
     }
+
+@app.route("/avatar/<username>.svg")
+def avatar_svg(username):
+    safe_name = re.sub(r"[^a-zA-Z0-9 _-]", "", (username or "").strip())[:32] or "User"
+    initial = safe_name[0].upper()
+    palette = ["#00f0ff", "#7c3aed", "#00d084", "#ff4d6d", "#ffb020", "#5b8cff"]
+    color_index = int(hashlib.sha256(safe_name.lower().encode()).hexdigest(), 16) % len(palette)
+    bg = palette[color_index]
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="{safe_name}">
+<rect width="128" height="128" rx="64" fill="{bg}"/>
+<text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" fill="#0b0f14" font-size="56" font-family="Arial, sans-serif" font-weight="700">{initial}</text>
+</svg>'''
+    return Response(svg, mimetype="image/svg+xml")
 
 @app.route("/api/user/<username>")
 @login_required
