@@ -145,8 +145,8 @@ def validate_session():
 def global_rate_limit():
     if request.endpoint and not request.endpoint.startswith('static'):
         ip = get_client_ip()
-        if is_rate_limited(f"global:{ip}", 120, 60):
-            return jsonify({"ok": False, "error": "Too many requests"}), 429
+        if is_rate_limited(f"global:{ip}", 300, 60):
+            return jsonify({"ok": False, "error": "Slow down a bit"}), 429
 
 @app.before_request
 def boot():
@@ -155,6 +155,7 @@ def boot():
         return
     init()
     seed()
+    seed_limited()
     booted = True
 
 @app.after_request
@@ -209,6 +210,7 @@ def init():
     create table if not exists court_votes(session_id integer, voter text, vote text, primary key(session_id, voter));
     create table if not exists global_chat(id integer primary key autoincrement, user_id text, username text, message text, ts integer);
     create index if not exists idx_chat on global_chat(ts);
+    create table if not exists limited_market(id integer primary key autoincrement, name text, rarity text, base real, stock integer, price real, created integer);
     create table if not exists gambling_pots(id integer primary key autoincrement, market_cap real, total_value real default 0, status text default 'open', winner_id text, winner_name text, created integer, ended integer, spin_start integer);
     create table if not exists pot_entries(id integer primary key autoincrement, pot_id integer, user_id text, username text, shoe_id integer, appraisal_id integer, rating real, multiplier real, variant text default '', value real, ts integer);
     insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
@@ -345,6 +347,12 @@ ADMIN_USERS = ["lebodapotato"]
 ADMIN_IPS = []
 MAX_BALANCE = 100000000
 
+NEWS_DURATION = {
+    "common": (60, 300), "uncommon": (55, 270), "rare": (45, 220),
+    "epic": (35, 180), "legendary": (25, 140), "mythic": (20, 110),
+    "godly": (15, 80), "divine": (12, 60), "grails": (10, 45), "heavenly": (8, 35),
+}
+
 DIVINE_SHOES = [
     "Phantom Runner V", "Nexus Stride Pro", "Quantum Glider X",
     "Void Step Eclipse", "Genesis Boost NX", "Cyber Kick Prime",
@@ -391,6 +399,16 @@ def seed():
         rows.append((name, "heavenly", round(random.uniform(lo, hi), 2)))
     d.executemany("insert or ignore into shoes(name, rarity, base) values(?,?,?)", rows)
     d.commit()
+
+def seed_limited():
+    d = db()
+    existing = d.execute("select count(*) c from limited_market").fetchone()["c"]
+    if existing == 0:
+        now = int(time.time())
+        d.execute("insert into limited_market(name, rarity, base, stock, price, created) values(?,?,?,?,?,?)",
+                  ("Genesis Sole Alpha", "godly", 100000, 10, 100000, now))
+        d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (-1, now, 100000))
+        d.commit()
 
 def uid():
     if "user_id" not in session:
@@ -603,7 +621,8 @@ def prices():
                 pass  # 70% chance to skip bad news when near ceiling
             else:
                 v *= vol
-                duration = random.randint(45, 240) if vol < 2 else random.randint(30, 180)
+                dur_lo, dur_hi = NEWS_DURATION.get(rarity, (45, 240))
+                duration = random.randint(dur_lo, dur_hi)
                 d.execute("update market set news=?, news_val=?, news_until=? where shoe_id=?", (text, v, now + duration, r["shoe_id"]))
                 val = v
         # News generation - slot 2 (lower chance, only if slot 1 is active)
@@ -615,7 +634,8 @@ def prices():
                 pass
             else:
                 v2 *= vol
-                duration2 = random.randint(30, 180) if vol < 2 else random.randint(20, 120)
+                dur_lo2, dur_hi2 = NEWS_DURATION.get(rarity, (30, 180))
+                duration2 = random.randint(max(dur_lo2 - 10, 8), max(dur_hi2 - 40, 20))
                 d.execute("update market set news2=?, news_val2=?, news_until2=? where shoe_id=?", (text2, v2, now + duration2, r["shoe_id"]))
                 val2 = v2
         combined_val = val + val2 * 0.6  # second news has reduced impact
@@ -639,6 +659,24 @@ def prices():
         price = round(clamp(price, base * 0.15, base * 4), 2)
         d.execute("update market set price=?, trend=? where shoe_id=?", (price, round(trend, 4), r["shoe_id"]))
         d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (r["shoe_id"], now, price))
+    # Tick limited market prices
+    lm = d.execute("select * from limited_market where stock > 0").fetchall()
+    for lr in lm:
+        lp = lr["price"]
+        lb = lr["base"]
+        lrar = lr["rarity"]
+        lvol = VOLATILITY.get(lrar, 1.0)
+        ldiff = (lp - lb) / lb if lb > 0 else 0
+        lup = 0.5 - ldiff * 0.3
+        lup = clamp(lup, 0.15, 0.85)
+        ldelta = lb * random.uniform(0.003, 0.025) * lvol
+        if random.random() < lup:
+            lp += ldelta
+        else:
+            lp -= ldelta
+        lp = round(clamp(lp, lb * 0.3, lb * 3), 2)
+        d.execute("update limited_market set price=? where id=?", (lp, lr["id"]))
+        d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (-lr["id"], now, lp))
     d.execute("delete from history where ts < ?", (now - 86400,))
     d.execute("update global_state set last_price=? where id=1", (now,))
     d.commit()
@@ -732,12 +770,24 @@ def state(u):
     for row in m:
         rows = d.execute("select ts, price from history where shoe_id=? order by ts desc limit 60", (row["id"],)).fetchall()
         hist[row["id"]] = [{"ts": r["ts"], "price": r["price"]} for r in rows][::-1]
+    # Limited market
+    limited_raw = d.execute("select * from limited_market where stock > 0 order by created desc").fetchall()
+    limited = []
+    limited_hist = {}
+    for lr in limited_raw:
+        ld = dict(lr)
+        ld["sell_price"] = round(ld["price"] * (1 - SELL_FEE), 2)
+        limited.append(ld)
+        lh_rows = d.execute("select ts, price from history where shoe_id=? order by ts desc limit 60", (-lr["id"],)).fetchall()
+        limited_hist[lr["id"]] = [{"ts": r["ts"], "price": r["price"]} for r in lh_rows][::-1]
     return {
         "balance": round(bal, 2),
         "market": m,
+        "limited": limited,
         "hold": hold_list,
         "appraised": appraised_list,
         "hist": hist,
+        "limited_hist": limited_hist,
         "next_stock": next_stock,
         "next_price": next_price,
         "server_time": now
@@ -1031,6 +1081,52 @@ def buy():
     d.execute("update users set balance=balance-? where id=?", (cost, u))
     now = int(time.time())
     d.execute("insert or ignore into shoe_index(user_id, shoe_id, discovered, collected) values(?,?,?,0)", (u, shoe, now))
+    d.commit()
+    return jsonify({"ok": True})
+
+@app.route("/buy-limited", methods=["POST"])
+@login_required
+def buy_limited():
+    u = uid()
+    ltd_id = int(request.json.get("id", 0))
+    qty = int(request.json.get("qty", 0))
+    if qty < 1:
+        return jsonify({"ok": False, "error": "Invalid quantity"})
+    d = db()
+    row = d.execute("select * from limited_market where id=? and stock > 0", (ltd_id,)).fetchone()
+    if not row:
+        return jsonify({"ok": False, "error": "Limited shoe not available"})
+    if row["stock"] < qty:
+        return jsonify({"ok": False, "error": f"Only {row['stock']} left"})
+    cost = row["price"] * qty
+    bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
+    if bal < cost:
+        return jsonify({"ok": False, "error": "Not enough balance"})
+    # Find or create a shoe entry for this limited
+    shoe = d.execute("select id from shoes where name=?", (row["name"],)).fetchone()
+    if not shoe:
+        d.execute("insert into shoes(name, rarity, base) values(?,?,?)", (row["name"], row["rarity"], row["base"]))
+        shoe_id = d.execute("select id from shoes where name=?", (row["name"],)).fetchone()["id"]
+    else:
+        shoe_id = shoe["id"]
+    # Update stock, remove if sold out
+    new_stock = row["stock"] - qty
+    if new_stock <= 0:
+        d.execute("delete from limited_market where id=?", (ltd_id,))
+    else:
+        d.execute("update limited_market set stock=? where id=?", (new_stock, ltd_id))
+    # Add to hold
+    existing_hold = d.execute("select qty, cost_basis from hold where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
+    if existing_hold:
+        old_qty = existing_hold["qty"]
+        old_basis = existing_hold["cost_basis"] or 0
+        new_basis = (old_basis * old_qty + cost) / (old_qty + qty)
+        d.execute("update hold set qty=qty+?, cost_basis=? where user_id=? and shoe_id=?", (qty, round(new_basis, 4), u, shoe_id))
+    else:
+        d.execute("insert into hold(user_id, shoe_id, qty, cost_basis) values(?,?,?,?)", (u, shoe_id, qty, round(row["price"], 4)))
+    d.execute("update users set balance=balance-? where id=?", (cost, u))
+    now = int(time.time())
+    d.execute("insert or ignore into shoe_index(user_id, shoe_id, discovered, collected) values(?,?,?,0)", (u, shoe_id, now))
     d.commit()
     return jsonify({"ok": True})
 
@@ -1991,6 +2087,51 @@ def admin_add_to_stock():
     d.execute("update global_state set last_stock=? where id=1", (now,))
     d.commit()
     return jsonify({"ok": True, "name": shoe["name"], "stock": stock, "price": price})
+
+@app.route("/api/admin/limited", methods=["GET"])
+@login_required
+def admin_list_limited():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    rows = d.execute("select * from limited_market order by created desc").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+@app.route("/api/admin/limited", methods=["POST"])
+@login_required
+def admin_create_limited():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    data = request.json
+    name = data.get("name", "").strip()
+    rarity = data.get("rarity", "").strip().lower()
+    base = float(data.get("base", 0))
+    stock = int(data.get("stock", 1))
+    if not name or not rarity or base <= 0 or stock <= 0:
+        return jsonify({"ok": False, "error": "Name, rarity, base price and stock required"})
+    if rarity not in RARITIES:
+        return jsonify({"ok": False, "error": f"Invalid rarity. Choose from: {', '.join(RARITIES)}"})
+    now = int(time.time())
+    d.execute("insert into limited_market(name, rarity, base, stock, price, created) values(?,?,?,?,?,?)",
+              (name, rarity, base, stock, base, now))
+    d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (-d.execute("select last_insert_rowid()").fetchone()[0], now, base))
+    d.commit()
+    return jsonify({"ok": True, "name": name})
+
+@app.route("/api/admin/limited/delete", methods=["POST"])
+@login_required
+def admin_delete_limited():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    ltd_id = int(request.json.get("id", 0))
+    row = d.execute("select name from limited_market where id=?", (ltd_id,)).fetchone()
+    if not row:
+        return jsonify({"ok": False, "error": "Limited shoe not found"})
+    d.execute("delete from limited_market where id=?", (ltd_id,))
+    d.commit()
+    return jsonify({"ok": True, "name": row["name"]})
 
 @app.route("/api/admin/ban", methods=["POST"])
 @login_required

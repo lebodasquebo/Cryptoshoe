@@ -311,3 +311,10 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
 .trend-down{background:rgba(255,68,102,0.1);color:var(--red);border:1px solid rgba(255,68,102,0.2)}
 .news-item{padding:2px 0}
 .card-news2{margin-top:2px;border-top:1px solid var(--bg4)}
+.market-tabs{display:flex;gap:4px;margin-bottom:16px}
+.market-tab{padding:10px 24px;border:1px solid var(--bg4);border-radius:var(--radius-sm);background:var(--bg2);color:var(--text2);font-family:'Orbitron',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;letter-spacing:0.5px}
+.market-tab:hover{background:var(--bg3);color:var(--text)}
+.market-tab.active{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.limited-card{border:1px solid var(--legendary)!important;box-shadow:0 0 12px rgba(245,158,11,0.15)}
+.limited-card:hover{box-shadow:0 0 24px rgba(245,158,11,0.25)}
+.limited-badge{text-align:center;font-size:10px;font-weight:700;color:var(--legendary);letter-spacing:1px;padding:2px 0;background:rgba(245,158,11,0.08);border-radius:4px;margin-bottom:4px}

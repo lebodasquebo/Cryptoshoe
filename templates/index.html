@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=7">
+  <link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
   <div class="bg-grid"></div>
@@ -64,7 +64,11 @@
   <div class="wrap">
     <div class="layout">
       <div class="main">
-        <section class="section">
+        <div class="market-tabs">
+          <button class="market-tab active" data-tab="market">📈 Market</button>
+          <button class="market-tab" data-tab="limited">⭐ Limited</button>
+        </div>
+        <section class="section" id="tab-market">
           <div class="section-head">
             <h2 class="section-title">
               <span class="pulse"></span>
@@ -77,6 +81,19 @@
             </div>
           </div>
           <div id="market" class="grid"></div>
+        </section>
+        <section class="section hidden" id="tab-limited">
+          <div class="section-head">
+            <h2 class="section-title">
+              <span class="pulse"></span>
+              LIMITED EDITION
+            </h2>
+          </div>
+          <div id="limited-empty" class="sidebar-empty" style="padding:40px 20px">
+            <div style="font-size:32px;margin-bottom:12px">🏆</div>
+            <div>No limited shoes available right now</div>
+          </div>
+          <div id="limited" class="grid"></div>
         </section>
       </div>
       <aside class="sidebar">
@@ -154,6 +171,6 @@
   <div class="toast" id="toast"></div>
   <script>window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
   <script src="/static/ban-check.js?v=1"></script>
-  <script src="/static/app.js?v=3"></script>
+  <script src="/static/app.js?v=4"></script>
 </body>
 </html>

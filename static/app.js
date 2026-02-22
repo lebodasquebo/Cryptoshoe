@@ -1,4 +1,4 @@
-let state={market:[],hold:[],hist:{},balance:0,next_stock:0,next_price:0,server_time:0},sel=null,serverOffset=0
+let state={market:[],limited:[],hold:[],hist:{},limited_hist:{},balance:0,next_stock:0,next_price:0,server_time:0},sel=null,selType='market',serverOffset=0
 const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
 const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
 checkCourt();setInterval(checkCourt,5000)
@@ -65,9 +65,20 @@ const draw=(c,hist)=>{
 const card=(m,i)=>{
   let d=el('div','card')
   d.dataset.id=m.id
+  d.dataset.type='market'
   d.style.animationDelay=`${i*0.05}s`
   d.innerHTML=`<div class="card-head"><div class="card-name"></div><div class="card-rarity"></div></div><div class="card-price-row"><div class="card-price"></div><div class="card-price-cd">⏱ <span class="card-price-timer">10s</span></div></div><div class="card-meta"><span class="card-stock"></span><span class="card-pct"></span></div><canvas class="card-chart" width="220" height="40"></canvas><div class="card-news"></div><div class="card-news card-news2"></div>`
-  d.onclick=()=>select(m.id)
+  d.onclick=()=>select(m.id,'market')
+  return d
+}
+
+const limitedCard=(m,i)=>{
+  let d=el('div','card limited-card')
+  d.dataset.id=m.id
+  d.dataset.type='limited'
+  d.style.animationDelay=`${i*0.05}s`
+  d.innerHTML=`<div class="card-head"><div class="card-name"></div><div class="card-rarity"></div></div><div class="limited-badge">⭐ LIMITED EDITION</div><div class="card-price-row"><div class="card-price"></div><div class="card-price-cd">⏱ <span class="card-price-timer">10s</span></div></div><div class="card-meta"><span class="card-stock"></span><span class="card-pct"></span></div><canvas class="card-chart" width="220" height="40"></canvas>`
+  d.onclick=()=>select(m.id,'limited')
   return d
 }
 
@@ -86,25 +97,37 @@ const act=async(type,id,qty)=>{
   if(r.ok){let j=await r.json();if(j.ok){toast(type==='buy'?`Bought ${qty} shoe(s)!`:`Sold ${qty} shoe(s)!`);fetchState()}else toast(j.error||'Failed','error')}else toast('Request failed','error')
 }
 
-const select=id=>{sel=parseInt(id);updSidebar();$$('.card').forEach(c=>c.classList.toggle('active',parseInt(c.dataset.id)===sel))}
+const actLimited=async(type,id,qty)=>{
+  let r=await fetch('/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,qty:parseInt(qty)})})
+  if(r.ok){let j=await r.json();if(j.ok){toast(`Bought ${qty} limited shoe(s)!`);fetchState()}else toast(j.error||'Failed','error')}else toast('Request failed','error')
+}
+
+const select=(id,type='market')=>{sel=parseInt(id);selType=type;updSidebar();$$('.card').forEach(c=>c.classList.toggle('active',parseInt(c.dataset.id)===sel&&c.dataset.type===selType))}
 
 const updSidebar=()=>{
   if(sel===null)return
-  let i=state.market.find(x=>parseInt(x.id)===parseInt(sel))
+  let i=selType==='limited'?state.limited.find(x=>parseInt(x.id)===parseInt(sel)):state.market.find(x=>parseInt(x.id)===parseInt(sel))
   if(!i){$('#sidebar-empty').classList.remove('hidden');$('#sidebar-content').classList.add('hidden');return}
   $('#sidebar-empty').classList.add('hidden');$('#sidebar-content').classList.remove('hidden')
   $('#s-rarity').textContent=i.rarity.toUpperCase();$('#s-rarity').className='shoe-rarity-badge '+rarClass(i.rarity)
   $('#s-name').textContent=i.name;$('#s-price').textContent='$'+money(i.price)
   let p=pct(i.price,i.base);$('#s-pct-wrap').className='price-change '+(p>=0?'up':'down');$('#s-pct').textContent=(p>=0?'+':'')+p.toFixed(2)+'%'
   $('#s-base').textContent='$'+money(i.base);$('#s-stock').textContent=i.stock
-  let nw=$('#s-news-wrap'),nt=$('#s-news')
-  let newsArr=Array.isArray(i.news)?i.news:i.news?[i.news]:[]
-  if(newsArr.length){nw.classList.remove('no-news');nt.classList.add('active');nt.innerHTML=newsArr.map(n=>'<div class="news-item">📰 '+n+'</div>').join('')}else{nw.classList.add('no-news');nt.classList.remove('active');nt.textContent='No current news'}
-  let pnlEl=$('#s-pnl')
-  if(pnlEl){let h=state.hold.find(x=>parseInt(x.id)===parseInt(sel));if(h&&h.cost_basis>0){let cp=((i.sell_price-h.cost_basis)/h.cost_basis*100);pnlEl.innerHTML=`<span class="pnl-label">P/L from buy:</span> <span class="pnl-val ${cp>=0?'up':'down'}">${cp>=0?'+':''}${cp.toFixed(2)}%</span> <span class="pnl-basis">(avg $${money(h.cost_basis)})</span>`;pnlEl.style.display=''}else{pnlEl.style.display='none'}}
-  let trendEl=$('#s-trend')
-  if(trendEl&&i.trend!==undefined){let t=i.trend;if(Math.abs(t)>0.01){let dir=t>0?'↑ Trending Up':'↓ Trending Down';trendEl.textContent=dir;trendEl.className='trend-indicator '+(t>0?'trend-up':'trend-down');trendEl.style.display=''}else{trendEl.style.display='none'}}
-  let feeNote=$('#s-fee-note');if(feeNote){let h=state.hold.find(x=>parseInt(x.id)===parseInt(sel));feeNote.style.display=h&&h.qty>0?'':'none'}
+  if(selType==='limited'){
+    let nw=$('#s-news-wrap');nw.classList.add('no-news');$('#s-news').textContent='Limited edition — no news'
+    let pnlEl=$('#s-pnl');if(pnlEl)pnlEl.style.display='none'
+    let trendEl=$('#s-trend');if(trendEl)trendEl.style.display='none'
+    let feeNote=$('#s-fee-note');if(feeNote)feeNote.style.display='none'
+  }else{
+    let nw=$('#s-news-wrap'),nt=$('#s-news')
+    let newsArr=Array.isArray(i.news)?i.news:i.news?[i.news]:[]
+    if(newsArr.length){nw.classList.remove('no-news');nt.classList.add('active');nt.innerHTML=newsArr.map(n=>'<div class="news-item">📰 '+n+'</div>').join('')}else{nw.classList.add('no-news');nt.classList.remove('active');nt.textContent='No current news'}
+    let pnlEl=$('#s-pnl')
+    if(pnlEl){let h=state.hold.find(x=>parseInt(x.id)===parseInt(sel));if(h&&h.cost_basis>0){let cp=((i.sell_price-h.cost_basis)/h.cost_basis*100);pnlEl.innerHTML=`<span class="pnl-label">P/L from buy:</span> <span class="pnl-val ${cp>=0?'up':'down'}">${cp>=0?'+':''}${cp.toFixed(2)}%</span> <span class="pnl-basis">(avg $${money(h.cost_basis)})</span>`;pnlEl.style.display=''}else{pnlEl.style.display='none'}}
+    let trendEl=$('#s-trend')
+    if(trendEl&&i.trend!==undefined){let t=i.trend;if(Math.abs(t)>0.01){let dir=t>0?'↑ Trending Up':'↓ Trending Down';trendEl.textContent=dir;trendEl.className='trend-indicator '+(t>0?'trend-up':'trend-down');trendEl.style.display=''}else{trendEl.style.display='none'}}
+    let feeNote=$('#s-fee-note');if(feeNote){let h=state.hold.find(x=>parseInt(x.id)===parseInt(sel));feeNote.style.display=h&&h.qty>0?'':'none'}
+  }
   $('#s-qty').max=i.stock;$('#s-qty').value=Math.min(parseInt($('#s-qty').value)||1,i.stock||1)
 }
 
@@ -125,6 +148,23 @@ const upd=()=>{
     d.classList.toggle('active',parseInt(i.id)===sel);if(!m.contains(d))m.append(d)
   })
   let ids=state.market.map(x=>parseInt(x.id));[...m.children].forEach(c=>{if(!ids.includes(parseInt(c.dataset.id)))c.remove()})
+  // Limited shoes
+  let lg=$('#limited'),le=$('#limited-empty')
+  if(state.limited&&state.limited.length){
+    le.classList.add('hidden')
+    state.limited.forEach((i,idx)=>{
+      let d=lg.querySelector(`[data-id='${i.id}']`)||limitedCard(i,idx)
+      d.querySelector('.card-name').textContent=i.name
+      let rb=d.querySelector('.card-rarity');rb.textContent=i.rarity.toUpperCase();rb.className='card-rarity '+rarClass(i.rarity)
+      d.querySelector('.card-price').textContent='$'+money(i.price);d.querySelector('.card-stock').textContent='Stock: '+i.stock
+      let p=pct(i.price,i.base),pc=d.querySelector('.card-pct');pc.textContent=(p>=0?'+':'')+p.toFixed(2)+'%';pc.className='card-pct '+(p>=0?'up':'down')
+      if(state.limited_hist&&state.limited_hist[i.id])draw(d.querySelector('canvas'),state.limited_hist[i.id])
+      d.classList.toggle('active',parseInt(i.id)===sel&&selType==='limited');if(!lg.contains(d))lg.append(d)
+    })
+    let lids=state.limited.map(x=>parseInt(x.id));[...lg.children].forEach(c=>{if(!lids.includes(parseInt(c.dataset.id)))c.remove()})
+  }else{
+    le.classList.remove('hidden');lg.innerHTML=''
+  }
   let h=$('#hold'),he=$('#hold-empty'),hc=$('#hold-count');h.innerHTML=''
   if(state.hold.length){he.classList.add('hidden');hc.textContent=state.hold.length+' shoe'+(state.hold.length>1?'s':'')+' owned'
     state.hold.forEach((i,idx)=>{let d=holdCard(i,idx);d.querySelector('.card-name').textContent=i.name;let rb=d.querySelector('.card-rarity');rb.textContent=i.rarity.toUpperCase();rb.className='card-rarity '+rarClass(i.rarity);d.querySelector('.card-qty').textContent='×'+i.qty;h.append(d)})
@@ -133,13 +173,13 @@ const upd=()=>{
 }
 
 let lastHash=''
-const stateHash=(s)=>JSON.stringify([s.balance,s.market.map(m=>[m.id,m.stock,m.price]),s.hold.map(h=>[h.id,h.qty])])
+const stateHash=(s)=>JSON.stringify([s.balance,s.market.map(m=>[m.id,m.stock,m.price]),s.hold.map(h=>[h.id,h.qty]),s.limited?(s.limited.map(l=>[l.id,l.stock,l.price])):[]])
 const fetchState=async()=>{let r=await fetch('/api/state');if(r.ok){let ns=await r.json();serverOffset=ns.server_time-Math.floor(Date.now()/1000);let h=stateHash(ns);let changed=h!==lastHash;state=ns;if(changed){lastHash=h;upd()}updTimer()}}
 setInterval(fetchState,3000)
 
-$('#btn-buy').onclick=()=>{if(sel!==null)act('buy',sel,$('#s-qty').value)}
-$('#btn-sell').onclick=()=>{if(sel!==null)act('sell',sel,$('#s-qty').value)}
-$('#btn-details').onclick=()=>{if(sel!==null)location.href='/shoe/'+sel}
+$('#btn-buy').onclick=()=>{if(sel!==null){if(selType==='limited')actLimited('buy-limited',sel,$('#s-qty').value);else act('buy',sel,$('#s-qty').value)}}
+$('#btn-sell').onclick=()=>{if(sel!==null&&selType!=='limited')act('sell',sel,$('#s-qty').value)}
+$('#btn-details').onclick=()=>{if(sel!==null&&selType!=='limited')location.href='/shoe/'+sel}
 $('#qty-dec').onclick=()=>{let q=$('#s-qty');q.value=Math.max(1,parseInt(q.value)-1)}
 $('#qty-inc').onclick=()=>{let q=$('#s-qty');q.value=Math.min(parseInt(q.max)||99,parseInt(q.value)+1)}
 $('#qty-max').onclick=()=>{let q=$('#s-qty');q.value=q.max||1}
@@ -159,3 +199,15 @@ setInterval(updBadge,10000)
 setInterval(fetchNotifs,10000)
 setInterval(fetchAnn,5000)
 setInterval(checkHanging,3000)
+
+// Tab switching
+$$('.market-tab').forEach(tab=>{
+  tab.onclick=()=>{
+    $$('.market-tab').forEach(t=>t.classList.remove('active'))
+    tab.classList.add('active')
+    let target=tab.dataset.tab
+    $('#tab-market').classList.toggle('hidden',target!=='market')
+    $('#tab-limited').classList.toggle('hidden',target!=='limited')
+    sel=null;selType=target;$('#sidebar-empty').classList.remove('hidden');$('#sidebar-content').classList.add('hidden');$$('.card').forEach(c=>c.classList.remove('active'))
+  }
+})

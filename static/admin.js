@@ -356,8 +356,40 @@ const fetchBalance=async()=>{
     if(r.ok){let s=await r.json();$('#bal').textContent=s.balance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
 }
 
+window.createLimited=async()=>{
+    let name=$('#ltd-name').value.trim()
+    let rarity=$('#ltd-rarity').value
+    let base=parseFloat($('#ltd-base').value)||0
+    let stock=parseInt($('#ltd-stock').value)||1
+    if(!name){toast('Enter a name','error');return}
+    if(base<=0){toast('Enter a base price','error');return}
+    let r=await fetch('/api/admin/limited',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,rarity,base,stock})})
+    let j=await r.json()
+    if(j.ok){toast(`Created limited shoe: ${name}`);$('#ltd-name').value='';$('#ltd-base').value='';loadLimited()}
+    else toast(j.error,'error')
+}
+
+window.deleteLimited=async(id)=>{
+    if(!confirm('Remove this limited shoe?'))return
+    let r=await fetch('/api/admin/limited/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})})
+    let j=await r.json()
+    if(j.ok){toast(`Removed: ${j.name}`);loadLimited()}
+    else toast(j.error,'error')
+}
+
+const loadLimited=async()=>{
+    let r=await fetch('/api/admin/limited')
+    if(r.ok){
+        let items=await r.json()
+        let list=$('#limited-list')
+        if(!items.length){list.innerHTML='<div style="color:var(--text3)">No limited shoes</div>';return}
+        list.innerHTML=items.map(i=>`<div style="display:flex;align-items:center;gap:8px;padding:6px;background:var(--bg3);border-radius:6px;margin-bottom:4px"><span style="flex:1"><strong>${i.name}</strong> [${i.rarity.toUpperCase()}] — $${Math.round(i.base).toLocaleString()} — Stock: ${i.stock}</span><button onclick="deleteLimited(${i.id})" class="ban-btn" style="padding:4px 8px;font-size:11px">Remove</button></div>`).join('')
+    }
+}
+
 loadUsers()
 loadShoes()
+loadLimited()
 fetchBalance()
 checkCourtStatus()
 setInterval(checkCourtStatus,5000)

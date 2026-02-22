@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=7">
+  <link rel="stylesheet" href="/static/style.css?v=8">
   <link rel="stylesheet" href="/static/admin.css">
 </head>
 <body>
@@ -160,6 +160,29 @@
         <h2>🔍 Suspicious Users</h2>
         <button onclick="loadSuspicious()" class="refresh-btn">Check Suspicious</button>
         <div id="suspicious-list" style="margin-top:12px;font-size:14px;"></div>
+      </section>
+
+      <section class="admin-section">
+        <h2>⭐ Limited Shoes</h2>
+        <div class="admin-form">
+          <input type="text" id="ltd-name" placeholder="Shoe Name" style="flex:2">
+          <select id="ltd-rarity">
+            <option value="common">Common</option>
+            <option value="uncommon">Uncommon</option>
+            <option value="rare">Rare</option>
+            <option value="epic">Epic</option>
+            <option value="legendary">Legendary</option>
+            <option value="mythic">Mythic</option>
+            <option value="godly" selected>Godly</option>
+            <option value="divine">Divine</option>
+            <option value="grails">Grails</option>
+            <option value="heavenly">Heavenly</option>
+          </select>
+          <input type="number" id="ltd-base" placeholder="Base Price" style="width:120px">
+          <input type="number" id="ltd-stock" placeholder="Stock" value="5" style="width:70px">
+          <button onclick="createLimited()" class="give-btn">Create</button>
+        </div>
+        <div id="limited-list" style="margin-top:12px;font-size:13px;"></div>
       </section>
     </div>
 
