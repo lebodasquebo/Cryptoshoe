@@ -348,11 +348,13 @@ function _adminDrawWheel(canvas,outcomes,angle){
 }
 function _adminSpinWheel(canvas,outcomes,targetIdx,startAngle,onDone){
     let n=outcomes.length,arc=Math.PI*2/n
-    let fullSpins=5+Math.random()*3
-    let targetAngle=-(Math.PI/2)-targetIdx*arc-arc/2+(Math.random()-0.5)*arc*0.4
-    let totalRotation=fullSpins*Math.PI*2+targetAngle-startAngle
+    let landAngle=-Math.PI/2-targetIdx*arc-arc/2+(Math.random()-0.5)*arc*0.3
+    landAngle=((landAngle%(Math.PI*2))+(Math.PI*2))%(Math.PI*2)
+    let extra=landAngle-((startAngle%(Math.PI*2))+(Math.PI*2))%(Math.PI*2)
+    if(extra<=0)extra+=Math.PI*2
+    let totalRotation=6*Math.PI*2+extra
     let duration=5000,startTime=performance.now()
-    const easeOut=(t)=>1-Math.pow(1-t,3)
+    const easeOut=(t)=>1-Math.pow(1-t,4)
     const animate=(now)=>{
         let elapsed=now-startTime,t=Math.min(1,elapsed/duration)
         let cur=startAngle+totalRotation*easeOut(t)

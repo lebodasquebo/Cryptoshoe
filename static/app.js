@@ -263,19 +263,17 @@ const hitPinata=async()=>{
 if($('#pinata-target'))$('#pinata-target').onclick=hitPinata
 
 // ─── Wheel of Fortune ─────────────────────────
-let wheelShowing=false,wheelSpinning=false,wheelAngle=0,wheelAnimId=null
+let wheelShowing=false,wheelSpinning=false,wheelAngle=0,wheelAnimId=null,wheelDoneId=0
 
 const drawWheel=(canvas,outcomes,angle)=>{
   let ctx=canvas.getContext('2d'),cx=canvas.width/2,cy=canvas.height/2,r=cx-10
   let n=outcomes.length,arc=Math.PI*2/n
   ctx.clearRect(0,0,canvas.width,canvas.height)
-  // draw segments
   for(let i=0;i<n;i++){
     let a=angle+i*arc
     ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,a,a+arc);ctx.closePath()
     ctx.fillStyle=outcomes[i].color;ctx.fill()
     ctx.strokeStyle='rgba(10,10,15,0.6)';ctx.lineWidth=2;ctx.stroke()
-    // label
     ctx.save();ctx.translate(cx,cy);ctx.rotate(a+arc/2)
     ctx.fillStyle='#fff';ctx.font='bold 13px Orbitron, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle'
     ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=4
@@ -284,7 +282,6 @@ const drawWheel=(canvas,outcomes,angle)=>{
     ctx.fillText(outcomes[i].label,r*0.55,13)
     ctx.restore()
   }
-  // center circle
   ctx.beginPath();ctx.arc(cx,cy,22,0,Math.PI*2);ctx.fillStyle='#1a1a26';ctx.fill()
   ctx.strokeStyle='var(--yellow)';ctx.lineWidth=2;ctx.stroke()
   ctx.fillStyle='#ffd700';ctx.font='16px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🎰',cx,cy)
@@ -294,15 +291,18 @@ const spinWheelTo=(canvas,outcomes,targetIdx,onDone)=>{
   if(wheelSpinning)return
   wheelSpinning=true
   let n=outcomes.length,arc=Math.PI*2/n
-  // target angle: the winning segment should be at top (pointer is at top = -PI/2 direction)
-  // segment i center is at angle + i*arc + arc/2. We want that to equal -PI/2 (mod 2PI)
-  // so finalAngle = -PI/2 - targetIdx*arc - arc/2 + random full spins
-  let fullSpins=5+Math.random()*3
-  let targetAngle=-(Math.PI/2)-targetIdx*arc-arc/2+(Math.random()-0.5)*arc*0.4
-  let totalRotation=fullSpins*Math.PI*2+targetAngle-wheelAngle
+  // Pointer is at top = -PI/2. We want segment targetIdx centered there.
+  // Final wheel angle: segment center at top means angle + targetIdx*arc + arc/2 = -PI/2
+  let landAngle=-Math.PI/2-targetIdx*arc-arc/2+(Math.random()-0.5)*arc*0.3
+  // Normalize to [0, 2PI)
+  landAngle=((landAngle%(Math.PI*2))+(Math.PI*2))%(Math.PI*2)
+  // Total rotation: 6 full spins + whatever extra to reach landAngle from current
+  let extra=landAngle-((wheelAngle%(Math.PI*2))+(Math.PI*2))%(Math.PI*2)
+  if(extra<=0)extra+=Math.PI*2
+  let totalRotation=6*Math.PI*2+extra
   let startAngle=wheelAngle
   let duration=5000,startTime=performance.now()
-  const easeOut=(t)=>{return 1-Math.pow(1-t,3)}
+  const easeOut=(t)=>1-Math.pow(1-t,4)
   const animate=(now)=>{
     let elapsed=now-startTime
     let t=Math.min(1,elapsed/duration)
@@ -314,42 +314,36 @@ const spinWheelTo=(canvas,outcomes,targetIdx,onDone)=>{
   wheelAnimId=requestAnimationFrame(animate)
 }
 
-let wheelSeenStart=0
+let wheelSeenId=0
 const checkWheel=async()=>{
+  if(wheelSpinning)return
   let r=await fetch('/api/wheel')
   if(!r.ok)return
   let w=await r.json()
   let overlay=$('#wheel-overlay')
   if(!overlay)return
-  if(w.active){
-    if(!wheelShowing||wheelSeenStart!==w.started){
-      // fresh wheel event
-      wheelShowing=true;wheelSeenStart=w.started
-      overlay.classList.remove('hidden')
-      $('#wheel-target-user').textContent=w.username
-      $('#wheel-result').classList.add('hidden')
-      let canvas=$('#wheel-canvas')
-      wheelAngle=Math.random()*Math.PI*2
-      drawWheel(canvas,w.outcomes,wheelAngle)
-      // start spinning after a brief pause
-      setTimeout(()=>{
-        spinWheelTo(canvas,w.outcomes,w.outcome_idx,()=>{
-          // spin done — show result & resolve
-          let out=w.outcomes[w.outcome_idx]
-          let res=$('#wheel-result')
-          res.textContent=out.emoji+' '+out.label
-          res.classList.remove('hidden')
-          fetch('/api/wheel/resolve',{method:'POST'})
-          // auto-dismiss after 5s
-          setTimeout(()=>{
-            overlay.classList.add('hidden')
-            wheelShowing=false
-          },5000)
-        })
-      },800)
-    }
-  }else{
-    if(wheelShowing&&!wheelSpinning){wheelShowing=false;overlay.classList.add('hidden')}
+  if(w.active&&w.started!==wheelSeenId){
+    wheelSeenId=w.started
+    wheelShowing=true
+    overlay.classList.remove('hidden')
+    $('#wheel-target-user').textContent=w.username
+    $('#wheel-result').classList.add('hidden')
+    let canvas=$('#wheel-canvas')
+    wheelAngle=Math.random()*Math.PI*2
+    drawWheel(canvas,w.outcomes,wheelAngle)
+    setTimeout(()=>{
+      spinWheelTo(canvas,w.outcomes,w.outcome_idx,()=>{
+        let out=w.outcomes[w.outcome_idx]
+        let res=$('#wheel-result')
+        res.textContent=out.emoji+' '+out.label
+        res.classList.remove('hidden')
+        fetch('/api/wheel/resolve',{method:'POST'})
+        setTimeout(()=>{
+          overlay.classList.add('hidden')
+          wheelShowing=false
+        },5000)
+      })
+    },800)
   }
 }
 
