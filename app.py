@@ -37,7 +37,7 @@ booted = False
 # Piñata event state (in-memory, ephemeral)
 pinata_state = {"active": False, "reward": 0, "hits_needed": 50, "hits": 0, "participants": {}, "started": 0}
 
-# Wheel of Fortune state (in-memory, ephemeral)
+# Wheel of Fortune outcomes
 WHEEL_OUTCOMES = [
     {"label": "JACKPOT!", "emoji": "💰", "color": "#00ff88"},
     {"label": "TAX TIME!", "emoji": "💸", "color": "#ff4466"},
@@ -48,7 +48,6 @@ WHEEL_OUTCOMES = [
     {"label": "BURN A SHOE!", "emoji": "🔥", "color": "#ff8c00"},
     {"label": "LUCKY!", "emoji": "✨", "color": "#00ffcc"},
 ]
-wheel_state = {"active": False, "username": "", "target_id": "", "outcome_idx": 0, "started": 0}
 
 def hash_pw(pw):
     return hashlib.sha256((pw + app.secret_key).encode()).hexdigest()
@@ -227,6 +226,7 @@ def init():
     create table if not exists global_chat(id integer primary key autoincrement, user_id text, username text, message text, ts integer);
     create index if not exists idx_chat on global_chat(ts);
     create table if not exists limited_market(id integer primary key autoincrement, name text, rarity text, base real, stock integer, price real, created integer);
+    create table if not exists wheel_event(id integer primary key, username text, outcome_idx integer, started integer, expires integer);
     create table if not exists gambling_pots(id integer primary key autoincrement, market_cap real, total_value real default 0, status text default 'open', winner_id text, winner_name text, created integer, ended integer, spin_start integer);
     create table if not exists pot_entries(id integer primary key autoincrement, pot_id integer, user_id text, username text, shoe_id integer, appraisal_id integer, rating real, multiplier real, variant text default '', value real, ts integer);
     insert or ignore into global_state(id, last_stock, last_price) values(1, 0, 0);
@@ -720,6 +720,13 @@ def rating_class(rating):
         return "poor"
     return "terrible"
 
+def _get_wheel_data(d, now):
+    row = d.execute("select username, outcome_idx, started from wheel_event where id=1 and expires >= ?", (now,)).fetchone()
+    if not row:
+        return None
+    return {"active": True, "username": row["username"], "outcome_idx": row["outcome_idx"],
+            "outcomes": WHEEL_OUTCOMES, "started": row["started"]}
+
 def state(u):
     d = db()
     now = int(time.time())
@@ -807,13 +814,7 @@ def state(u):
         "next_stock": next_stock,
         "next_price": next_price,
         "server_time": now,
-        "wheel": {
-            "active": True,
-            "username": wheel_state["username"],
-            "outcome_idx": wheel_state["outcome_idx"],
-            "outcomes": WHEEL_OUTCOMES,
-            "started": wheel_state["started"]
-        } if wheel_state["active"] else None
+        "wheel": _get_wheel_data(d, now)
     }
 
 def shoe_state(u, shoe_id):
@@ -2672,12 +2673,13 @@ def admin_gift_bomb():
 @app.route("/api/admin/wheel-of-fortune", methods=["POST"])
 @login_required
 def admin_wheel_of_fortune():
-    global wheel_state
     if not is_admin():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
-    if wheel_state["active"]:
-        return jsonify({"ok": False, "error": "A wheel is already spinning!"})
     d = db()
+    now = int(time.time())
+    existing = d.execute("select 1 from wheel_event where id=1 and expires >= ?", (now,)).fetchone()
+    if existing:
+        return jsonify({"ok": False, "error": "A wheel is already spinning!"})
     username = request.json.get("username", "").lower().strip()
     if not username:
         users = d.execute("select a.username, u.id from accounts a join users u on u.id=a.id").fetchall()
@@ -2714,35 +2716,23 @@ def admin_wheel_of_fortune():
         d.execute("delete from hold where user_id=? and rowid = (select rowid from hold where user_id=? limit 1)", (target_id, target_id))
     elif outcome_idx == 7:
         d.execute("update users set balance=balance+25000 where id=?", (target_id,))
-    now = int(time.time())
     d.execute("insert into notifications(user_id, message, ts) values(?,?,?)",
              (target_id, f"🎰 WHEEL OF FORTUNE: {label}", now))
+    d.execute("insert or replace into wheel_event(id, username, outcome_idx, started, expires) values(1,?,?,?,?)",
+             (username, outcome_idx, now, now + 15))
     d.commit()
-    wheel_state = {
-        "active": True, "username": username, "target_id": target_id,
-        "outcome_idx": outcome_idx, "started": now
-    }
-    # Auto-clear after 12s
-    import threading
-    def _clear():
-        global wheel_state
-        wheel_state = {"active": False, "username": "", "target_id": "", "outcome_idx": 0, "started": 0}
-    threading.Timer(12, _clear).start()
     return jsonify({"ok": True, "msg": f"Wheel spinning for {username}!", "username": username,
                     "outcome_idx": outcome_idx, "outcomes": WHEEL_OUTCOMES})
 
 @app.route("/api/wheel")
 @login_required
 def get_wheel():
-    if not wheel_state["active"]:
+    d = db()
+    now = int(time.time())
+    data = _get_wheel_data(d, now)
+    if not data:
         return jsonify({"active": False})
-    return jsonify({
-        "active": True,
-        "username": wheel_state["username"],
-        "outcome_idx": wheel_state["outcome_idx"],
-        "outcomes": WHEEL_OUTCOMES,
-        "started": wheel_state["started"]
-    })
+    return jsonify(data)
 
 # ─── Piñata Event ─────────────────────────────────────────
 @app.route("/api/admin/pinata", methods=["POST"])
