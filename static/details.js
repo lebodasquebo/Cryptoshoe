@@ -131,6 +131,8 @@ const updTrade=()=>{
       pnlEl.innerHTML=`<span class="pnl-label">P/L from buy:</span> <span class="pnl-val ${cp>=0?'up':'down'}">${cp>=0?'+':''}${cp.toFixed(2)}%</span> <span class="pnl-basis">(avg $${money(data.cost_basis)})</span>`
       pnlEl.style.display=''
     }else if(pnlEl){pnlEl.style.display='none'}
+    let sellTrend=$('#sell-trend')
+    if(sellTrend&&data.trend!==undefined){let t=data.trend;if(Math.abs(t)>0.01){let dir=t>0?'↑ Trending Up':'↓ Trending Down';sellTrend.textContent=dir;sellTrend.className='trend-indicator '+(t>0?'trend-up':'trend-down');sellTrend.style.display=''}else{sellTrend.style.display='none'}}
   }else{
     sellPanel.classList.add('hidden')
   }
@@ -163,7 +165,7 @@ const render=()=>{
     ni.classList.remove('show')
   }
   let trendEl=$('#d-trend')
-  if(trendEl&&data.trend!==undefined){let t=data.trend;if(Math.abs(t)>0.02){let dir=t>0?'↑ Trending Up':'↓ Trending Down';trendEl.textContent=dir;trendEl.className='trend-indicator '+(t>0?'trend-up':'trend-down');trendEl.style.display=''}else{trendEl.style.display='none'}}
+  if(trendEl&&data.trend!==undefined){let t=data.trend;if(Math.abs(t)>0.01){let dir=t>0?'↑ Trending Up':'↓ Trending Down';trendEl.textContent=dir;trendEl.className='trend-indicator '+(t>0?'trend-up':'trend-down');trendEl.style.display=''}else{trendEl.style.display='none'}}
   let now=Math.floor(Date.now()/1000)
   let arr=data.history.filter(x=>x.ts>=now-span).map(x=>x.price)
   draw($('#d-chart'),arr)

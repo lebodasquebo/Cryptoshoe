@@ -310,3 +310,4 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
 .trend-up{background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.2)}
 .trend-down{background:rgba(255,68,102,0.1);color:var(--red);border:1px solid rgba(255,68,102,0.2)}
 .news-item{padding:2px 0}
+.card-news2{margin-top:2px;border-top:1px solid var(--bg4)}

@@ -591,38 +591,51 @@ def prices():
             d.execute("update market set news2='', news_val2=0, news_until2=0 where shoe_id=?", (r["shoe_id"],))
             val2 = 0
         # News generation - slot 1
+        # Bias: good news less likely when price is very low, bad news less likely when high
+        price_ratio = price / base if base > 0 else 1  # <1 = below base, >1 = above
         news_chance = 0.12 + (vol - 1) * 0.06
         if not r["news_until"] and random.random() < news_chance:
             text, v = news_pick(rarity)
-            v *= vol
-            duration = random.randint(45, 240) if vol < 2 else random.randint(30, 180)
-            d.execute("update market set news=?, news_val=?, news_until=? where shoe_id=?", (text, v, now + duration, r["shoe_id"]))
-            val = v
+            # Reject unlikely combos: good news near floor, bad news near ceiling
+            if v > 0 and price_ratio < 0.35 and random.random() < 0.7:
+                pass  # 70% chance to skip good news when near floor
+            elif v < 0 and price_ratio > 2.5 and random.random() < 0.7:
+                pass  # 70% chance to skip bad news when near ceiling
+            else:
+                v *= vol
+                duration = random.randint(45, 240) if vol < 2 else random.randint(30, 180)
+                d.execute("update market set news=?, news_val=?, news_until=? where shoe_id=?", (text, v, now + duration, r["shoe_id"]))
+                val = v
         # News generation - slot 2 (lower chance, only if slot 1 is active)
         if r["news_until"] and not r["news_until2"] and random.random() < news_chance * 0.3:
             text2, v2 = news_pick(rarity)
-            v2 *= vol
-            duration2 = random.randint(30, 180) if vol < 2 else random.randint(20, 120)
-            d.execute("update market set news2=?, news_val2=?, news_until2=? where shoe_id=?", (text2, v2, now + duration2, r["shoe_id"]))
-            val2 = v2
+            if v2 > 0 and price_ratio < 0.35 and random.random() < 0.7:
+                pass
+            elif v2 < 0 and price_ratio > 2.5 and random.random() < 0.7:
+                pass
+            else:
+                v2 *= vol
+                duration2 = random.randint(30, 180) if vol < 2 else random.randint(20, 120)
+                d.execute("update market set news2=?, news_val2=?, news_until2=? where shoe_id=?", (text2, v2, now + duration2, r["shoe_id"]))
+                val2 = v2
         combined_val = val + val2 * 0.6  # second news has reduced impact
-        # Trend: momentum that slowly builds and decays
+        # Trend: small momentum that slowly builds and decays
         if price > base:
-            trend += random.uniform(-0.02, 0.04)  # slight upward bias when above base
+            trend += random.uniform(-0.01, 0.02)  # slight upward nudge when above base
         else:
-            trend += random.uniform(-0.04, 0.02)  # slight downward bias when below
-        trend *= 0.92  # decay toward 0
-        trend = clamp(trend, -0.3, 0.3)
-        up = 0.5 - diff * 0.4 + combined_val * 0.25 + trend * 0.3
+            trend += random.uniform(-0.02, 0.01)  # slight downward nudge when below
+        trend *= 0.95  # decay toward 0
+        trend = clamp(trend, -0.15, 0.15)
+        up = 0.5 - diff * 0.4 + combined_val * 0.25 + trend * 0.2
         up = clamp(up, 0.1, 0.9)
         delta = base * random.uniform(0.005, 0.035) * vol * (1 + abs(combined_val) * 0.5)
         if random.random() < up:
             price += delta
-            trend += 0.02  # reinforce upward trend
+            trend += 0.008  # small reinforcement
         else:
             price -= delta
-            trend -= 0.02  # reinforce downward trend
-        trend = clamp(trend, -0.3, 0.3)
+            trend -= 0.008  # small reinforcement
+        trend = clamp(trend, -0.15, 0.15)
         price = round(clamp(price, base * 0.15, base * 4), 2)
         d.execute("update market set price=?, trend=? where shoe_id=?", (price, round(trend, 4), r["shoe_id"]))
         d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (r["shoe_id"], now, price))
