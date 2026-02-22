@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css">
-  <link rel="stylesheet" href="/static/details.css">
+  <link rel="stylesheet" href="/static/style.css?v=2">
+  <link rel="stylesheet" href="/static/details.css?v=2">
 </head>
 <body>
   <div class="bg-grid"></div>
@@ -121,6 +121,7 @@
         </div>
       </div>
       <aside class="detail-side">
+        <button class="mobile-back" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ BACK TO CHART</button>
         <div class="news-section">
           <div class="news-head">
             <span class="news-icon">📰</span>
@@ -203,6 +204,6 @@
   </div>
   <script>window.SHOE_ID={{ shoe_id }};window.IS_ADMIN={{ 'true' if is_admin else 'false' }};</script>
   <script src="/static/ban-check.js?v=1"></script>
-  <script src="/static/details.js"></script>
+  <script src="/static/details.js?v=2"></script>
 </body>
 </html>

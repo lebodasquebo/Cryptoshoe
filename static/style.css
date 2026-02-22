@@ -262,7 +262,8 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
   .bal-val{font-size:14px}
   .wrap{padding:12px}
   body{padding-top:90px}
-  .announcement-bar{position:relative;z-index:40;font-size:13px}
+  body.has-announcement{padding-top:130px}
+  .announcement-bar{position:fixed;top:70px;left:0;right:0;z-index:99;font-size:12px}
   .announcement{padding:8px 12px}
   .section-head{flex-direction:column;gap:8px;align-items:flex-start}
   .section-title{font-size:14px}

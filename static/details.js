@@ -191,7 +191,12 @@ const sell=async()=>{
 }
 
 const fetchData=async()=>{
-  let r=await fetch('/api/shoe/'+window.SHOE_ID);if(r.ok){data=await r.json();render()}
+  let r=await fetch('/api/shoe/'+window.SHOE_ID);if(r.ok){
+    data=await r.json()
+    if(data.next_stock)nextStock=data.next_stock
+    if(data.next_price)nextPrice=data.next_price
+    render()
+  }
   let s=await fetch('/api/state');if(s.ok){
     let st=await s.json()
     balance=st.balance

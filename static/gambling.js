@@ -38,6 +38,7 @@ const showWinner = (name, total) => {
 let isSpinning = false
 let lastWinner = null
 let spinStartTime = 0
+let spinPotTotal = 0
 
 const fetchPot = async () => {
   let r = await fetch('/api/pot/current')
@@ -55,6 +56,7 @@ const fetchPot = async () => {
   if (pot.spinning && !isSpinning) {
     isSpinning = true
     spinStartTime = Date.now()
+    spinPotTotal = pot.winner_total || pot.total || 0
     let segStart = 0
     let segEnd = 0
     let currentAngle = 0
@@ -77,11 +79,13 @@ const fetchPot = async () => {
       wheel.style.transition = 'transform 5s cubic-bezier(0.15, 0.85, 0.25, 1)'
       wheel.style.transform = 'rotate(' + totalRotation + 'deg)'
     }, 50)
+    let winnerName = pot.winner
+    let winnerTotal = spinPotTotal
     setTimeout(() => {
       isSpinning = false
-      if (pot.winner) {
-        showWinner(pot.winner, pot.total)
-        lastWinner = pot.winner
+      if (winnerName) {
+        showWinner(winnerName, winnerTotal)
+        lastWinner = winnerName
       }
     }, 5500)
   }
