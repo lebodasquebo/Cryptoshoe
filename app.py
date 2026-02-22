@@ -48,7 +48,7 @@ WHEEL_OUTCOMES = [
     {"label": "BURN A SHOE!", "emoji": "🔥", "color": "#ff8c00"},
     {"label": "LUCKY!", "emoji": "✨", "color": "#00ffcc"},
 ]
-wheel_state = {"active": False, "username": "", "target_id": "", "outcome_idx": 0, "started": 0, "resolved": False}
+wheel_state = {"active": False, "username": "", "target_id": "", "outcome_idx": 0, "started": 0}
 
 def hash_pw(pw):
     return hashlib.sha256((pw + app.secret_key).encode()).hexdigest()
@@ -2685,10 +2685,42 @@ def admin_wheel_of_fortune():
             return jsonify({"ok": False, "error": f"User '{username}' not found"})
         target_id = acc["id"]
     outcome_idx = random.randint(0, len(WHEEL_OUTCOMES) - 1)
+    # Apply outcome immediately
+    outcome = WHEEL_OUTCOMES[outcome_idx]
+    label = outcome["emoji"] + " " + outcome["label"]
+    if outcome_idx == 0:
+        d.execute("update users set balance=balance+50000 where id=?", (target_id,))
+    elif outcome_idx == 1:
+        d.execute("update users set balance=balance*0.5 where id=?", (target_id,))
+    elif outcome_idx == 2:
+        shoes = d.execute("select id from shoes").fetchall()
+        if shoes:
+            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1",
+                     (target_id, random.choice(shoes)["id"]))
+    elif outcome_idx == 3:
+        d.execute("update users set balance=balance-10000 where id=?", (target_id,))
+    elif outcome_idx == 4:
+        d.execute("update users set balance=balance*2 where id=?", (target_id,))
+    elif outcome_idx == 5:
+        pass
+    elif outcome_idx == 6:
+        d.execute("delete from hold where user_id=? and rowid = (select rowid from hold where user_id=? limit 1)", (target_id, target_id))
+    elif outcome_idx == 7:
+        d.execute("update users set balance=balance+25000 where id=?", (target_id,))
+    now = int(time.time())
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)",
+             (target_id, f"🎰 WHEEL OF FORTUNE: {label}", now))
+    d.commit()
     wheel_state = {
         "active": True, "username": username, "target_id": target_id,
-        "outcome_idx": outcome_idx, "started": int(time.time()), "resolved": False
+        "outcome_idx": outcome_idx, "started": now
     }
+    # Auto-clear after 12s
+    import threading
+    def _clear():
+        global wheel_state
+        wheel_state = {"active": False, "username": "", "target_id": "", "outcome_idx": 0, "started": 0}
+    threading.Timer(12, _clear).start()
     return jsonify({"ok": True, "msg": f"Wheel spinning for {username}!", "username": username,
                     "outcome_idx": outcome_idx, "outcomes": WHEEL_OUTCOMES})
 
@@ -2702,55 +2734,8 @@ def get_wheel():
         "username": wheel_state["username"],
         "outcome_idx": wheel_state["outcome_idx"],
         "outcomes": WHEEL_OUTCOMES,
-        "resolved": wheel_state["resolved"],
         "started": wheel_state["started"]
     })
-
-@app.route("/api/wheel/resolve", methods=["POST"])
-@login_required
-def resolve_wheel():
-    global wheel_state
-    if not wheel_state["active"]:
-        return jsonify({"ok": False, "error": "No active wheel"})
-    if wheel_state["resolved"]:
-        return jsonify({"ok": True, "already": True})
-    wheel_state["resolved"] = True
-    d = db()
-    target_id = wheel_state["target_id"]
-    idx = wheel_state["outcome_idx"]
-    outcome = WHEEL_OUTCOMES[idx]
-    label = outcome["emoji"] + " " + outcome["label"]
-    # Apply the outcome
-    if idx == 0:  # JACKPOT
-        d.execute("update users set balance=balance+50000 where id=?", (target_id,))
-    elif idx == 1:  # TAX
-        d.execute("update users set balance=balance*0.5 where id=?", (target_id,))
-    elif idx == 2:  # FREE SHOE
-        shoes = d.execute("select id from shoes").fetchall()
-        if shoes:
-            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1",
-                     (target_id, random.choice(shoes)["id"]))
-    elif idx == 3:  # ROBBERY
-        d.execute("update users set balance=balance-10000 where id=?", (target_id,))
-    elif idx == 4:  # 2X BALANCE
-        d.execute("update users set balance=balance*2 where id=?", (target_id,))
-    elif idx == 5:  # NOTHING
-        pass
-    elif idx == 6:  # BURN A SHOE
-        d.execute("delete from hold where user_id=? and rowid = (select rowid from hold where user_id=? limit 1)", (target_id, target_id))
-    elif idx == 7:  # LUCKY
-        d.execute("update users set balance=balance+25000 where id=?", (target_id,))
-    now = int(time.time())
-    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)",
-             (target_id, f"🎰 WHEEL OF FORTUNE: {label}", now))
-    d.commit()
-    # Auto-clear after a short delay
-    import threading
-    def _clear():
-        global wheel_state
-        wheel_state = {"active": False, "username": "", "target_id": "", "outcome_idx": 0, "started": 0, "resolved": False}
-    threading.Timer(10, _clear).start()
-    return jsonify({"ok": True, "label": label})
 
 # ─── Piñata Event ─────────────────────────────────────────
 @app.route("/api/admin/pinata", methods=["POST"])

@@ -315,7 +315,6 @@ window.wheelOfFortune=async()=>{
                 let res=$('#wheel-result')
                 res.textContent=out.emoji+' '+out.label
                 res.classList.remove('hidden')
-                fetch('/api/wheel/resolve',{method:'POST'})
                 loadUsers()
                 setTimeout(()=>{overlay.classList.add('hidden')},5000)
             })

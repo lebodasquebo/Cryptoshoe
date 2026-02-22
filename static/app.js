@@ -314,9 +314,9 @@ const spinWheelTo=(canvas,outcomes,targetIdx,onDone)=>{
   wheelAnimId=requestAnimationFrame(animate)
 }
 
-let wheelSeenId=0
+let wheelSeenId=0,wheelBusy=false
 const checkWheel=async()=>{
-  if(wheelSpinning)return
+  if(wheelSpinning||wheelBusy)return
   let r=await fetch('/api/wheel')
   if(!r.ok)return
   let w=await r.json()
@@ -324,6 +324,7 @@ const checkWheel=async()=>{
   if(!overlay)return
   if(w.active&&w.started!==wheelSeenId){
     wheelSeenId=w.started
+    wheelBusy=true
     wheelShowing=true
     overlay.classList.remove('hidden')
     $('#wheel-target-user').textContent=w.username
@@ -337,10 +338,10 @@ const checkWheel=async()=>{
         let res=$('#wheel-result')
         res.textContent=out.emoji+' '+out.label
         res.classList.remove('hidden')
-        fetch('/api/wheel/resolve',{method:'POST'})
         setTimeout(()=>{
           overlay.classList.add('hidden')
           wheelShowing=false
+          wheelBusy=false
         },5000)
       })
     },800)
