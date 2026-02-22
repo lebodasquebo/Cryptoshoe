@@ -60,6 +60,7 @@ const toggleFav=async(shoeId,appraisalId)=>{
 }
 
 const select=(id,type)=>{sel=parseInt(id);selType=type;updSidebar();$$('.inv-card').forEach(c=>{let isActive=(c.dataset.type===type&&parseInt(c.dataset.id)===sel);c.classList.toggle('active',isActive)})}
+if($('#sidebar-close'))$('#sidebar-close').onclick=()=>{sel=null;selType=null;$('#sidebar-empty').classList.remove('hidden');$('#sidebar-content').classList.add('hidden');$$('.inv-card').forEach(c=>c.classList.remove('active'))}
 const getSelected=()=>{if(sel===null)return null;if(selType==='hold')return state.hold.find(x=>parseInt(x.id)===sel);if(selType==='appraised')return state.appraised.find(x=>parseInt(x.appraisal_id)===sel);return null}
 
 const updSidebar=()=>{
