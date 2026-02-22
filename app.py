@@ -1,4 +1,4 @@
-import os, sqlite3, time, random, json, uuid, hashlib, re, urllib.request, urllib.parse
+import os, sqlite3, time, random, json, uuid, hashlib, re, urllib.request, urllib.parse, secrets, html as html_mod
 from flask import Flask, g, render_template, session, request, jsonify, Response, redirect, url_for
 from functools import wraps
 try:
@@ -10,8 +10,24 @@ except:
 RECAPTCHA_SECRET = os.environ.get("RECAPTCHA_SECRET", "6Ldd32IsAAAAAKrY5NSlh8D3Mzefb4sxqWL6G-Od")
 RECAPTCHA_SITE_KEY = os.environ.get("RECAPTCHA_SITE_KEY", "6Ldd32IsAAAAAC0k5zVL2qCkOkvl2BmS4uD9vm45")
 
+# Generate a persistent secret key - stored in .secret_key file
+_secret_key_path = os.path.join(os.path.dirname(__file__), ".secret_key")
+if os.environ.get("SECRET_KEY"):
+    _app_secret = os.environ["SECRET_KEY"]
+else:
+    if os.path.exists(_secret_key_path):
+        with open(_secret_key_path, "r") as f:
+            _app_secret = f.read().strip()
+    else:
+        _app_secret = secrets.token_hex(32)
+        with open(_secret_key_path, "w") as f:
+            f.write(_app_secret)
+
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "cryptoshoe-secret-key-change-me")
+app.secret_key = _app_secret
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SECURE_COOKIES", "").lower() == "true"
 
 BOT_USER_AGENTS = ['bot', 'crawler', 'spider', 'scraper', 'curl', 'wget', 'python-requests', 'httpx', 'aiohttp', 'go-http', 'java', 'perl', 'ruby']
 RATE_LIMITS = {}
@@ -127,8 +143,10 @@ def validate_session():
 
 @app.before_request
 def global_rate_limit():
-    # Rate limiting disabled
-    pass
+    if request.endpoint and not request.endpoint.startswith('static'):
+        ip = get_client_ip()
+        if is_rate_limited(f"global:{ip}", 120, 60):
+            return jsonify({"ok": False, "error": "Too many requests"}), 429
 
 @app.before_request
 def boot():
@@ -167,7 +185,7 @@ def init():
     create table if not exists global_state(id integer primary key, last_stock integer, last_price integer);
     create table if not exists market(shoe_id integer primary key, stock integer, price real, base real, news text, news_val real, news_until integer);
     create table if not exists user_stock(user_id text, shoe_id integer, stock_cycle integer, bought integer, primary key(user_id, shoe_id, stock_cycle));
-    create table if not exists hold(user_id text, shoe_id integer, qty integer, primary key(user_id, shoe_id));
+    create table if not exists hold(user_id text, shoe_id integer, qty integer, cost_basis real default 0, primary key(user_id, shoe_id));
     create table if not exists history(shoe_id integer, ts integer, price real);
     create table if not exists appraised(id integer primary key autoincrement, user_id text, shoe_id integer, rating real, multiplier real, ts integer);
     create table if not exists favorites(user_id text, shoe_id integer, appraisal_id integer, primary key(user_id, shoe_id, appraisal_id));
@@ -222,6 +240,10 @@ def init():
         pass
     try:
         d.execute("alter table pot_entries add column variant text default ''")
+    except:
+        pass
+    try:
+        d.execute("alter table hold add column cost_basis real default 0")
     except:
         pass
     d.execute("update shoes set rarity='godly' where rarity='secret'")
@@ -611,7 +633,7 @@ def state(u):
         rd["stock"] = max(0, rd["stock"] - user_bought.get(rd["id"], 0))
         m.append(rd)
     h = d.execute("""
-    select h.shoe_id id, s.name, s.rarity, s.base, h.qty
+    select h.shoe_id id, s.name, s.rarity, s.base, h.qty, coalesce(h.cost_basis, 0) as cost_basis
     from hold h join shoes s on s.id=h.shoe_id
     where h.user_id=? order by s.rarity, s.name
     """, (u,)).fetchall()
@@ -674,8 +696,9 @@ def shoe_state(u, shoe_id):
         stock = 0
         news = ""
     rows = d.execute("select ts, price from history where shoe_id=? order by ts", (shoe_id,)).fetchall()
-    hold = d.execute("select qty from hold where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
+    hold = d.execute("select qty, coalesce(cost_basis, 0) as cost_basis from hold where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
     owned = hold["qty"] if hold else 0
+    cost_basis = hold["cost_basis"] if hold else 0
     gs = d.execute("select last_stock, last_price from global_state where id=1").fetchone()
     return {
         "id": shoe["id"],
@@ -687,6 +710,7 @@ def shoe_state(u, shoe_id):
         "news": news,
         "in_market": in_market,
         "owned": owned,
+        "cost_basis": round(cost_basis, 2),
         "history": [dict(r) for r in rows],
         "next_stock": (gs["last_stock"] if gs else 0) + 300,
         "next_price": (gs["last_price"] if gs else 0) + 10
@@ -721,8 +745,9 @@ def api_login():
     data = request.json
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
+    if is_rate_limited(f"login:{ip}", 10, 300):
+        return jsonify({"ok": False, "error": "Too many login attempts. Try again later."})
     if username == "admin" and password == "00001111":
-        # Honeypot disabled
         return jsonify({"ok": False, "error": "Invalid credentials"})
     if not username or not password:
         return jsonify({"ok": False, "error": "Username and password required"})
@@ -923,7 +948,14 @@ def buy():
     if bal < cost:
         return jsonify({"ok": False, "error": "Not enough balance"})
     d.execute("insert into user_stock(user_id, shoe_id, stock_cycle, bought) values(?,?,?,?) on conflict(user_id, shoe_id, stock_cycle) do update set bought=bought+?", (u, shoe, stock_cycle, qty, qty))
-    d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,?) on conflict(user_id, shoe_id) do update set qty=qty+excluded.qty", (u, shoe, qty))
+    existing_hold = d.execute("select qty, cost_basis from hold where user_id=? and shoe_id=?", (u, shoe)).fetchone()
+    if existing_hold:
+        old_qty = existing_hold["qty"]
+        old_basis = existing_hold["cost_basis"] or 0
+        new_basis = (old_basis * old_qty + cost) / (old_qty + qty)
+        d.execute("update hold set qty=qty+?, cost_basis=? where user_id=? and shoe_id=?", (qty, round(new_basis, 4), u, shoe))
+    else:
+        d.execute("insert into hold(user_id, shoe_id, qty, cost_basis) values(?,?,?,?)", (u, shoe, qty, round(row["price"], 4)))
     d.execute("update users set balance=balance-? where id=?", (cost, u))
     now = int(time.time())
     d.execute("insert or ignore into shoe_index(user_id, shoe_id, discovered, collected) values(?,?,?,0)", (u, shoe, now))
@@ -2980,6 +3012,8 @@ def api_chat_send():
     msg = request.json.get("message", "").strip()[:200]
     if not msg:
         return jsonify({"ok": False, "error": "Empty message"})
+    # Sanitize HTML to prevent stored XSS
+    msg = html_mod.escape(msg)
     now = int(time.time())
     last_msg = d.execute("select ts from global_chat where user_id=? order by ts desc limit 1", (u,)).fetchone()
     if last_msg and now - last_msg["ts"] < 2 and not is_admin():

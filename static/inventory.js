@@ -73,6 +73,12 @@ const updSidebar=()=>{
   $('#s-price').textContent='$'+money(price)
   if(!item.in_market&&!item.appraised)$('#s-price').textContent+=' (off-market)'
   let p=base?pct(price,base):0;$('#s-pct-wrap').className='price-change '+(p>=0?'up':'down');$('#s-pct').textContent=(p>=0?'+':'')+p.toFixed(2)+'%'
+  let pnlEl=$('#inv-pnl')
+  if(pnlEl&&item.cost_basis&&item.cost_basis>0&&!item.appraised){
+    let cp=((price-item.cost_basis)/item.cost_basis*100)
+    pnlEl.innerHTML=`<span class="pnl-label">P/L from buy:</span> <span class="pnl-val ${cp>=0?'up':'down'}">${cp>=0?'+':''}${cp.toFixed(2)}%</span> <span class="pnl-basis">(avg $${money(item.cost_basis)})</span>`
+    pnlEl.style.display=''
+  }else if(pnlEl){pnlEl.style.display='none'}
   if(item.appraised){$('#s-owned').textContent=item.variant?'1 ('+item.variant.toUpperCase()+')':'1 (Appraised)';$('#s-total').textContent='$'+money(price);$('#s-qty').max=1;$('#s-qty').value=1;$('#s-qty').disabled=true}
   else{$('#s-owned').textContent=item.qty;$('#s-total').textContent='$'+money(price*item.qty);$('#s-qty').max=item.qty;$('#s-qty').value=Math.min(parseInt($('#s-qty').value)||1,item.qty);$('#s-qty').disabled=false}
   updSellPreview()

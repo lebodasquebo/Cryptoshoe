@@ -247,7 +247,8 @@ const fetchNotifs = async () => {
     let n = await r.json()
     n.forEach((x,i) => setTimeout(()=>toast(x.message, 'info'),i*5500))
   }
-}()
+}
+initChat()
 fetchOnline()
 fetchBalance()
 fetchAnn()

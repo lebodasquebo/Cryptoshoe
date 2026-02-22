@@ -217,6 +217,12 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 .toast.success{border-color:var(--green);color:var(--green)}
 .toast.error{border-color:var(--red);color:var(--red)}
+.trade-pnl{padding:6px 10px;border-radius:var(--radius-sm);font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:600;background:var(--bg3);border:1px solid var(--bg4);text-align:center;margin-bottom:8px}
+.pnl-label{color:var(--text3);margin-right:4px}
+.pnl-val{font-weight:700}
+.pnl-val.up{color:var(--green)}
+.pnl-val.down{color:var(--red)}
+.pnl-basis{color:var(--text3);font-size:11px;opacity:0.7}
 .sidebar-close{display:none}
 .sidebar-inner{position:relative}
 .sidebar-inner:has(.sidebar-content.hidden) .sidebar-close{display:none!important}

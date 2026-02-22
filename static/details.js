@@ -124,6 +124,12 @@ const updTrade=()=>{
     $('#sell-qty').max=data.owned
     $('#sell-qty').value=Math.min(parseInt($('#sell-qty').value)||1,data.owned)
     $('#sell-status').textContent=data.in_market?'':'(-5% off-market)'
+    let pnlEl=$('#sell-pnl')
+    if(pnlEl&&data.cost_basis>0){
+      let cp=((data.price-data.cost_basis)/data.cost_basis*100)
+      pnlEl.innerHTML=`<span class="pnl-label">P/L from buy:</span> <span class="pnl-val ${cp>=0?'up':'down'}">${cp>=0?'+':''}${cp.toFixed(2)}%</span> <span class="pnl-basis">(avg $${money(data.cost_basis)})</span>`
+      pnlEl.style.display=''
+    }else if(pnlEl){pnlEl.style.display='none'}
   }else{
     sellPanel.classList.add('hidden')
   }

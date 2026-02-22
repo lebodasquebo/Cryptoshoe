@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=5">
+  <link rel="stylesheet" href="/static/style.css?v=6">
   <link rel="stylesheet" href="/static/details.css?v=4">
 </head>
 <body>
@@ -182,6 +182,7 @@
               <button class="mobile-back" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ BACK TO TOP</button>
               <div class="panel-title sell-title">SELL</div>
               <div class="panel-status" id="sell-status"></div>
+              <div class="trade-pnl" id="sell-pnl"></div>
               <div class="trade-qty-row">
                 <div class="trade-qty-wrap">
                   <button class="qty-btn" id="sell-dec">−</button>
@@ -205,6 +206,6 @@
   </div>
   <script>window.SHOE_ID={{ shoe_id }};window.IS_ADMIN={{ 'true' if is_admin else 'false' }};</script>
   <script src="/static/ban-check.js?v=1"></script>
-  <script src="/static/details.js?v=4"></script>
+  <script src="/static/details.js?v=5"></script>
 </body>
 </html>
