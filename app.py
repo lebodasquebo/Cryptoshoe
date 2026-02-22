@@ -34,9 +34,8 @@ def login_required(f):
         if not acc:
             session.clear()
             return redirect(url_for("landing_page"))
-        if acc["ban_until"] and acc["ban_until"] > int(time.time()):
-            session.clear()
-            return redirect(url_for("landing_page"))
+        # Temp bans: keep user logged in but block actions via ban-check overlay
+        # (no longer clear session for temp bans)
         if acc["session_token"] and session.get("token") != acc["session_token"]:
             session.clear()
             return redirect(url_for("landing_page"))
@@ -1647,6 +1646,19 @@ def stream():
     income(u)
     return jsonify(state(u))
 
+@app.route("/api/ban-status")
+@login_required
+def api_ban_status():
+    d = db()
+    acc = d.execute("select ban_until, coalesce(ban_reason,'') as ban_reason from accounts where id=?", (session["user_id"],)).fetchone()
+    if not acc:
+        return jsonify({"banned": False})
+    now = int(time.time())
+    ban_until = acc["ban_until"] or 0
+    if ban_until > now:
+        return jsonify({"banned": True, "until": ban_until, "remaining": ban_until - now, "reason": acc["ban_reason"] or "", "server_time": now})
+    return jsonify({"banned": False})
+
 @app.route("/api/notifications")
 @login_required
 def get_notifications():
@@ -1723,13 +1735,28 @@ def admin_users():
     if not is_admin():
         return jsonify({"error": "Unauthorized"}), 403
     d = db()
+    now = int(time.time())
     users = d.execute("""
         select a.username, u.balance, 
+        coalesce(a.ban_until, 0) as ban_until,
+        coalesce(a.ban_reason, '') as ban_reason,
         (select count(*) from hold where user_id=a.id) as shoes,
         (select count(*) from appraised where user_id=a.id) as appraised
         from accounts a join users u on u.id=a.id order by a.username
     """).fetchall()
-    return jsonify([dict(u) for u in users])
+    result = []
+    for u in users:
+        row = dict(u)
+        ban_until = row.get("ban_until") or 0
+        if ban_until > now:
+            row["ban_active"] = True
+            row["ban_remaining"] = ban_until - now
+        else:
+            row["ban_active"] = False
+            row["ban_remaining"] = 0
+            row["ban_reason"] = ""
+        result.append(row)
+    return jsonify(result)
 
 @app.route("/api/admin/shoes")
 @login_required
@@ -2746,12 +2773,12 @@ def api_pot_current():
     cap_display = "∞" if pot["market_cap"] >= 999999999 else f"${pot['market_cap']:,.0f}"
     time_left = max(0, next_stock - now)
     recent_winner = d.execute("select winner_name, total_value, ended from gambling_pots where status='closed' and ended>? order by ended desc limit 1", (now - 10,)).fetchone()
-    spinning_pot = d.execute("select winner_name, spin_start from gambling_pots where status='spinning' limit 1").fetchone()
+    spinning_pot = d.execute("select winner_name, spin_start, total_value from gambling_pots where status='spinning' limit 1").fetchone()
     return jsonify({
         "id": pot["id"],
         "market_cap": pot["market_cap"],
         "cap_display": cap_display,
-        "total": total,
+        "total": spinning_pot["total_value"] if spinning_pot else total,
         "percent_filled": min(100, (total / pot["market_cap"] * 100)) if pot["market_cap"] < 999999999 else 0,
         "participants": result,
         "status": "spinning" if spinning_pot else pot["status"],
@@ -2759,7 +2786,7 @@ def api_pot_current():
         "next_spin": next_stock,
         "spinning": bool(spinning_pot),
         "winner": spinning_pot["winner_name"] if spinning_pot else (recent_winner["winner_name"] if recent_winner else None),
-        "winner_total": recent_winner["total_value"] if recent_winner else 0
+        "winner_total": spinning_pot["total_value"] if spinning_pot else (recent_winner["total_value"] if recent_winner else 0)
     })
 
 @app.route("/api/pot/enter", methods=["POST"])

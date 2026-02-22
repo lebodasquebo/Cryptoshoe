@@ -80,5 +80,5 @@
 .trade-form.hidden{display:none}
 .trade-btn-icon{font-size:16px}
 .hidden{display:none!important}
-@media(max-width:900px){.detail-layout{grid-template-columns:1fr}.chart-stats{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:500px){.hero-price{font-size:36px}.chart-spans button{padding:6px 10px;font-size:11px}}
+@media(max-width:900px){.detail-layout{grid-template-columns:1fr}.chart-stats{grid-template-columns:repeat(2,1fr)}.trade-section{position:relative}}
+@media(max-width:500px){.hero-price{font-size:36px}.chart-spans button{padding:6px 10px;font-size:11px}.hero-name{font-size:22px}.info-row{padding:8px 0;font-size:12px}.trade-panel-mini{padding:10px}.trade-btn{padding:10px;font-size:12px}}

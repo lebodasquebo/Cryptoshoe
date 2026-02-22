@@ -1,6 +1,6 @@
 const $=q=>document.querySelector(q)
 const $$=q=>document.querySelectorAll(q)
-const toast=(msg,type='success')=>{let t=$('#toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),2500)}
+const toast=(msg,type='success')=>{let t=$('#toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),5000)}
 const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
 checkCourt();setInterval(checkCourt,5000)
 
@@ -88,7 +88,7 @@ const fetchPot = async () => {
   
   if (pot.winner && pot.winner !== lastWinner && !isSpinning && !pot.spinning) {
     lastWinner = pot.winner
-    showWinner(pot.winner, pot.total)
+    showWinner(pot.winner, pot.winner_total || pot.total)
   }
   
   if (isSpinning) return
@@ -401,7 +401,7 @@ const fetchNotifs = async () => {
   let r = await fetch('/api/notifications')
   if (r.ok) {
     let n = await r.json()
-    n.forEach(x => toast(x.message, 'info'))
+    n.forEach((x,i) => setTimeout(()=>toast(x.message, 'info'),i*5500))
   }
 }
 

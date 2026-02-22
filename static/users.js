@@ -11,7 +11,7 @@ const toast=(msg,type='success')=>{
   let t=$('#toast')
   t.textContent=msg
   t.className='toast show '+type
-  setTimeout(()=>t.classList.remove('show'),2500)
+  setTimeout(()=>t.classList.remove('show'),5000)
 }
 
 const userCard=(u)=>`<div class="user-card${u.is_me?' is-me':''}${u.online?' online':''}">
@@ -71,11 +71,12 @@ const render=()=>{
   let grid=$('#users-grid'),empty=$('#users-empty')
   if(users.length){
     grid.innerHTML=users.map(u=>userCard(u)).join('')
-    if(hasMore){
-      grid.innerHTML+=`<div class="load-more-wrap"><button class="load-more-btn" onclick="loadMore()">Load More (${users.length}/${totalUsers})</button></div>`
-    }else if(totalUsers>0){
-      grid.innerHTML+=`<div class="users-count">Showing all ${totalUsers} users</div>`
-    }
+    let btns='<div class="load-more-wrap">'
+    if(currentOffset>0)btns+=`<button class="load-more-btn" onclick="showLess()">Show Less</button>`
+    if(hasMore)btns+=`<button class="load-more-btn" onclick="loadMore()">Load More (${users.length}/${totalUsers})</button>`
+    else if(totalUsers>0&&currentOffset===0)btns+=`<span class="users-count">Showing all ${totalUsers} users</span>`
+    btns+='</div>'
+    grid.innerHTML+=btns
     empty.classList.add('hidden')
   }
   else{grid.innerHTML='';empty.classList.remove('hidden')}
@@ -212,6 +213,11 @@ window.loadMore=()=>{
   fetchUsers(currentQuery,true)
 }
 
+window.showLess=()=>{
+  currentOffset=0
+  fetchUsers(currentQuery)
+}
+
 const fetchSuggestions=async(q)=>{
   if(q.length<2){$('#suggestions').innerHTML='';return}
   let r=await fetch('/api/users/suggest?q='+encodeURIComponent(q))
@@ -265,7 +271,7 @@ $('#search').oninput=(e)=>{
 }
 $('#search').onblur=()=>setTimeout(()=>$('#suggestions').innerHTML='',200)
 
-const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
+const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach((x,i)=>setTimeout(()=>toast(x.message,'info'),i*5500))}}
 const fetchAnn=async()=>{let r=await fetch('/api/announcements');if(r.ok){let a=await r.json(),bar=document.getElementById('announcement-bar');if(bar){if(a.length){bar.innerHTML=a.map(x=>`<div class="announcement"><span class="ann-icon">📢</span><span class="ann-text">${x.message}</span></div>`).join('');bar.classList.add('show');document.body.classList.add('has-announcement')}else{bar.classList.remove('show');document.body.classList.remove('has-announcement')}}}}
 const checkHanging=async()=>{let r=await fetch('/api/hanging');if(r.ok){let h=await r.json();if(h.active&&!location.pathname.includes('/hanging')){location.href='/hanging/'+h.victim}}}
 
@@ -275,7 +281,13 @@ fetchBalance()
 fetchNotifs()
 fetchAnn()
 checkHanging()
-setInterval(()=>fetchUsers(currentQuery),10000)
+setInterval(()=>{
+  let limit=currentOffset+50
+  let url='/api/users?offset=0&limit='+limit+(currentQuery?'&q='+encodeURIComponent(currentQuery):'')
+  fetch(url).then(r=>r.ok?r.json():null).then(data=>{
+    if(data){users=data.users;totalUsers=data.total;hasMore=data.has_more;render()}
+  })
+},10000)
 setInterval(fetchTrades,10000)
 setInterval(fetchNotifs,10000)
 setInterval(fetchAnn,5000)

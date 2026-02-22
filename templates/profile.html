@@ -155,6 +155,7 @@
   </div>
   <div class="toast" id="toast"></div>
   <script>window.PROFILE_USER = "{{ profile_username }}";window.IS_ADMIN={{ 'true' if is_admin else 'false' }};window.IS_OWN_PROFILE={{ 'true' if is_own_profile else 'false' }};</script>
+  <script src="/static/ban-check.js?v=1"></script>
   <script src="/static/profile.js?v={{ range(10000) | random }}"></script>
 </body>
 </html>

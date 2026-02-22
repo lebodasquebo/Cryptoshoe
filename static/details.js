@@ -1,4 +1,4 @@
-let data=null,span=86400,balance=0,nextPrice=0,serverOffset=0
+let data=null,span=86400,balance=0,nextPrice=0,nextStock=0,serverOffset=0
 const $=q=>document.querySelector(q),$$=q=>document.querySelectorAll(q)
 const checkCourt=async()=>{let r=await fetch('/api/court/state');if(r.ok){let s=await r.json();if(s.active)window.location.href='/court'}}
 checkCourt();setInterval(checkCourt,5000)
@@ -12,7 +12,7 @@ const toast=(msg,type='success')=>{
   t.textContent=msg
   t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:14px 24px;background:#1a1a26;border:1px solid '+(type==='success'?'#00ff88':'#ff4466')+';border-radius:12px;color:'+(type==='success'?'#00ff88':'#ff4466')+';z-index:1000'
   document.body.append(t)
-  setTimeout(()=>t.remove(),2500)
+  setTimeout(()=>t.remove(),5000)
 }
 
 const updPriceTimer=()=>{
@@ -22,7 +22,16 @@ const updPriceTimer=()=>{
   let t=$('#price-timer')
   if(t)t.textContent=left+'s'
 }
+const updStockTimer=()=>{
+  if(!nextStock)return
+  let now=Math.floor(Date.now()/1000)+serverOffset
+  let left=Math.max(0,nextStock-now)
+  let m=Math.floor(left/60),s=left%60
+  let t=$('#stock-timer')
+  if(t){t.textContent=m+':'+(s<10?'0':'')+s;t.classList.toggle('urgent',left<30)}
+}
 setInterval(updPriceTimer,200)
+setInterval(updStockTimer,1000)
 
 const draw=(c,arr)=>{
   let rect=c.getBoundingClientRect()
@@ -187,6 +196,7 @@ const fetchData=async()=>{
     let st=await s.json()
     balance=st.balance
     nextPrice=st.next_price
+    nextStock=st.next_stock
     serverOffset=st.server_time-Math.floor(Date.now()/1000)
     $('#bal').textContent=money(st.balance)
   }
@@ -228,7 +238,7 @@ const updBadge=async()=>{
     }
   }
 }
-const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
+const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach((x,i)=>setTimeout(()=>toast(x.message,'info'),i*5500))}}
 const fetchAnn=async()=>{let r=await fetch('/api/announcements');if(r.ok){let a=await r.json(),bar=document.getElementById('announcement-bar');if(bar){if(a.length){bar.innerHTML=a.map(x=>`<div class="announcement"><span class="ann-icon">📢</span><span class="ann-text">${x.message}</span></div>`).join('');bar.classList.add('show');document.body.classList.add('has-announcement')}else{bar.classList.remove('show');document.body.classList.remove('has-announcement')}}}}
 const checkHanging=async()=>{let r=await fetch('/api/hanging');if(r.ok){let h=await r.json();if(h.active&&!location.pathname.includes('/hanging')){location.href='/hanging/'+h.victim}}}
 updBadge()

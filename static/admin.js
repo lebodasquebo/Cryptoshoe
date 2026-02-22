@@ -6,16 +6,28 @@ const loadUsers=async()=>{
     let r=await fetch('/api/admin/users')
     if(r.ok){
         let users=await r.json()
-        $('#users-list').innerHTML=users.map(u=>`
-            <div class="admin-user">
+        $('#users-list').innerHTML=users.map(u=>{
+            let banTag=''
+            if(u.ban_active){
+                let rem=u.ban_remaining
+                let timeStr
+                if(rem>86400)timeStr=Math.floor(rem/86400)+'d '+Math.floor((rem%86400)/3600)+'h'
+                else if(rem>3600)timeStr=Math.floor(rem/3600)+'h '+Math.floor((rem%3600)/60)+'m'
+                else timeStr=Math.floor(rem/60)+'m '+rem%60+'s'
+                let reasonStr=u.ban_reason?' — '+u.ban_reason:''
+                banTag=`<div class="admin-user-ban">⛔ Banned: ${timeStr} left${reasonStr}</div>`
+            }
+            return `
+            <div class="admin-user${u.ban_active?' banned':''}">
                 <span class="admin-user-name">${u.username}</span>
                 <div class="admin-user-stats">
                     <span class="admin-user-stat">💰 $${u.balance.toFixed(0)}</span>
                     <span class="admin-user-stat">👟 ${u.shoes}</span>
                     <span class="admin-user-stat">⭐ ${u.appraised}</span>
                 </div>
-            </div>
-        `).join('')
+                ${banTag}
+            </div>`
+        }).join('')
     }
 }
 
@@ -349,3 +361,4 @@ loadShoes()
 fetchBalance()
 checkCourtStatus()
 setInterval(checkCourtStatus,5000)
+setInterval(loadUsers,15000)

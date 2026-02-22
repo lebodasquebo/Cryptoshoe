@@ -79,7 +79,7 @@ const holdCard=(m,i)=>{
   return d
 }
 
-const toast=(msg,type='success')=>{let t=$('#toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),2500)}
+const toast=(msg,type='success')=>{let t=$('#toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),5000)}
 
 const act=async(type,id,qty)=>{
   let r=await fetch('/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,qty:parseInt(qty)})})
@@ -134,9 +134,10 @@ $('#btn-details').onclick=()=>{if(sel!==null)location.href='/shoe/'+sel}
 $('#qty-dec').onclick=()=>{let q=$('#s-qty');q.value=Math.max(1,parseInt(q.value)-1)}
 $('#qty-inc').onclick=()=>{let q=$('#s-qty');q.value=Math.min(parseInt(q.max)||99,parseInt(q.value)+1)}
 $('#qty-max').onclick=()=>{let q=$('#s-qty');q.value=q.max||1}
+if($('#sidebar-close'))$('#sidebar-close').onclick=()=>{sel=null;$('#sidebar-empty').classList.remove('hidden');$('#sidebar-content').classList.add('hidden');$$('.card').forEach(c=>c.classList.remove('active'))}
 
 const updBadge=async()=>{let r=await fetch('/api/trade-count');if(r.ok){let j=await r.json(),b=$('#trade-badge');if(j.count>0){b.textContent=j.count;b.classList.remove('hidden')}else{b.classList.add('hidden')}}}
-const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach(x=>toast(x.message,'info'))}}
+const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let n=await r.json();n.forEach((x,i)=>setTimeout(()=>toast(x.message,'info'),i*5500))}}
 const fetchAnn=async()=>{let r=await fetch('/api/announcements');if(r.ok){let a=await r.json(),bar=$('#announcement-bar');if(bar){if(a.length){bar.innerHTML=a.map(x=>`<div class="announcement"><span class="ann-icon">📢</span><span class="ann-text">${x.message}</span></div>`).join('');bar.classList.add('show');document.body.classList.add('has-announcement')}else{bar.classList.remove('show');document.body.classList.remove('has-announcement')}}}}
 const checkHanging=async()=>{let r=await fetch('/api/hanging');if(r.ok){let h=await r.json();if(h.active&&!location.pathname.includes('/hanging')){location.href='/hanging/'+h.victim}}}
 

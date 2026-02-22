@@ -149,6 +149,10 @@
             <span class="info-label">⏱ Price Update</span>
             <span class="info-val timer-val" id="price-timer">--</span>
           </div>
+          <div class="info-row">
+            <span class="info-label">🔄 Stock Refresh</span>
+            <span class="info-val timer-val" id="stock-timer">--:--</span>
+          </div>
         </div>
         <div class="trade-section" id="trade-section">
           <h3 class="info-title">QUICK TRADE</h3>
@@ -198,6 +202,7 @@
     </div>
   </div>
   <script>window.SHOE_ID={{ shoe_id }};window.IS_ADMIN={{ 'true' if is_admin else 'false' }};</script>
+  <script src="/static/ban-check.js?v=1"></script>
   <script src="/static/details.js"></script>
 </body>
 </html>
