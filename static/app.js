@@ -179,7 +179,7 @@ setInterval(fetchState,3000)
 
 $('#btn-buy').onclick=()=>{if(sel!==null){if(selType==='limited')actLimited('buy-limited',sel,$('#s-qty').value);else act('buy',sel,$('#s-qty').value)}}
 $('#btn-sell').onclick=()=>{if(sel!==null&&selType!=='limited')act('sell',sel,$('#s-qty').value)}
-$('#btn-details').onclick=()=>{if(sel!==null&&selType!=='limited')location.href='/shoe/'+sel}
+$('#btn-details').onclick=()=>{if(sel!==null){if(selType==='limited')location.href='/limited/'+sel;else location.href='/shoe/'+sel}}
 $('#qty-dec').onclick=()=>{let q=$('#s-qty');q.value=Math.max(1,parseInt(q.value)-1)}
 $('#qty-inc').onclick=()=>{let q=$('#s-qty');q.value=Math.min(parseInt(q.max)||99,parseInt(q.value)+1)}
 $('#qty-max').onclick=()=>{let q=$('#s-qty');q.value=q.max||1}

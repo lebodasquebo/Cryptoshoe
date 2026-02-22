@@ -1006,7 +1006,13 @@ def inventory():
 @login_required
 def shoe_page(shoe_id):
     uid()
-    return render_template("details.html", shoe_id=shoe_id, is_admin=is_admin())
+    return render_template("details.html", shoe_id=shoe_id, is_limited=False, is_admin=is_admin())
+
+@app.route("/limited/<int:ltd_id>")
+@login_required
+def limited_page(ltd_id):
+    uid()
+    return render_template("details.html", shoe_id=ltd_id, is_limited=True, is_admin=is_admin())
 
 @app.route("/api/state")
 @login_required
@@ -1045,6 +1051,38 @@ def api_shoe(shoe_id):
     if not s:
         return jsonify({}), 404
     return jsonify(s)
+
+@app.route("/api/limited/<int:ltd_id>")
+@login_required
+def api_limited(ltd_id):
+    u = uid()
+    refresh()
+    prices()
+    d = db()
+    row = d.execute("select * from limited_market where id=?", (ltd_id,)).fetchone()
+    if not row:
+        return jsonify({}), 404
+    gs = d.execute("select last_stock, last_price from global_state where id=1").fetchone()
+    rows = d.execute("select ts, price from history where shoe_id=? order by ts", (-ltd_id,)).fetchall()
+    sell_price = round(row["price"] * (1 - SELL_FEE), 2)
+    return jsonify({
+        "id": row["id"],
+        "name": row["name"],
+        "rarity": row["rarity"],
+        "base": row["base"],
+        "price": row["price"],
+        "sell_price": sell_price,
+        "stock": row["stock"],
+        "news": [],
+        "trend": 0,
+        "in_market": True,
+        "is_limited": True,
+        "owned": 0,
+        "cost_basis": 0,
+        "history": [dict(r) for r in rows],
+        "next_stock": (gs["last_stock"] if gs else 0) + 300,
+        "next_price": (gs["last_price"] if gs else 0) + 10
+    })
 
 @app.route("/buy", methods=["POST"])
 @login_required

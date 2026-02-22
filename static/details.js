@@ -183,7 +183,8 @@ const render=()=>{
 const buy=async()=>{
   if(!data||!data.in_market||data.stock<1)return
   let qty=parseInt($('#buy-qty').value)||1
-  let r=await fetch('/buy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:data.id,qty})})
+  let url=window.IS_LIMITED?'/buy-limited':'/buy'
+  let r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:data.id,qty})})
   if(r.ok){
     let j=await r.json()
     if(j.ok){toast(`Bought ${qty} shoe(s)!`);fetchData()}
@@ -192,7 +193,7 @@ const buy=async()=>{
 }
 
 const sell=async()=>{
-  if(!data||data.owned<1)return
+  if(!data||data.owned<1||window.IS_LIMITED)return
   let qty=parseInt($('#sell-qty').value)||1
   let r=await fetch('/sell',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:data.id,qty})})
   if(r.ok){
@@ -203,7 +204,8 @@ const sell=async()=>{
 }
 
 const fetchData=async()=>{
-  let r=await fetch('/api/shoe/'+window.SHOE_ID);if(r.ok){
+  let endpoint=window.IS_LIMITED?'/api/limited/'+window.SHOE_ID:'/api/shoe/'+window.SHOE_ID
+  let r=await fetch(endpoint);if(r.ok){
     data=await r.json()
     if(data.next_stock)nextStock=data.next_stock
     if(data.next_price)nextPrice=data.next_price
