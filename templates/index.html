@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=8">
+  <link rel="stylesheet" href="/static/style.css?v=10">
 </head>
 <body>
   <div class="bg-grid"></div>
@@ -168,9 +168,45 @@
       </aside>
     </div>
   </div>
+  
+  <!-- Piñata Event Overlay -->
+  <div id="pinata-overlay" class="pinata-overlay hidden">
+    <div class="pinata-container">
+      <div class="pinata-info">
+        <div class="pinata-title">🪅 PIÑATA EVENT!</div>
+        <div class="pinata-reward">Prize Pool: $<span id="pinata-reward-display">0</span></div>
+        <div class="pinata-progress-wrap">
+          <div class="pinata-progress-bar">
+            <div class="pinata-progress-fill" id="pinata-fill"></div>
+          </div>
+          <div class="pinata-hits-text"><span id="pinata-hits-cur">0</span> / <span id="pinata-hits-max">0</span> hits</div>
+        </div>
+        <div class="pinata-players"><span id="pinata-player-count">0</span> players smashing!</div>
+        <div class="pinata-myhits">Your hits: <span id="pinata-my-hits">0</span></div>
+      </div>
+      <div class="pinata-target" id="pinata-target">
+        <div class="pinata-emoji" id="pinata-emoji">🪅</div>
+        <div class="pinata-click-text">CLICK TO SMASH!</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Wheel of Fortune Overlay -->
+  <div id="wheel-overlay" class="wheel-overlay hidden">
+    <div class="wheel-container">
+      <div class="wheel-title">🎰 WHEEL OF FORTUNE</div>
+      <div class="wheel-target-name">Spinning for: <span id="wheel-target-user">???</span></div>
+      <div class="wheel-canvas-wrap">
+        <div class="wheel-pointer">▼</div>
+        <canvas id="wheel-canvas" width="340" height="340"></canvas>
+      </div>
+      <div id="wheel-result" class="wheel-result hidden"></div>
+    </div>
+  </div>
+  
   <div class="toast" id="toast"></div>
   <script>window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
   <script src="/static/ban-check.js?v=1"></script>
-  <script src="/static/app.js?v=5"></script>
+  <script src="/static/app.js?v=7"></script>
 </body>
 </html>

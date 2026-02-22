@@ -298,9 +298,101 @@ window.wheelOfFortune=async()=>{
     let username=$('#wheel-user').value.trim()
     let r=await fetch('/api/admin/wheel-of-fortune',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})})
     let j=await r.json()
-    if(j.ok){toast('🎰 '+j.msg);loadUsers();$('#wheel-user').value=''}
+    if(j.ok){
+        toast('🎰 '+j.msg)
+        $('#wheel-user').value=''
+        // Show admin wheel overlay
+        let overlay=$('#wheel-overlay')
+        overlay.classList.remove('hidden')
+        $('#wheel-target-user').textContent=j.username
+        $('#wheel-result').classList.add('hidden')
+        let canvas=$('#wheel-canvas')
+        let angle=Math.random()*Math.PI*2
+        _adminDrawWheel(canvas,j.outcomes,angle)
+        setTimeout(()=>{
+            _adminSpinWheel(canvas,j.outcomes,j.outcome_idx,angle,()=>{
+                let out=j.outcomes[j.outcome_idx]
+                let res=$('#wheel-result')
+                res.textContent=out.emoji+' '+out.label
+                res.classList.remove('hidden')
+                fetch('/api/wheel/resolve',{method:'POST'})
+                loadUsers()
+                setTimeout(()=>{overlay.classList.add('hidden')},5000)
+            })
+        },800)
+    }
     else toast(j.error,'error')
 }
+
+// Admin wheel drawing functions
+function _adminDrawWheel(canvas,outcomes,angle){
+    let ctx=canvas.getContext('2d'),cx=canvas.width/2,cy=canvas.height/2,r=cx-10
+    let n=outcomes.length,arc=Math.PI*2/n
+    ctx.clearRect(0,0,canvas.width,canvas.height)
+    for(let i=0;i<n;i++){
+        let a=angle+i*arc
+        ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,a,a+arc);ctx.closePath()
+        ctx.fillStyle=outcomes[i].color;ctx.fill()
+        ctx.strokeStyle='rgba(10,10,15,0.6)';ctx.lineWidth=2;ctx.stroke()
+        ctx.save();ctx.translate(cx,cy);ctx.rotate(a+arc/2)
+        ctx.fillStyle='#fff';ctx.font='bold 13px Orbitron, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle'
+        ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=4
+        ctx.fillText(outcomes[i].emoji,r*0.55,-1)
+        ctx.font='bold 10px Orbitron, sans-serif'
+        ctx.fillText(outcomes[i].label,r*0.55,13)
+        ctx.restore()
+    }
+    ctx.beginPath();ctx.arc(cx,cy,22,0,Math.PI*2);ctx.fillStyle='#1a1a26';ctx.fill()
+    ctx.strokeStyle='#ffd700';ctx.lineWidth=2;ctx.stroke()
+    ctx.fillStyle='#ffd700';ctx.font='16px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🎰',cx,cy)
+}
+function _adminSpinWheel(canvas,outcomes,targetIdx,startAngle,onDone){
+    let n=outcomes.length,arc=Math.PI*2/n
+    let fullSpins=5+Math.random()*3
+    let targetAngle=-(Math.PI/2)-targetIdx*arc-arc/2+(Math.random()-0.5)*arc*0.4
+    let totalRotation=fullSpins*Math.PI*2+targetAngle-startAngle
+    let duration=5000,startTime=performance.now()
+    const easeOut=(t)=>1-Math.pow(1-t,3)
+    const animate=(now)=>{
+        let elapsed=now-startTime,t=Math.min(1,elapsed/duration)
+        let cur=startAngle+totalRotation*easeOut(t)
+        _adminDrawWheel(canvas,outcomes,cur)
+        if(t<1)requestAnimationFrame(animate)
+        else if(onDone)onDone()
+    }
+    requestAnimationFrame(animate)
+}
+
+window.dropPinata=async()=>{
+    let reward=parseInt($('#pinata-reward').value)||0
+    let hits=parseInt($('#pinata-hits').value)||50
+    if(reward<100){toast('Reward must be at least $100','error');return}
+    if(!confirm(`Drop piñata with $${reward.toLocaleString()} reward and ${hits} hits needed?`))return
+    let r=await fetch('/api/admin/pinata',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reward,hits})})
+    let j=await r.json()
+    if(j.ok){toast('🪅 '+j.msg);checkPinataStatus()}
+    else toast(j.error,'error')
+}
+
+window.cancelPinata=async()=>{
+    if(!confirm('Cancel the active piñata?'))return
+    let r=await fetch('/api/admin/pinata/cancel',{method:'POST'})
+    let j=await r.json()
+    if(j.ok){toast(j.msg);checkPinataStatus()}
+    else toast(j.error,'error')
+}
+
+const checkPinataStatus=async()=>{
+    let r=await fetch('/api/pinata')
+    if(r.ok){
+        let s=await r.json(),el=$('#pinata-status')
+        if(s.active){
+            let pct=Math.round(s.hits/s.hits_needed*100)
+            el.innerHTML=`🪅 ACTIVE — ${s.hits}/${s.hits_needed} hits (${pct}%) — ${s.participants} player${s.participants!==1?'s':''} — $${s.reward.toLocaleString()} pool`
+        }else{el.innerHTML='No active piñata'}
+    }
+}
+setInterval(checkPinataStatus,3000)
 
 window.startTrial=async()=>{
     let defendant=$('#court-defendant').value.trim()

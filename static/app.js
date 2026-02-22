@@ -190,15 +190,182 @@ const fetchNotifs=async()=>{let r=await fetch('/api/notifications');if(r.ok){let
 const fetchAnn=async()=>{let r=await fetch('/api/announcements');if(r.ok){let a=await r.json(),bar=$('#announcement-bar');if(bar){if(a.length){bar.innerHTML=a.map(x=>`<div class="announcement"><span class="ann-icon">📢</span><span class="ann-text">${x.message}</span></div>`).join('');bar.classList.add('show');document.body.classList.add('has-announcement')}else{bar.classList.remove('show');document.body.classList.remove('has-announcement')}}}}
 const checkHanging=async()=>{let r=await fetch('/api/hanging');if(r.ok){let h=await r.json();if(h.active&&!location.pathname.includes('/hanging')){location.href='/hanging/'+h.victim}}}
 
+// ─── Piñata Event ─────────────────────────────
+let pinataActive=false,pinataHitting=false
+const confettiEmojis=['🎉','🎊','✨','💰','⭐','🌟','💎','🪅','🎈','🎁']
+
+const spawnConfetti=()=>{
+  for(let i=0;i<30;i++){
+    let c=document.createElement('div')
+    c.className='pinata-confetti'
+    c.textContent=confettiEmojis[Math.floor(Math.random()*confettiEmojis.length)]
+    c.style.left=Math.random()*100+'vw'
+    c.style.top=Math.random()*40+'vh'
+    c.style.animationDelay=Math.random()*0.5+'s'
+    c.style.animationDuration=(1+Math.random()*1.5)+'s'
+    document.body.appendChild(c)
+    setTimeout(()=>c.remove(),2500)
+  }
+}
+
+const checkPinata=async()=>{
+  let r=await fetch('/api/pinata')
+  if(!r.ok)return
+  let p=await r.json()
+  let overlay=$('#pinata-overlay')
+  if(p.active){
+    if(!pinataActive){pinataActive=true;overlay.classList.remove('hidden')}
+    $('#pinata-reward-display').textContent=p.reward.toLocaleString()
+    $('#pinata-hits-cur').textContent=p.hits
+    $('#pinata-hits-max').textContent=p.hits_needed
+    let pct=Math.min(100,Math.round(p.hits/p.hits_needed*100))
+    $('#pinata-fill').style.width=pct+'%'
+    $('#pinata-player-count').textContent=p.participants
+    $('#pinata-my-hits').textContent=p.my_hits
+  }else{
+    if(pinataActive){pinataActive=false;overlay.classList.add('hidden')}
+  }
+}
+
+const hitPinata=async()=>{
+  if(pinataHitting||!pinataActive)return
+  pinataHitting=true
+  let emoji=$('#pinata-emoji')
+  emoji.classList.remove('hit')
+  void emoji.offsetWidth
+  emoji.classList.add('hit')
+  setTimeout(()=>emoji.classList.remove('hit'),300)
+  try{
+    let r=await fetch('/api/pinata/hit',{method:'POST'})
+    if(!r.ok){pinataHitting=false;return}
+    let j=await r.json()
+    if(j.ok){
+      if(j.broken){
+        emoji.classList.add('broken')
+        spawnConfetti()
+        toast('💥 '+j.msg,'info')
+        setTimeout(()=>{
+          pinataActive=false
+          $('#pinata-overlay').classList.add('hidden')
+          emoji.classList.remove('broken')
+        },1500)
+      }else{
+        $('#pinata-hits-cur').textContent=j.hits
+        let pct=Math.min(100,Math.round(j.hits/j.hits_needed*100))
+        $('#pinata-fill').style.width=pct+'%'
+        $('#pinata-my-hits').textContent=j.my_hits
+      }
+    }
+  }catch(e){}
+  setTimeout(()=>{pinataHitting=false},200)
+}
+
+if($('#pinata-target'))$('#pinata-target').onclick=hitPinata
+
+// ─── Wheel of Fortune ─────────────────────────
+let wheelShowing=false,wheelSpinning=false,wheelAngle=0,wheelAnimId=null
+
+const drawWheel=(canvas,outcomes,angle)=>{
+  let ctx=canvas.getContext('2d'),cx=canvas.width/2,cy=canvas.height/2,r=cx-10
+  let n=outcomes.length,arc=Math.PI*2/n
+  ctx.clearRect(0,0,canvas.width,canvas.height)
+  // draw segments
+  for(let i=0;i<n;i++){
+    let a=angle+i*arc
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,a,a+arc);ctx.closePath()
+    ctx.fillStyle=outcomes[i].color;ctx.fill()
+    ctx.strokeStyle='rgba(10,10,15,0.6)';ctx.lineWidth=2;ctx.stroke()
+    // label
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(a+arc/2)
+    ctx.fillStyle='#fff';ctx.font='bold 13px Orbitron, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle'
+    ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=4
+    ctx.fillText(outcomes[i].emoji,r*0.55,-1)
+    ctx.font='bold 10px Orbitron, sans-serif'
+    ctx.fillText(outcomes[i].label,r*0.55,13)
+    ctx.restore()
+  }
+  // center circle
+  ctx.beginPath();ctx.arc(cx,cy,22,0,Math.PI*2);ctx.fillStyle='#1a1a26';ctx.fill()
+  ctx.strokeStyle='var(--yellow)';ctx.lineWidth=2;ctx.stroke()
+  ctx.fillStyle='#ffd700';ctx.font='16px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🎰',cx,cy)
+}
+
+const spinWheelTo=(canvas,outcomes,targetIdx,onDone)=>{
+  if(wheelSpinning)return
+  wheelSpinning=true
+  let n=outcomes.length,arc=Math.PI*2/n
+  // target angle: the winning segment should be at top (pointer is at top = -PI/2 direction)
+  // segment i center is at angle + i*arc + arc/2. We want that to equal -PI/2 (mod 2PI)
+  // so finalAngle = -PI/2 - targetIdx*arc - arc/2 + random full spins
+  let fullSpins=5+Math.random()*3
+  let targetAngle=-(Math.PI/2)-targetIdx*arc-arc/2+(Math.random()-0.5)*arc*0.4
+  let totalRotation=fullSpins*Math.PI*2+targetAngle-wheelAngle
+  let startAngle=wheelAngle
+  let duration=5000,startTime=performance.now()
+  const easeOut=(t)=>{return 1-Math.pow(1-t,3)}
+  const animate=(now)=>{
+    let elapsed=now-startTime
+    let t=Math.min(1,elapsed/duration)
+    wheelAngle=startAngle+totalRotation*easeOut(t)
+    drawWheel(canvas,outcomes,wheelAngle)
+    if(t<1){wheelAnimId=requestAnimationFrame(animate)}
+    else{wheelSpinning=false;if(onDone)onDone()}
+  }
+  wheelAnimId=requestAnimationFrame(animate)
+}
+
+let wheelSeenStart=0
+const checkWheel=async()=>{
+  let r=await fetch('/api/wheel')
+  if(!r.ok)return
+  let w=await r.json()
+  let overlay=$('#wheel-overlay')
+  if(!overlay)return
+  if(w.active){
+    if(!wheelShowing||wheelSeenStart!==w.started){
+      // fresh wheel event
+      wheelShowing=true;wheelSeenStart=w.started
+      overlay.classList.remove('hidden')
+      $('#wheel-target-user').textContent=w.username
+      $('#wheel-result').classList.add('hidden')
+      let canvas=$('#wheel-canvas')
+      wheelAngle=Math.random()*Math.PI*2
+      drawWheel(canvas,w.outcomes,wheelAngle)
+      // start spinning after a brief pause
+      setTimeout(()=>{
+        spinWheelTo(canvas,w.outcomes,w.outcome_idx,()=>{
+          // spin done — show result & resolve
+          let out=w.outcomes[w.outcome_idx]
+          let res=$('#wheel-result')
+          res.textContent=out.emoji+' '+out.label
+          res.classList.remove('hidden')
+          fetch('/api/wheel/resolve',{method:'POST'})
+          // auto-dismiss after 5s
+          setTimeout(()=>{
+            overlay.classList.add('hidden')
+            wheelShowing=false
+          },5000)
+        })
+      },800)
+    }
+  }else{
+    if(wheelShowing&&!wheelSpinning){wheelShowing=false;overlay.classList.add('hidden')}
+  }
+}
+
 fetchState()
 updBadge()
 fetchNotifs()
 fetchAnn()
 checkHanging()
+checkPinata()
+checkWheel()
 setInterval(updBadge,10000)
 setInterval(fetchNotifs,10000)
 setInterval(fetchAnn,5000)
 setInterval(checkHanging,3000)
+setInterval(checkPinata,3000)
+setInterval(checkWheel,2000)
 
 // Tab switching
 $$('.market-tab').forEach(tab=>{

@@ -318,3 +318,45 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
 .limited-card{border:1px solid var(--legendary)!important;box-shadow:0 0 12px rgba(245,158,11,0.15)}
 .limited-card:hover{box-shadow:0 0 24px rgba(245,158,11,0.25)}
 .limited-badge{text-align:center;font-size:10px;font-weight:700;color:var(--legendary);letter-spacing:1px;padding:2px 0;background:rgba(245,158,11,0.08);border-radius:4px;margin-bottom:4px}
+
+/* ─── Piñata Event ───────────────────────────── */
+@keyframes pinataSwing{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+@keyframes pinataShake{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(-8px,4px) rotate(-6deg)}50%{transform:translate(6px,-4px) rotate(4deg)}75%{transform:translate(-4px,6px) rotate(-3deg)}}
+@keyframes pinataExplode{0%{transform:scale(1);opacity:1}50%{transform:scale(1.8);opacity:0.6}100%{transform:scale(3);opacity:0}}
+@keyframes confettiFall{0%{transform:translateY(-20px) rotate(0);opacity:1}100%{transform:translateY(120px) rotate(720deg);opacity:0}}
+@keyframes pinataGlow{0%,100%{box-shadow:0 0 20px rgba(245,158,11,0.3)}50%{box-shadow:0 0 40px rgba(245,158,11,0.6),0 0 60px rgba(255,215,0,0.3)}}
+
+.pinata-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:9000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.pinata-overlay.hidden{display:none}
+.pinata-container{display:flex;flex-direction:column;align-items:center;gap:24px;padding:32px;max-width:400px;width:90%}
+.pinata-info{text-align:center;width:100%}
+.pinata-title{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:800;color:var(--yellow);text-shadow:0 0 20px rgba(255,215,0,0.5);margin-bottom:8px;letter-spacing:2px}
+.pinata-reward{font-size:18px;font-weight:700;color:var(--green);margin-bottom:16px}
+.pinata-progress-wrap{width:100%;margin-bottom:8px}
+.pinata-progress-bar{width:100%;height:20px;background:var(--bg3);border-radius:10px;overflow:hidden;border:1px solid var(--bg4);position:relative}
+.pinata-progress-fill{height:100%;background:linear-gradient(90deg,var(--legendary),var(--yellow),var(--orange));border-radius:10px;transition:width 0.3s ease;position:relative}
+.pinata-progress-fill::after{content:'';position:absolute;top:0;left:0;right:0;height:50%;background:rgba(255,255,255,0.15);border-radius:10px 10px 0 0}
+.pinata-hits-text{text-align:center;font-size:13px;color:var(--text2);margin-top:4px;font-weight:600}
+.pinata-players{font-size:13px;color:var(--accent);margin-top:4px}
+.pinata-myhits{font-size:14px;color:var(--text);font-weight:700;margin-top:4px}
+.pinata-target{display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.pinata-emoji{font-size:100px;animation:pinataSwing 2s ease-in-out infinite;filter:drop-shadow(0 0 20px rgba(245,158,11,0.4));transition:transform 0.1s}
+.pinata-emoji.hit{animation:pinataShake 0.3s ease-in-out}
+.pinata-emoji.broken{animation:pinataExplode 0.6s ease-out forwards}
+.pinata-click-text{font-family:'Orbitron',sans-serif;font-size:14px;color:var(--legendary);letter-spacing:2px;animation:pulse 1.5s ease-in-out infinite}
+.pinata-target:hover .pinata-emoji{filter:drop-shadow(0 0 30px rgba(245,158,11,0.7));transform:scale(1.05)}
+.pinata-target:active .pinata-emoji{transform:scale(0.9)}
+.pinata-confetti{position:fixed;pointer-events:none;font-size:24px;animation:confettiFall 1.5s ease-out forwards;z-index:9001}
+
+/* ─── Wheel of Fortune ───────────────────────── */
+.wheel-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.82);z-index:9000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+.wheel-overlay.hidden{display:none}
+.wheel-container{display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px}
+.wheel-title{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:800;color:var(--yellow);text-shadow:0 0 20px rgba(255,215,0,0.5);letter-spacing:2px}
+.wheel-target-name{font-size:16px;color:var(--text);font-weight:600}
+.wheel-target-name span{color:var(--accent);font-weight:800}
+.wheel-canvas-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+.wheel-pointer{position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:32px;color:var(--yellow);z-index:2;filter:drop-shadow(0 0 6px rgba(255,215,0,0.6));text-shadow:0 2px 4px rgba(0,0,0,0.5)}
+#wheel-canvas{border-radius:50%;box-shadow:0 0 30px rgba(255,215,0,0.2),0 0 60px rgba(0,240,255,0.1);border:3px solid var(--bg4)}
+.wheel-result{font-family:'Orbitron',sans-serif;font-size:22px;font-weight:800;padding:12px 24px;border-radius:var(--radius);background:var(--bg2);border:2px solid var(--yellow);color:var(--yellow);text-shadow:0 0 10px rgba(255,215,0,0.4);animation:slideUp 0.3s ease-out}
+.wheel-result.hidden{display:none}

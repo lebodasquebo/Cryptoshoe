@@ -34,6 +34,22 @@ RATE_LIMITS = {}
 db_path = os.environ.get("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "data.db"))
 booted = False
 
+# Piñata event state (in-memory, ephemeral)
+pinata_state = {"active": False, "reward": 0, "hits_needed": 50, "hits": 0, "participants": {}, "started": 0}
+
+# Wheel of Fortune state (in-memory, ephemeral)
+WHEEL_OUTCOMES = [
+    {"label": "JACKPOT!", "emoji": "💰", "color": "#00ff88"},
+    {"label": "TAX TIME!", "emoji": "💸", "color": "#ff4466"},
+    {"label": "FREE SHOE!", "emoji": "🎁", "color": "#60a5fa"},
+    {"label": "ROBBERY!", "emoji": "💀", "color": "#a855f7"},
+    {"label": "2X BALANCE!", "emoji": "🎲", "color": "#ffd700"},
+    {"label": "NOTHING!", "emoji": "😈", "color": "#68687a"},
+    {"label": "BURN A SHOE!", "emoji": "🔥", "color": "#ff8c00"},
+    {"label": "LUCKY!", "emoji": "✨", "color": "#00ffcc"},
+]
+wheel_state = {"active": False, "username": "", "target_id": "", "outcome_idx": 0, "started": 0, "resolved": False}
+
 def hash_pw(pw):
     return hashlib.sha256((pw + app.secret_key).encode()).hexdigest()
 
@@ -2649,8 +2665,11 @@ def admin_gift_bomb():
 @app.route("/api/admin/wheel-of-fortune", methods=["POST"])
 @login_required
 def admin_wheel_of_fortune():
+    global wheel_state
     if not is_admin():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    if wheel_state["active"]:
+        return jsonify({"ok": False, "error": "A wheel is already spinning!"})
     d = db()
     username = request.json.get("username", "").lower().strip()
     if not username:
@@ -2665,30 +2684,157 @@ def admin_wheel_of_fortune():
         if not acc:
             return jsonify({"ok": False, "error": f"User '{username}' not found"})
         target_id = acc["id"]
-    
-    outcomes = [
-        ("💰 JACKPOT!", lambda: d.execute("update users set balance=balance+50000 where id=?", (target_id,))),
-        ("💸 TAX TIME!", lambda: d.execute("update users set balance=balance*0.5 where id=?", (target_id,))),
-        ("🎁 FREE SHOE!", lambda: (
-            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1", 
-                     (target_id, random.choice(d.execute("select id from shoes").fetchall())["id"]))
-        )),
-        ("💀 ROBBERY!", lambda: d.execute("update users set balance=balance-10000 where id=?", (target_id,))),
-        ("🎲 2X BALANCE!", lambda: d.execute("update users set balance=balance*2 where id=?", (target_id,))),
-        ("😈 NOTHING!", lambda: None),
-        ("🔥 BURN A SHOE!", lambda: (
-            d.execute("delete from hold where user_id=? and rowid = (select rowid from hold where user_id=? limit 1)", (target_id, target_id))
-        )),
-        ("✨ LUCKY!", lambda: d.execute("update users set balance=balance+25000 where id=?", (target_id,))),
-    ]
-    
-    outcome, action = random.choice(outcomes)
-    action()
+    outcome_idx = random.randint(0, len(WHEEL_OUTCOMES) - 1)
+    wheel_state = {
+        "active": True, "username": username, "target_id": target_id,
+        "outcome_idx": outcome_idx, "started": int(time.time()), "resolved": False
+    }
+    return jsonify({"ok": True, "msg": f"Wheel spinning for {username}!", "username": username,
+                    "outcome_idx": outcome_idx, "outcomes": WHEEL_OUTCOMES})
+
+@app.route("/api/wheel")
+@login_required
+def get_wheel():
+    if not wheel_state["active"]:
+        return jsonify({"active": False})
+    return jsonify({
+        "active": True,
+        "username": wheel_state["username"],
+        "outcome_idx": wheel_state["outcome_idx"],
+        "outcomes": WHEEL_OUTCOMES,
+        "resolved": wheel_state["resolved"],
+        "started": wheel_state["started"]
+    })
+
+@app.route("/api/wheel/resolve", methods=["POST"])
+@login_required
+def resolve_wheel():
+    global wheel_state
+    if not wheel_state["active"]:
+        return jsonify({"ok": False, "error": "No active wheel"})
+    if wheel_state["resolved"]:
+        return jsonify({"ok": True, "already": True})
+    wheel_state["resolved"] = True
+    d = db()
+    target_id = wheel_state["target_id"]
+    idx = wheel_state["outcome_idx"]
+    outcome = WHEEL_OUTCOMES[idx]
+    label = outcome["emoji"] + " " + outcome["label"]
+    # Apply the outcome
+    if idx == 0:  # JACKPOT
+        d.execute("update users set balance=balance+50000 where id=?", (target_id,))
+    elif idx == 1:  # TAX
+        d.execute("update users set balance=balance*0.5 where id=?", (target_id,))
+    elif idx == 2:  # FREE SHOE
+        shoes = d.execute("select id from shoes").fetchall()
+        if shoes:
+            d.execute("insert into hold(user_id, shoe_id, qty) values(?,?,1) on conflict(user_id, shoe_id) do update set qty=qty+1",
+                     (target_id, random.choice(shoes)["id"]))
+    elif idx == 3:  # ROBBERY
+        d.execute("update users set balance=balance-10000 where id=?", (target_id,))
+    elif idx == 4:  # 2X BALANCE
+        d.execute("update users set balance=balance*2 where id=?", (target_id,))
+    elif idx == 5:  # NOTHING
+        pass
+    elif idx == 6:  # BURN A SHOE
+        d.execute("delete from hold where user_id=? and rowid = (select rowid from hold where user_id=? limit 1)", (target_id, target_id))
+    elif idx == 7:  # LUCKY
+        d.execute("update users set balance=balance+25000 where id=?", (target_id,))
     now = int(time.time())
-    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)", 
-             (target_id, f"🎰 WHEEL OF FORTUNE: {outcome}", now))
+    d.execute("insert into notifications(user_id, message, ts) values(?,?,?)",
+             (target_id, f"🎰 WHEEL OF FORTUNE: {label}", now))
     d.commit()
-    return jsonify({"ok": True, "msg": f"{username}: {outcome}", "username": username, "outcome": outcome})
+    # Auto-clear after a short delay
+    import threading
+    def _clear():
+        global wheel_state
+        wheel_state = {"active": False, "username": "", "target_id": "", "outcome_idx": 0, "started": 0, "resolved": False}
+    threading.Timer(10, _clear).start()
+    return jsonify({"ok": True, "label": label})
+
+# ─── Piñata Event ─────────────────────────────────────────
+@app.route("/api/admin/pinata", methods=["POST"])
+@login_required
+def admin_drop_pinata():
+    global pinata_state
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    if pinata_state["active"]:
+        return jsonify({"ok": False, "error": "A piñata is already active!"})
+    reward = int(request.json.get("reward", 0))
+    hits = int(request.json.get("hits", 50))
+    if reward < 100:
+        return jsonify({"ok": False, "error": "Reward must be at least $100"})
+    if hits < 5:
+        return jsonify({"ok": False, "error": "Hits must be at least 5"})
+    pinata_state = {
+        "active": True, "reward": reward, "hits_needed": hits,
+        "hits": 0, "participants": {}, "started": int(time.time())
+    }
+    return jsonify({"ok": True, "msg": f"🪅 Piñata dropped! ${reward:,} reward, {hits} hits to break!"})
+
+@app.route("/api/pinata", methods=["GET"])
+@login_required
+def get_pinata():
+    if not pinata_state["active"]:
+        return jsonify({"active": False})
+    u = session.get("username", "")
+    my_hits = pinata_state["participants"].get(u, 0)
+    return jsonify({
+        "active": True,
+        "hits": pinata_state["hits"],
+        "hits_needed": pinata_state["hits_needed"],
+        "reward": pinata_state["reward"],
+        "my_hits": my_hits,
+        "participants": len(pinata_state["participants"])
+    })
+
+@app.route("/api/pinata/hit", methods=["POST"])
+@login_required
+def hit_pinata():
+    global pinata_state
+    if not pinata_state["active"]:
+        return jsonify({"ok": False, "error": "No active piñata"})
+    u = session.get("username", "")
+    uid_val = session.get("user_id")
+    pinata_state["hits"] += 1
+    pinata_state["participants"][u] = pinata_state["participants"].get(u, 0) + 1
+    # Check if broken
+    if pinata_state["hits"] >= pinata_state["hits_needed"]:
+        d = db()
+        now = int(time.time())
+        total_hits = sum(pinata_state["participants"].values())
+        reward_pool = pinata_state["reward"]
+        for pname, phits in pinata_state["participants"].items():
+            share = int(reward_pool * phits / total_hits)
+            if share < 1:
+                share = 1
+            acc = d.execute("select id from accounts where username=?", (pname,)).fetchone()
+            if acc:
+                d.execute("update users set balance=balance+? where id=?", (share, acc["id"]))
+                d.execute("insert into notifications(user_id, message, ts) values(?,?,?)",
+                         (acc["id"], f"🪅 PIÑATA BROKEN! You landed {phits} hit{'s' if phits>1 else ''} and won ${share:,}!", now))
+        d.commit()
+        participant_count = len(pinata_state["participants"])
+        pinata_state = {"active": False, "reward": 0, "hits_needed": 50, "hits": 0, "participants": {}, "started": 0}
+        return jsonify({"ok": True, "broken": True, "msg": f"💥 PIÑATA BROKEN! ${reward_pool:,} split among {participant_count} players!"})
+    return jsonify({
+        "ok": True, "broken": False,
+        "hits": pinata_state["hits"],
+        "hits_needed": pinata_state["hits_needed"],
+        "my_hits": pinata_state["participants"].get(u, 0)
+    })
+
+@app.route("/api/admin/pinata/cancel", methods=["POST"])
+@login_required
+def admin_cancel_pinata():
+    global pinata_state
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    if not pinata_state["active"]:
+        return jsonify({"ok": False, "error": "No active piñata"})
+    pinata_state = {"active": False, "reward": 0, "hits_needed": 50, "hits": 0, "participants": {}, "started": 0}
+    return jsonify({"ok": True, "msg": "Piñata cancelled"})
 
 @app.route("/court")
 @login_required
