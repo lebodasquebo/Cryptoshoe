@@ -183,7 +183,7 @@ def init():
     create table if not exists shoes(id integer primary key, name text unique, rarity text, base real);
     create table if not exists users(id text primary key, balance real);
     create table if not exists global_state(id integer primary key, last_stock integer, last_price integer);
-    create table if not exists market(shoe_id integer primary key, stock integer, price real, base real, news text, news_val real, news_until integer);
+    create table if not exists market(shoe_id integer primary key, stock integer, price real, base real, news text, news_val real, news_until integer, trend real default 0, news2 text default '', news_val2 real default 0, news_until2 integer default 0);
     create table if not exists user_stock(user_id text, shoe_id integer, stock_cycle integer, bought integer, primary key(user_id, shoe_id, stock_cycle));
     create table if not exists hold(user_id text, shoe_id integer, qty integer, cost_basis real default 0, primary key(user_id, shoe_id));
     create table if not exists history(shoe_id integer, ts integer, price real);
@@ -244,6 +244,22 @@ def init():
         pass
     try:
         d.execute("alter table hold add column cost_basis real default 0")
+    except:
+        pass
+    try:
+        d.execute("alter table market add column trend real default 0")
+    except:
+        pass
+    try:
+        d.execute("alter table market add column news2 text default ''")
+    except:
+        pass
+    try:
+        d.execute("alter table market add column news_val2 real default 0")
+    except:
+        pass
+    try:
+        d.execute("alter table market add column news_until2 integer default 0")
     except:
         pass
     d.execute("update shoes set rarity='godly' where rarity='secret'")
@@ -460,7 +476,7 @@ def refresh(force=False):
         price = round(shoe["base"] * (1 + random.uniform(-0.15, 0.15) * vol), 2)
         rows.append((shoe["id"], stock, price, shoe["base"], "", 0.0, 0))
         d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe["id"], now, price))
-    d.executemany("insert into market(shoe_id, stock, price, base, news, news_val, news_until) values(?,?,?,?,?,?,?)", rows)
+    d.executemany("insert into market(shoe_id, stock, price, base, news, news_val, news_until, trend, news2, news_val2, news_until2) values(?,?,?,?,?,?,?,0,'',0,0)", rows)
     d.execute("update global_state set last_stock=? where id=1", (now,))
     d.commit()
 
@@ -555,6 +571,7 @@ def prices():
     last = gs["last_price"] if gs else 0
     if now - last < 10:
         return
+    SELL_FEE = 0.03  # 3% sell spread
     m = d.execute("select m.*, s.rarity from market m join shoes s on s.id=m.shoe_id").fetchall()
     for r in m:
         price = r["price"]
@@ -562,10 +579,18 @@ def prices():
         rarity = r["rarity"]
         vol = VOLATILITY.get(rarity, 1.0)
         diff = (price - base) / base
+        trend = r["trend"] if r["trend"] else 0
+        # Expire news slot 1
         val = r["news_val"]
         if r["news_until"] and r["news_until"] < now:
             d.execute("update market set news='', news_val=0, news_until=0 where shoe_id=?", (r["shoe_id"],))
             val = 0
+        # Expire news slot 2
+        val2 = r["news_val2"] if r["news_val2"] else 0
+        if r["news_until2"] and r["news_until2"] < now:
+            d.execute("update market set news2='', news_val2=0, news_until2=0 where shoe_id=?", (r["shoe_id"],))
+            val2 = 0
+        # News generation - slot 1
         news_chance = 0.12 + (vol - 1) * 0.06
         if not r["news_until"] and random.random() < news_chance:
             text, v = news_pick(rarity)
@@ -573,15 +598,33 @@ def prices():
             duration = random.randint(45, 240) if vol < 2 else random.randint(30, 180)
             d.execute("update market set news=?, news_val=?, news_until=? where shoe_id=?", (text, v, now + duration, r["shoe_id"]))
             val = v
-        up = 0.5 - diff * 0.4 + val * 0.25
+        # News generation - slot 2 (lower chance, only if slot 1 is active)
+        if r["news_until"] and not r["news_until2"] and random.random() < news_chance * 0.3:
+            text2, v2 = news_pick(rarity)
+            v2 *= vol
+            duration2 = random.randint(30, 180) if vol < 2 else random.randint(20, 120)
+            d.execute("update market set news2=?, news_val2=?, news_until2=? where shoe_id=?", (text2, v2, now + duration2, r["shoe_id"]))
+            val2 = v2
+        combined_val = val + val2 * 0.6  # second news has reduced impact
+        # Trend: momentum that slowly builds and decays
+        if price > base:
+            trend += random.uniform(-0.02, 0.04)  # slight upward bias when above base
+        else:
+            trend += random.uniform(-0.04, 0.02)  # slight downward bias when below
+        trend *= 0.92  # decay toward 0
+        trend = clamp(trend, -0.3, 0.3)
+        up = 0.5 - diff * 0.4 + combined_val * 0.25 + trend * 0.3
         up = clamp(up, 0.1, 0.9)
-        delta = base * random.uniform(0.005, 0.035) * vol * (1 + abs(val) * 0.5)
+        delta = base * random.uniform(0.005, 0.035) * vol * (1 + abs(combined_val) * 0.5)
         if random.random() < up:
             price += delta
+            trend += 0.02  # reinforce upward trend
         else:
             price -= delta
+            trend -= 0.02  # reinforce downward trend
+        trend = clamp(trend, -0.3, 0.3)
         price = round(clamp(price, base * 0.15, base * 4), 2)
-        d.execute("update market set price=? where shoe_id=?", (price, r["shoe_id"]))
+        d.execute("update market set price=?, trend=? where shoe_id=?", (price, round(trend, 4), r["shoe_id"]))
         d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (r["shoe_id"], now, price))
     d.execute("delete from history where ts < ?", (now - 86400,))
     d.execute("update global_state set last_price=? where id=1", (now,))
@@ -621,7 +664,8 @@ def state(u):
     next_stock = last_stock + 300
     next_price = last_price + 10
     m_raw = d.execute("""
-    select m.shoe_id id, s.name, s.rarity, m.stock, m.price, m.base, m.news, m.news_until
+    select m.shoe_id id, s.name, s.rarity, m.stock, m.price, m.base,
+           m.news, m.news_until, coalesce(m.news2,'') as news2, coalesce(m.trend,0) as trend
     from market m join shoes s on s.id=m.shoe_id
     order by s.rarity, s.name
     """).fetchall()
@@ -631,6 +675,13 @@ def state(u):
     for r in m_raw:
         rd = dict(r)
         rd["stock"] = max(0, rd["stock"] - user_bought.get(rd["id"], 0))
+        news_list = [rd["news"]] if rd["news"] else []
+        if rd["news2"]:
+            news_list.append(rd["news2"])
+        rd["news"] = news_list
+        rd["sell_price"] = round(rd["price"] * (1 - SELL_FEE), 2)
+        rd["trend"] = round(rd["trend"], 2)
+        del rd["news2"]
         m.append(rd)
     h = d.execute("""
     select h.shoe_id id, s.name, s.rarity, s.base, h.qty, coalesce(h.cost_basis, 0) as cost_basis
@@ -649,7 +700,7 @@ def state(u):
         hr["appraised"] = False
         if hr["id"] in market_ids:
             mk = next(x for x in m if x["id"] == hr["id"])
-            hr["sell_price"] = mk["price"]
+            hr["sell_price"] = mk["sell_price"]
             hr["in_market"] = True
         else:
             hr["sell_price"] = get_sell_price(hr["id"])
@@ -684,30 +735,38 @@ def shoe_state(u, shoe_id):
     shoe = d.execute("select id, name, rarity, base from shoes where id=?", (shoe_id,)).fetchone()
     if not shoe:
         return None
-    m = d.execute("select price, stock, news from market where shoe_id=?", (shoe_id,)).fetchone()
+    m = d.execute("select price, stock, news, coalesce(news2,'') as news2, coalesce(trend,0) as trend from market where shoe_id=?", (shoe_id,)).fetchone()
     in_market = m is not None
     if m:
         price = m["price"]
         stock = m["stock"]
-        news = m["news"]
+        news_list = [m["news"]] if m["news"] else []
+        if m["news2"]:
+            news_list.append(m["news2"])
+        news = news_list
+        shoe_trend = m["trend"]
     else:
         last = d.execute("select price from history where shoe_id=? order by ts desc limit 1", (shoe_id,)).fetchone()
         price = last["price"] if last else shoe["base"]
         stock = 0
-        news = ""
+        news = []
+        shoe_trend = 0
     rows = d.execute("select ts, price from history where shoe_id=? order by ts", (shoe_id,)).fetchall()
     hold = d.execute("select qty, coalesce(cost_basis, 0) as cost_basis from hold where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
     owned = hold["qty"] if hold else 0
     cost_basis = hold["cost_basis"] if hold else 0
     gs = d.execute("select last_stock, last_price from global_state where id=1").fetchone()
+    sell_price = round(price * (1 - SELL_FEE), 2) if in_market else round(price * 0.95 * (1 - SELL_FEE), 2)
     return {
         "id": shoe["id"],
         "name": shoe["name"],
         "rarity": shoe["rarity"],
         "base": shoe["base"],
         "price": price,
+        "sell_price": sell_price,
         "stock": stock,
         "news": news,
+        "trend": round(shoe_trend, 2),
         "in_market": in_market,
         "owned": owned,
         "cost_basis": round(cost_basis, 2),
@@ -962,18 +1021,20 @@ def buy():
     d.commit()
     return jsonify({"ok": True})
 
+SELL_FEE = 0.03  # 3% sell spread to prevent buy-wait-sell exploit
+
 def get_sell_price(shoe_id):
     d = db()
     market = d.execute("select price from market where shoe_id=?", (shoe_id,)).fetchone()
     if market:
-        return market["price"]
+        return round(market["price"] * (1 - SELL_FEE), 2)
     shoe = d.execute("select base, rarity from shoes where id=?", (shoe_id,)).fetchone()
     if not shoe:
         return None
     last_price = d.execute("select price from history where shoe_id=? order by ts desc limit 1", (shoe_id,)).fetchone()
     if last_price:
-        return last_price["price"] * 0.95
-    return shoe["base"] * 0.9
+        return round(last_price["price"] * 0.95 * (1 - SELL_FEE), 2)
+    return round(shoe["base"] * 0.9, 2)
 
 @app.route("/sell", methods=["POST"])
 @login_required

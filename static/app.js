@@ -98,7 +98,13 @@ const updSidebar=()=>{
   let p=pct(i.price,i.base);$('#s-pct-wrap').className='price-change '+(p>=0?'up':'down');$('#s-pct').textContent=(p>=0?'+':'')+p.toFixed(2)+'%'
   $('#s-base').textContent='$'+money(i.base);$('#s-stock').textContent=i.stock
   let nw=$('#s-news-wrap'),nt=$('#s-news')
-  if(i.news){nw.classList.remove('no-news');nt.classList.add('active');nt.textContent=i.news}else{nw.classList.add('no-news');nt.classList.remove('active');nt.textContent='No current news'}
+  let newsArr=Array.isArray(i.news)?i.news:i.news?[i.news]:[]
+  if(newsArr.length){nw.classList.remove('no-news');nt.classList.add('active');nt.innerHTML=newsArr.map(n=>'<div class="news-item">📰 '+n+'</div>').join('')}else{nw.classList.add('no-news');nt.classList.remove('active');nt.textContent='No current news'}
+  let pnlEl=$('#s-pnl')
+  if(pnlEl){let h=state.hold.find(x=>parseInt(x.id)===parseInt(sel));if(h&&h.cost_basis>0){let cp=((i.sell_price-h.cost_basis)/h.cost_basis*100);pnlEl.innerHTML=`<span class="pnl-label">P/L from buy:</span> <span class="pnl-val ${cp>=0?'up':'down'}">${cp>=0?'+':''}${cp.toFixed(2)}%</span> <span class="pnl-basis">(avg $${money(h.cost_basis)})</span>`;pnlEl.style.display=''}else{pnlEl.style.display='none'}}
+  let trendEl=$('#s-trend')
+  if(trendEl&&i.trend!==undefined){let t=i.trend;if(Math.abs(t)>0.02){let dir=t>0?'↑ Trending Up':'↓ Trending Down';trendEl.textContent=dir;trendEl.className='trend-indicator '+(t>0?'trend-up':'trend-down');trendEl.style.display=''}else{trendEl.style.display='none'}}
+  let feeNote=$('#s-fee-note');if(feeNote){let h=state.hold.find(x=>parseInt(x.id)===parseInt(sel));feeNote.style.display=h&&h.qty>0?'':'none'}
   $('#s-qty').max=i.stock;$('#s-qty').value=Math.min(parseInt($('#s-qty').value)||1,i.stock||1)
 }
 
@@ -112,7 +118,8 @@ const upd=()=>{
     d.querySelector('.card-price').textContent='$'+money(i.price);d.querySelector('.card-stock').textContent='Stock: '+i.stock
     let p=pct(i.price,i.base),pc=d.querySelector('.card-pct');pc.textContent=(p>=0?'+':'')+p.toFixed(2)+'%';pc.className='card-pct '+(p>=0?'up':'down')
     if(state.hist[i.id])draw(d.querySelector('canvas'),state.hist[i.id])
-    let nw=d.querySelector('.card-news');nw.textContent=i.news?'📰 '+i.news:'No news';nw.className='card-news'+(i.news?' has-news':'')
+    let newsArr=Array.isArray(i.news)?i.news:i.news?[i.news]:[]
+    let nw=d.querySelector('.card-news');nw.innerHTML=newsArr.length?newsArr.map(n=>'📰 '+n).join(' | '):'No news';nw.className='card-news'+(newsArr.length?' has-news':'')
     d.classList.toggle('active',parseInt(i.id)===sel);if(!m.contains(d))m.append(d)
   })
   let ids=state.market.map(x=>parseInt(x.id));[...m.children].forEach(c=>{if(!ids.includes(parseInt(c.dataset.id)))c.remove()})

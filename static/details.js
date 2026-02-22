@@ -94,7 +94,7 @@ const updBuyTotal=()=>{
 const updSellTotal=()=>{
   if(!data)return
   let qty=parseInt($('#sell-qty').value)||1
-  let price=data.in_market?data.price:data.price*0.9
+  let price=data.sell_price||data.price
   $('#sell-total').textContent='$'+money(price*qty)
 }
 
@@ -126,7 +126,8 @@ const updTrade=()=>{
     $('#sell-status').textContent=data.in_market?'':'(-5% off-market)'
     let pnlEl=$('#sell-pnl')
     if(pnlEl&&data.cost_basis>0){
-      let cp=((data.price-data.cost_basis)/data.cost_basis*100)
+      let sellP=data.sell_price||data.price
+      let cp=((sellP-data.cost_basis)/data.cost_basis*100)
       pnlEl.innerHTML=`<span class="pnl-label">P/L from buy:</span> <span class="pnl-val ${cp>=0?'up':'down'}">${cp>=0?'+':''}${cp.toFixed(2)}%</span> <span class="pnl-basis">(avg $${money(data.cost_basis)})</span>`
       pnlEl.style.display=''
     }else if(pnlEl){pnlEl.style.display='none'}
@@ -152,14 +153,17 @@ const render=()=>{
   $('#d-base2').textContent='$'+money(data.base)
   $('#d-stock').textContent=data.stock>0?data.stock:'Out of stock'
   let nc=$('#d-news'),ni=$('#d-impact')
-  if(data.news){
-    nc.innerHTML='<div class="active-news">'+data.news+'</div>'
-    ni.textContent='⚡ This news is actively affecting the price'
+  let newsArr=Array.isArray(data.news)?data.news:data.news?[data.news]:[]
+  if(newsArr.length){
+    nc.innerHTML=newsArr.map(n=>'<div class="active-news">📰 '+n+'</div>').join('')
+    ni.textContent='⚡ News is actively affecting the price'
     ni.classList.add('show')
   }else{
     nc.innerHTML='<div class="no-news">No news affecting this shoe</div>'
     ni.classList.remove('show')
   }
+  let trendEl=$('#d-trend')
+  if(trendEl&&data.trend!==undefined){let t=data.trend;if(Math.abs(t)>0.02){let dir=t>0?'↑ Trending Up':'↓ Trending Down';trendEl.textContent=dir;trendEl.className='trend-indicator '+(t>0?'trend-up':'trend-down');trendEl.style.display=''}else{trendEl.style.display='none'}}
   let now=Math.floor(Date.now()/1000)
   let arr=data.history.filter(x=>x.ts>=now-span).map(x=>x.price)
   draw($('#d-chart'),arr)

@@ -268,9 +268,9 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
   .bal-label{font-size:8px}
   .bal-val{font-size:14px}
   .wrap{padding:12px}
-  body{padding-top:90px}
-  body.has-announcement{padding-top:130px}
-  .announcement-bar{position:fixed;top:90px;left:0;right:0;z-index:40;font-size:12px}
+  body{padding-top:100px}
+  body.has-announcement{padding-top:145px}
+  .announcement-bar{position:fixed;top:100px;left:0;right:0;z-index:40;font-size:12px;overflow:visible}
   .announcement{padding:8px 12px}
   .section-head{flex-direction:column;gap:8px;align-items:flex-start}
   .section-title{font-size:14px}
@@ -301,3 +301,12 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
   .nav-icon{font-size:14px}
   .inv-stats{grid-template-columns:1fr 1fr}
 }
+.trade-pnl{padding:6px 10px;border-radius:var(--radius-sm);background:var(--bg3);font-size:12px;margin-bottom:6px;text-align:center}
+.pnl-label{color:var(--text2)}
+.pnl-val.up{color:var(--green);font-weight:700}
+.pnl-val.down{color:var(--red);font-weight:700}
+.pnl-basis{color:var(--text3);font-size:11px}
+.trend-indicator{padding:6px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:700;text-align:center;margin-bottom:6px}
+.trend-up{background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.2)}
+.trend-down{background:rgba(255,68,102,0.1);color:var(--red);border:1px solid rgba(255,68,102,0.2)}
+.news-item{padding:2px 0}

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=6">
+  <link rel="stylesheet" href="/static/style.css?v=7">
   <link rel="stylesheet" href="/static/details.css?v=4">
 </head>
 <body>
@@ -131,6 +131,7 @@
             <div class="no-news">No news affecting this shoe</div>
           </div>
           <div class="news-impact" id="d-impact"></div>
+          <div class="trend-indicator" id="d-trend" style="display:none"></div>
         </div>
         <div class="info-section">
           <h3 class="info-title">SHOE INFO</h3>
@@ -183,6 +184,7 @@
               <div class="panel-title sell-title">SELL</div>
               <div class="panel-status" id="sell-status"></div>
               <div class="trade-pnl" id="sell-pnl"></div>
+              <div class="sell-fee-note" style="font-size:11px;color:var(--text3);margin-bottom:4px">Sell price includes 3% fee</div>
               <div class="trade-qty-row">
                 <div class="trade-qty-wrap">
                   <button class="qty-btn" id="sell-dec">−</button>
@@ -206,6 +208,6 @@
   </div>
   <script>window.SHOE_ID={{ shoe_id }};window.IS_ADMIN={{ 'true' if is_admin else 'false' }};</script>
   <script src="/static/ban-check.js?v=1"></script>
-  <script src="/static/details.js?v=5"></script>
+  <script src="/static/details.js?v=6"></script>
 </body>
 </html>
