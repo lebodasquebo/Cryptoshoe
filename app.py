@@ -806,7 +806,14 @@ def state(u):
         "limited_hist": limited_hist,
         "next_stock": next_stock,
         "next_price": next_price,
-        "server_time": now
+        "server_time": now,
+        "wheel": {
+            "active": True,
+            "username": wheel_state["username"],
+            "outcome_idx": wheel_state["outcome_idx"],
+            "outcomes": WHEEL_OUTCOMES,
+            "started": wheel_state["started"]
+        } if wheel_state["active"] else None
     }
 
 def shoe_state(u, shoe_id):

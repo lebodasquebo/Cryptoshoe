@@ -174,7 +174,7 @@ const upd=()=>{
 
 let lastHash=''
 const stateHash=(s)=>JSON.stringify([s.balance,s.market.map(m=>[m.id,m.stock,m.price]),s.hold.map(h=>[h.id,h.qty]),s.limited?(s.limited.map(l=>[l.id,l.stock,l.price])):[]])
-const fetchState=async()=>{let r=await fetch('/api/state');if(r.ok){let ns=await r.json();serverOffset=ns.server_time-Math.floor(Date.now()/1000);let h=stateHash(ns);let changed=h!==lastHash;state=ns;if(changed){lastHash=h;upd()}updTimer()}}
+const fetchState=async()=>{let r=await fetch('/api/state');if(r.ok){let ns=await r.json();serverOffset=ns.server_time-Math.floor(Date.now()/1000);let h=stateHash(ns);let changed=h!==lastHash;state=ns;if(changed){lastHash=h;upd()}updTimer();if(ns.wheel)handleWheel(ns.wheel)}}
 setInterval(fetchState,3000)
 
 $('#btn-buy').onclick=()=>{if(sel!==null){if(selType==='limited')actLimited('buy-limited',sel,$('#s-qty').value);else act('buy',sel,$('#s-qty').value)}}
@@ -315,14 +315,10 @@ const spinWheelTo=(canvas,outcomes,targetIdx,onDone)=>{
 }
 
 let wheelSeenId=0,wheelBusy=false
-const checkWheel=async()=>{
-  if(wheelSpinning||wheelBusy)return
-  let r=await fetch('/api/wheel')
-  if(!r.ok)return
-  let w=await r.json()
+const handleWheel=(w)=>{
   let overlay=$('#wheel-overlay')
   if(!overlay)return
-  if(w.active&&w.started!==wheelSeenId){
+  if(w&&w.active&&w.started!==wheelSeenId&&!wheelBusy&&!wheelSpinning){
     wheelSeenId=w.started
     wheelBusy=true
     wheelShowing=true
@@ -354,13 +350,11 @@ fetchNotifs()
 fetchAnn()
 checkHanging()
 checkPinata()
-checkWheel()
 setInterval(updBadge,10000)
 setInterval(fetchNotifs,10000)
 setInterval(fetchAnn,5000)
 setInterval(checkHanging,3000)
 setInterval(checkPinata,3000)
-setInterval(checkWheel,2000)
 
 // Tab switching
 $$('.market-tab').forEach(tab=>{
