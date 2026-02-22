@@ -69,10 +69,10 @@ const fetchPot = async () => {
       }
       currentAngle += segmentSize
     }
-    let pad = Math.min((segEnd - segStart) * 0.15, 10)
-    let landAngle = segStart + pad + Math.random() * (segEnd - segStart - pad * 2)
-    let extraSpins = (4 + Math.floor(Math.random() * 3)) * 360
-    let totalRotation = extraSpins + landAngle
+    let midAngle = (segStart + segEnd) / 2
+    let finalAngle = 360 - midAngle
+    let extraSpins = 5 * 360
+    let totalRotation = extraSpins + finalAngle
     wheel.style.transition = 'none'
     wheel.style.transform = 'rotate(0deg)'
     setTimeout(() => {

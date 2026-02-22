@@ -225,8 +225,8 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
   .sidebar-inner{border-radius:var(--radius) var(--radius) 0 0}
   .sidebar-empty{padding:20px;font-size:12px}
   .sidebar-empty-icon{font-size:24px;margin-bottom:8px}
-  .sidebar-close{display:flex;align-items:center;justify-content:center;position:absolute;top:8px;right:12px;width:32px;height:32px;background:var(--bg4);border:1px solid var(--bg4);border-radius:50%;color:var(--text);font-size:20px;cursor:pointer;z-index:10;line-height:1;transition:all 0.2s}
-  .sidebar-close:hover{background:var(--bg3);border-color:var(--text3);color:var(--text)}
+  .sidebar-close{display:flex;align-items:center;justify-content:center;position:absolute;top:8px;right:12px;width:32px;height:32px;background:transparent;border:2px solid var(--text3);border-radius:50%;color:var(--text3);font-size:18px;cursor:pointer;z-index:10;line-height:1;transition:all 0.2s}
+  .sidebar-close:hover{border-color:var(--text);color:var(--text)}
 }
 .nav-link{position:relative}
 .nav-badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;background:var(--red);color:#fff;border-radius:10px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;animation:badge-pulse 1.5s ease-in-out infinite;box-shadow:0 0 8px rgba(255,68,102,0.6)}
@@ -263,7 +263,7 @@ body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);mi
   .wrap{padding:12px}
   body{padding-top:90px}
   body.has-announcement{padding-top:90px}
-  .announcement-bar{position:static;z-index:40;font-size:12px}
+  .announcement-bar{position:static;z-index:40;font-size:12px;margin-top:-4px}
   .announcement{padding:8px 12px}
   .section-head{flex-direction:column;gap:8px;align-items:flex-start}
   .section-title{font-size:14px}
