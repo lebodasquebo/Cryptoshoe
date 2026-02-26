@@ -470,6 +470,14 @@ window.deleteLimited=async(id)=>{
     else toast(j.error,'error')
 }
 
+window.clearAllLimited=async()=>{
+    if(!confirm('Clear ALL limited shoes from market AND remove them from the database? This will also remove holdings/appraisals of limited shoes.'))return
+    let r=await fetch('/api/admin/limited/clear-all',{method:'POST',headers:{'Content-Type':'application/json'}})
+    let j=await r.json()
+    if(j.ok){toast(j.msg);loadLimited()}
+    else toast(j.error,'error')
+}
+
 const loadLimited=async()=>{
     let r=await fetch('/api/admin/limited')
     if(r.ok){

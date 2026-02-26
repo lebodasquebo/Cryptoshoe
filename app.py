@@ -2193,6 +2193,29 @@ def admin_delete_limited():
     d.commit()
     return jsonify({"ok": True, "name": row["name"]})
 
+@app.route("/api/admin/limited/clear-all", methods=["POST"])
+@login_required
+def admin_clear_all_limited():
+    if not is_admin():
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    d = db()
+    # Remove from limited_market
+    ltd_count = d.execute("select count(*) c from limited_market").fetchone()["c"]
+    d.execute("delete from limited_market")
+    # Remove limited shoes from shoes table + their holdings/appraisals
+    ltd_shoes = d.execute("select id from shoes where is_limited=1").fetchall()
+    ltd_ids = [r["id"] for r in ltd_shoes]
+    shoe_count = len(ltd_ids)
+    for sid in ltd_ids:
+        d.execute("delete from hold where shoe_id=?", (sid,))
+        d.execute("delete from appraised where shoe_id=?", (sid,))
+        d.execute("delete from history where shoe_id=?", (sid,))
+        d.execute("delete from shoe_index where shoe_id=?", (sid,))
+        d.execute("delete from favorites where shoe_id=?", (sid,))
+    d.execute("delete from shoes where is_limited=1")
+    d.commit()
+    return jsonify({"ok": True, "msg": f"Cleared {ltd_count} from market + {shoe_count} limited shoes from database"})
+
 @app.route("/api/admin/ban", methods=["POST"])
 @login_required
 def admin_ban():
