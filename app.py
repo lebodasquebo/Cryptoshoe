@@ -1171,12 +1171,10 @@ def buy_limited():
         shoe_id = d.execute("select id from shoes where name=?", (row["name"],)).fetchone()["id"]
     else:
         shoe_id = shoe["id"]
-    # Update stock, remove if sold out
+        d.execute("update shoes set is_limited=1 where id=? and is_limited=0", (shoe_id,))
+    # Update stock
     new_stock = row["stock"] - qty
-    if new_stock <= 0:
-        d.execute("delete from limited_market where id=?", (ltd_id,))
-    else:
-        d.execute("update limited_market set stock=? where id=?", (new_stock, ltd_id))
+    d.execute("update limited_market set stock=? where id=?", (max(0, new_stock), ltd_id))
     # Add to hold
     existing_hold = d.execute("select qty, cost_basis from hold where user_id=? and shoe_id=?", (u, shoe_id)).fetchone()
     if existing_hold:
@@ -2201,10 +2199,14 @@ def admin_clear_all_limited():
     if not is_admin():
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
     d = db()
-    # Remove from limited_market
-    ltd_count = d.execute("select count(*) c from limited_market").fetchone()["c"]
+    # Collect limited names before deleting
+    ltd_names = [r["name"] for r in d.execute("select name from limited_market").fetchall()]
+    ltd_count = len(ltd_names)
     d.execute("delete from limited_market")
-    # Remove limited shoes from shoes table + their holdings/appraisals
+    # Flag any shoes matching limited names that weren't already flagged
+    for name in ltd_names:
+        d.execute("update shoes set is_limited=1 where name=? and is_limited=0", (name,))
+    # Remove ALL limited shoes from shoes table + their holdings/appraisals
     ltd_shoes = d.execute("select id from shoes where is_limited=1").fetchall()
     ltd_ids = [r["id"] for r in ltd_shoes]
     shoe_count = len(ltd_ids)
