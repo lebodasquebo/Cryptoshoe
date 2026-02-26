@@ -284,6 +284,8 @@ def init():
         d.execute("alter table shoes add column is_limited integer default 0")
     except:
         pass
+    # Retroactively flag shoes that came from limited drops
+    d.execute("update shoes set is_limited=1 where name in (select name from limited_market)")
     d.execute("update shoes set rarity='godly' where rarity='secret'")
     d.execute("update shoes set rarity='divine' where rarity='dexies'")
     d.execute("update shoes set rarity='grails' where rarity='lebos'")
