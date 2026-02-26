@@ -196,7 +196,7 @@ def init():
     create table if not exists device_signups(device_id text primary key, last_signup integer);
     create table if not exists banned_ips(ip text primary key, banned_until integer, reason text);
     create table if not exists tx_log(id integer primary key autoincrement, user_id text, action text, amount real, balance_before real, balance_after real, ts integer, ip text);
-    create table if not exists shoes(id integer primary key, name text unique, rarity text, base real);
+    create table if not exists shoes(id integer primary key, name text unique, rarity text, base real, is_limited integer default 0);
     create table if not exists users(id text primary key, balance real);
     create table if not exists global_state(id integer primary key, last_stock integer, last_price integer);
     create table if not exists market(shoe_id integer primary key, stock integer, price real, base real, news text, news_val real, news_until integer, trend real default 0, news2 text default '', news_val2 real default 0, news_until2 integer default 0);
@@ -278,6 +278,10 @@ def init():
         pass
     try:
         d.execute("alter table market add column news_until2 integer default 0")
+    except:
+        pass
+    try:
+        d.execute("alter table shoes add column is_limited integer default 0")
     except:
         pass
     d.execute("update shoes set rarity='godly' where rarity='secret'")
@@ -466,7 +470,7 @@ def refresh(force=False):
     normal_weights = [40,22,14,10,6,4,2]
     while len(rows) < 14:
         rr = normal_rarities[pick(normal_weights)]
-        shoe = d.execute("select * from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()
+        shoe = d.execute("select * from shoes where rarity=? and is_limited=0 order by random() limit 1", (rr,)).fetchone()
         if not shoe or shoe["id"] in picked:
             continue
         picked.add(shoe["id"])
@@ -479,7 +483,7 @@ def refresh(force=False):
         d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe["id"], now, price))
     if random.random() < 0.001:
         rr = "heavenly"
-        shoe = d.execute("select * from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()
+        shoe = d.execute("select * from shoes where rarity=? and is_limited=0 order by random() limit 1", (rr,)).fetchone()
         if shoe and shoe["id"] not in picked:
             picked.add(shoe["id"])
             stock = 1
@@ -489,7 +493,7 @@ def refresh(force=False):
             d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe["id"], now, price))
     if random.random() < 0.01:
         rr = "grails" if random.random() < 0.25 else "divine"
-        shoe = d.execute("select * from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()
+        shoe = d.execute("select * from shoes where rarity=? and is_limited=0 order by random() limit 1", (rr,)).fetchone()
         if shoe and shoe["id"] not in picked:
             picked.add(shoe["id"])
             lo, hi = stock_amt(rr)
@@ -500,7 +504,7 @@ def refresh(force=False):
             d.execute("insert into history(shoe_id, ts, price) values(?,?,?)", (shoe["id"], now, price))
     while len(rows) < 15:
         rr = normal_rarities[pick(normal_weights)]
-        shoe = d.execute("select * from shoes where rarity=? order by random() limit 1", (rr,)).fetchone()
+        shoe = d.execute("select * from shoes where rarity=? and is_limited=0 order by random() limit 1", (rr,)).fetchone()
         if not shoe or shoe["id"] in picked:
             continue
         picked.add(shoe["id"])
@@ -885,9 +889,6 @@ def api_login():
     if is_ip_banned():
         return jsonify({"ok": False, "error": "Access denied from this location"})
     ip = get_client_ip()
-    # Login rate limiting disabled
-    # if is_rate_limited(f"login:{ip}", 20, 300):
-    #     return jsonify({"ok": False, "error": "Too many login attempts. Try again later."})
     data = request.json
     username = data.get("username", "").strip().lower()
     password = data.get("password", "")
@@ -948,9 +949,6 @@ def api_signup():
     if is_bot_request():
         return jsonify({"ok": False, "error": "Access denied"}), 403
     ip = get_client_ip()
-    # Signup rate limiting disabled
-    # if ip != "31.55.145.33" and is_rate_limited(f"signup:{ip}", 3, 3600):
-    #     return jsonify({"ok": False, "error": "Too many signups from your location. Try again later."})
     data = request.json or {}
     if data.get("website") or data.get("email2") or data.get("phone"):
         return jsonify({"ok": False, "error": "Invalid request"})
@@ -1167,7 +1165,7 @@ def buy_limited():
     # Find or create a shoe entry for this limited
     shoe = d.execute("select id from shoes where name=?", (row["name"],)).fetchone()
     if not shoe:
-        d.execute("insert into shoes(name, rarity, base) values(?,?,?)", (row["name"], row["rarity"], row["base"]))
+        d.execute("insert into shoes(name, rarity, base, is_limited) values(?,?,?,1)", (row["name"], row["rarity"], row["base"]))
         shoe_id = d.execute("select id from shoes where name=?", (row["name"],)).fetchone()["id"]
     else:
         shoe_id = shoe["id"]
@@ -3061,7 +3059,7 @@ def api_lootbox():
     if bal < amount:
         return jsonify({"ok": False, "error": f"Not enough balance (need ${amount:,}, have ${bal:,.0f})"})
     target = amount * random.uniform(0.50, 1.45)
-    all_shoes = d.execute("select id, name, rarity, base from shoes").fetchall()
+    all_shoes = d.execute("select id, name, rarity, base from shoes where is_limited=0").fetchall()
     best, best_diff = None, float('inf')
     for s in all_shoes:
         price = get_sell_price(s["id"]) or s["base"]

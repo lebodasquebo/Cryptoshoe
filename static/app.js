@@ -262,7 +262,6 @@ const hitPinata=async()=>{
 
 if($('#pinata-target'))$('#pinata-target').onclick=hitPinata
 
-// ─── Wheel of Fortune ─────────────────────────
 let wheelShowing=false,wheelSpinning=false,wheelAngle=0,wheelAnimId=null,wheelDoneId=0
 
 const drawWheel=(canvas,outcomes,angle)=>{
@@ -291,12 +290,8 @@ const spinWheelTo=(canvas,outcomes,targetIdx,onDone)=>{
   if(wheelSpinning)return
   wheelSpinning=true
   let n=outcomes.length,arc=Math.PI*2/n
-  // Pointer is at top = -PI/2. We want segment targetIdx centered there.
-  // Final wheel angle: segment center at top means angle + targetIdx*arc + arc/2 = -PI/2
   let landAngle=-Math.PI/2-targetIdx*arc-arc/2+(Math.random()-0.5)*arc*0.3
-  // Normalize to [0, 2PI)
   landAngle=((landAngle%(Math.PI*2))+(Math.PI*2))%(Math.PI*2)
-  // Total rotation: 6 full spins + whatever extra to reach landAngle from current
   let extra=landAngle-((wheelAngle%(Math.PI*2))+(Math.PI*2))%(Math.PI*2)
   if(extra<=0)extra+=Math.PI*2
   let totalRotation=6*Math.PI*2+extra
