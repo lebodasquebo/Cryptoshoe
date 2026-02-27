@@ -3085,7 +3085,13 @@ def api_lootbox():
     bal = d.execute("select balance from users where id=?", (u,)).fetchone()["balance"]
     if bal < amount:
         return jsonify({"ok": False, "error": f"Not enough balance (need ${amount:,}, have ${bal:,.0f})"})
-    target = amount * random.uniform(0.50, 1.45)
+    # 55% chance to lose, 45% chance to win (before variants)
+    if random.random() < 0.55:
+        # Loss: value between 0.15x and 0.85x of amount paid
+        target = amount * random.uniform(0.15, 0.85)
+    else:
+        # Win: value between 1.05x and 1.80x of amount paid
+        target = amount * random.uniform(1.05, 1.80)
     all_shoes = d.execute("select id, name, rarity, base from shoes where is_limited=0").fetchall()
     best, best_diff = None, float('inf')
     for s in all_shoes:
