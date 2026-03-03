@@ -362,3 +362,72 @@ $$('.market-tab').forEach(tab=>{
     sel=null;selType=target;$('#sidebar-empty').classList.remove('hidden');$('#sidebar-content').classList.add('hidden');$$('.card').forEach(c=>c.classList.remove('active'))
   }
 })
+
+// ─── Tutorial ─────────────────────────────────
+if(window.SHOW_TUTORIAL){
+const tutSteps=[
+  {icon:'👟',title:'Welcome to Cryptoshoe!',desc:'Cryptoshoe is a <strong>virtual shoe trading market</strong>. Buy low, sell high, and build your fortune. Let\'s walk you through the basics!',tips:[
+    {icon:'💰',text:'You start with $10,000 to invest'},
+    {icon:'📈',text:'Shoe prices change every 10 seconds'},
+    {icon:'🏆',text:'Compete with others to build wealth'}
+  ]},
+  {icon:'🏪',title:'The Market',desc:'The market shows <strong>15 shoes</strong> that refresh every 5 minutes. Each shoe has a <strong>rarity</strong>, <strong>price</strong>, and <strong>stock</strong> count.',tips:[
+    {icon:'🟢',text:'Green trends = price going up'},
+    {icon:'🔴',text:'Red trends = price going down'},
+    {icon:'📰',text:'News events cause big price swings'}
+  ]},
+  {icon:'💸',title:'Buying & Selling',desc:'Click a shoe card to open the sidebar. Use the <strong>Buy</strong> and <strong>Sell</strong> buttons to trade. You earn passive income of <strong>$500/min</strong> just for playing!',tips:[
+    {icon:'📊',text:'Buy when prices dip, sell when they spike'},
+    {icon:'💵',text:'There\'s a small 3% sell fee on all sales'},
+    {icon:'🎯',text:'Use the quantity buttons to buy/sell multiple'}
+  ]},
+  {icon:'⭐',title:'Shoe Rarities',desc:'Shoes come in <strong>10 rarity tiers</strong>. Higher rarity = higher base price and more volatility!',tips:[
+    {icon:'⬜',text:'Common → Uncommon → Rare → Epic'},
+    {icon:'🟡',text:'Legendary → Mythic → Godly'},
+    {icon:'💎',text:'Divine → Grails → Heavenly (rarest!)'}
+  ]},
+  {icon:'🎰',title:'Lootboxes & Gambling',desc:'Head to the <strong>Gambling</strong> page to open lootboxes! Spend cash for a <strong>random appraised shoe</strong>. Careful — it\'s risky!',tips:[
+    {icon:'📦',text:'Lootboxes cost $2,500 – $150,000'},
+    {icon:'🎲',text:'55% chance to lose, 45% chance to win'},
+    {icon:'✨',text:'Rare Shiny & Rainbow variants give bonus value!'}
+  ]},
+  {icon:'🔍',title:'Appraisals & Inventory',desc:'Appraised shoes in your <strong>Inventory</strong> have a quality rating (1.0–9.9) that affects their multiplier and value. You can sell them for cash!',tips:[
+    {icon:'📋',text:'Visit /inventory to manage your collection'},
+    {icon:'🏷️',text:'Higher rating = higher sell value'},
+    {icon:'🤝',text:'Trade appraised shoes with other players'}
+  ]},
+  {icon:'🤝',title:'Trading',desc:'Use the <strong>Trade</strong> system to send offers to other players. Swap shoes, cash, or both!',tips:[
+    {icon:'📨',text:'Create trades from the Users page'},
+    {icon:'🔔',text:'You\'ll get notified when someone sends you a trade'},
+    {icon:'✅',text:'Both sides must agree for the trade to complete'}
+  ]},
+  {icon:'🚀',title:'You\'re Ready!',desc:'That\'s everything you need to get started. <strong>Buy smart, sell high</strong>, and climb the leaderboard. Good luck!',tips:[
+    {icon:'💡',text:'Check the Users page to see the leaderboard'},
+    {icon:'💬',text:'Use Global Chat to talk with other traders'},
+    {icon:'⚖️',text:'Watch out for Court sessions — you could be on trial!'}
+  ]}
+]
+let tutStep=0
+const tutRender=()=>{
+  let s=tutSteps[tutStep],dots=$('#tut-dots'),content=$('#tut-content'),buttons=$('#tut-buttons')
+  dots.innerHTML=tutSteps.map((_,i)=>`<div class="tutorial-dot ${i<tutStep?'done':''} ${i===tutStep?'active':''}"></div>`).join('')
+  content.innerHTML=`<div class="tutorial-icon">${s.icon}</div><h3 class="tutorial-title">${s.title}</h3><p class="tutorial-desc">${s.desc}</p><div class="tutorial-tips">${s.tips.map(t=>`<div class="tutorial-tip"><span class="tip-icon">${t.icon}</span><span>${t.text}</span></div>`).join('')}</div>`
+  let btns=''
+  if(tutStep>0)btns+=`<button class="tutorial-btn secondary" onclick="tutPrev()">Back</button>`
+  if(tutStep<tutSteps.length-1){
+    btns+=`<button class="tutorial-btn primary" onclick="tutNext()">Next →</button>`
+    btns+=`<button class="tutorial-btn skip" onclick="tutDone()">Skip</button>`
+  }else{
+    btns+=`<button class="tutorial-btn primary" onclick="tutDone()">Let's Go! 🚀</button>`
+  }
+  buttons.innerHTML=btns
+}
+window.tutNext=()=>{if(tutStep<tutSteps.length-1){tutStep++;tutRender()}}
+window.tutPrev=()=>{if(tutStep>0){tutStep--;tutRender()}}
+window.tutDone=()=>{
+  $('#tutorial-overlay').classList.add('hidden')
+  fetch('/api/tutorial-complete',{method:'POST',headers:{'Content-Type':'application/json'}})
+}
+$('#tutorial-overlay').classList.remove('hidden')
+tutRender()
+}

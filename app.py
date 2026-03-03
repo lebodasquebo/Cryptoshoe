@@ -253,6 +253,10 @@ def init():
     except:
         pass
     try:
+        d.execute("alter table accounts add column tutorial_seen integer default 0")
+    except:
+        pass
+    try:
         d.execute("alter table appraised add column variant text default ''")
     except:
         pass
@@ -1008,17 +1012,26 @@ def logout():
     session.clear()
     return redirect(url_for("login_page"))
 
+@app.route("/api/tutorial-complete", methods=["POST"])
+@login_required
+def tutorial_complete():
+    d = db()
+    d.execute("update accounts set tutorial_seen=1 where id=?", (session["user_id"],))
+    d.commit()
+    return jsonify({"ok": True})
+
 @app.route("/")
 def home():
     if "user_id" not in session:
         return render_template("landing.html")
     d = db()
-    acc = d.execute("select id from accounts where id=?", (session["user_id"],)).fetchone()
+    acc = d.execute("select id, coalesce(tutorial_seen,0) as tutorial_seen from accounts where id=?", (session["user_id"],)).fetchone()
     if not acc:
         session.clear()
         return render_template("landing.html")
     uid()
-    return render_template("index.html", is_admin=is_admin())
+    show_tutorial = not acc["tutorial_seen"]
+    return render_template("index.html", is_admin=is_admin(), show_tutorial=show_tutorial)
 
 @app.route("/inventory")
 @login_required
