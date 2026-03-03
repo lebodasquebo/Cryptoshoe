@@ -253,7 +253,8 @@ def init():
     except:
         pass
     try:
-        d.execute("alter table accounts add column tutorial_seen integer default 0")
+        d.execute("alter table accounts add column tutorial_seen integer default 1")
+        d.execute("update accounts set tutorial_seen=1")
     except:
         pass
     try:
@@ -996,7 +997,7 @@ def api_signup():
     if existing:
         return jsonify({"ok": False, "error": "Username already taken"})
     user_id = uuid.uuid4().hex
-    d.execute("insert into accounts(id, username, password, created) values(?,?,?,?)", 
+    d.execute("insert into accounts(id, username, password, created, tutorial_seen) values(?,?,?,?,0)", 
               (user_id, username, hash_pw(password), now))
     d.execute("insert into users(id, balance, last_income) values(?,?,?)", 
               (user_id, 10000, 0))
